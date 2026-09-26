@@ -10,6 +10,7 @@ import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
 import { amphora, bob, cypress, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
+import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
 
 interface Interactable {
   x: number;
@@ -19,12 +20,6 @@ interface Interactable {
   label: string;
 }
 
-interface Box {
-  minX: number;
-  maxX: number;
-  minZ: number;
-  maxZ: number;
-}
 
 const SPEED = 5.5;
 const PLAYER_RADIUS = 0.4;
@@ -71,6 +66,11 @@ export class TownStage implements Stage {
   private cloud = new THREE.Group();
   private npcs: Npc[] = [];
   private glaucusX = 0;
+  private torches!: Torches;
+  private boats: THREE.Group[] = [];
+  /** Windows: some have a lamp behind them at night. Emissive, so the dither turns them to bone. */
+  private windowDark = lambert('#24160f');
+  private windowLit = new THREE.MeshLambertMaterial({ color: '#24160f', emissive: '#ffc46a', emissiveIntensity: 0, flatShading: true });
   /** Floats over whatever E would talk to or look at. */
   private marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: '#f4efe4' }));
   private mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.08), new THREE.MeshLambertMaterial({ color: '#f2ead6' }));
@@ -135,6 +135,9 @@ export class TownStage implements Stage {
     this.buildAgora();
     this.buildLandmarks();
     this.buildHouses();
+    buildWalls(s, this.boxes);
+    this.boats = buildHarbour(s);
+    this.torches = new Torches(s, this.boxes);
     this.buildMountain();
   }
 
@@ -316,7 +319,7 @@ export class TownStage implements Stage {
 
   /** A door towards the nearest street, a couple of small high windows, a step. */
   private houseFront(x: number, z: number, w: number, d: number, hgt: number, rand: () => number): void {
-    const dark = lambert('#24160f');
+    const dark = this.windowDark;
     // Which side faces the street: try the four midpoints, keep the one closest to a street.
     const sides = [
       { nx: 0, nz: 1, len: w }, { nx: 0, nz: -1, len: w }, { nx: 1, nz: 0, len: d }, { nx: -1, nz: 0, len: d },
@@ -342,7 +345,7 @@ export class TownStage implements Stage {
     const windows = 1 + Math.floor(rand() * 2);
     for (let i = 0; i < windows; i++) {
       const t = (i - (windows - 1) / 2) * 1.2 + (doorAt > 0 ? -0.9 : 0.9);
-      if (Math.abs(t) < front.len / 2 - 0.3) face(0.34, 0.42, t, hgt - 0.75, dark);
+      if (Math.abs(t) < front.len / 2 - 0.3) face(0.34, 0.42, t, hgt - 0.75, rand() < 0.55 ? this.windowLit : dark);
     }
   }
 
@@ -509,6 +512,14 @@ export class TownStage implements Stage {
     const bg = new THREE.Color('#d9c9a8').lerp(new THREE.Color('#2b211b'), night);
     (this.scene.background as THREE.Color).copy(bg);
     this.scene.fog!.color.copy(bg);
+    // Lamps come on in the windows and the torches are lit as the sun goes.
+    const dusk = THREE.MathUtils.smoothstep(progress, 0.68, 0.8);
+    this.windowLit.emissiveIntensity = dusk * 1.6;
+    this.torches.update(this.time, dusk);
+    for (const [i, boat] of this.boats.entries()) {
+      boat.position.y = (boat.userData.baseY as number) + Math.sin(this.time * 1.3 + i * 2) * 0.06;
+      boat.rotation.z = Math.sin(this.time * 0.9 + i) * 0.03;
+    }
     this.cloud.position.set(-6, THREE.MathUtils.lerp(58, 22, progress), THREE.MathUtils.lerp(-70, -40, progress * progress));
   }
 }
