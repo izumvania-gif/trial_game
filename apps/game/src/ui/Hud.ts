@@ -3,6 +3,7 @@
 import { sundialHour, type DayClock } from '../core/clock.ts';
 import type { Fact } from '../core/knowledge.ts';
 import { h } from './dom.ts';
+import { keyLine } from './keys.ts';
 
 const RING_R = 34;
 const RING_LEN = 2 * Math.PI * RING_R;
@@ -10,7 +11,7 @@ const RING_LEN = 2 * Math.PI * RING_R;
 export class Hud {
   readonly root = h('div', { className: 'hud' });
   private cycleEl = h('div', { className: 'hud-cycle' });
-  private promptEl = h('div', { className: 'hud-prompt' });
+  private promptEl = h('div', { className: 'hud-prompt', hidden: true });
   private toastEl = h('div', { className: 'hud-toast' });
   private chronicleEl = h('aside', { className: 'chronicle', hidden: true });
   private hourEl: SVGTextElement;
@@ -23,6 +24,9 @@ export class Hud {
   private clockEl: HTMLElement;
   private captionEl = h('div', { className: 'caption' });
   private captionTimer = 0;
+  /** Keys for the current place; lives outside the HUD root so it shows where the HUD is hidden. */
+  private controlsEl = h('div', { className: 'controls-bar' });
+  private promptText: string | null = null;
 
   constructor(parent: HTMLElement) {
     const clock = h('div', { className: 'hud-clock' });
@@ -37,7 +41,7 @@ export class Hud {
     this.arcEl = clock.querySelectorAll('circle')[1] as SVGCircleElement;
     this.clockEl = clock;
     this.root.append(this.cycleEl, clock, this.windEl, this.maskEl, this.promptEl, this.toastEl);
-    parent.append(this.root, this.chronicleEl, this.captionEl);
+    parent.append(this.root, this.chronicleEl, this.captionEl, this.controlsEl);
   }
 
   setVisible(visible: boolean): void {
@@ -46,7 +50,7 @@ export class Hud {
 
   setCycle(cycleRun: number | null, localCycle: number): void {
     const run = cycleRun === null ? '····' : String(cycleRun);
-    this.cycleEl.textContent = `CYCLE RUN #${run} · day ${localCycle}`;
+    this.cycleEl.replaceChildren(h('span', {}, `CYCLE RUN #${run}`), h('span', { className: 'hud-day' }, `day ${localCycle}`));
   }
 
   updateClock(clock: DayClock): void {
@@ -56,13 +60,21 @@ export class Hud {
     this.root.classList.toggle('late', clock.progress > 0.85);
   }
 
+  /** "E — Star stele": the key becomes a keycap. Called every frame, so it only redraws on change. */
   prompt(label: string | null): void {
-    this.promptEl.textContent = label ?? '';
+    if (label === this.promptText) return;
+    this.promptText = label;
+    this.promptEl.replaceChildren(...(label ? keyLine(label) : []));
     this.promptEl.hidden = !label;
   }
 
+  setControls(text: string | null): void {
+    this.controlsEl.replaceChildren(...(text ? keyLine(text) : []));
+    this.controlsEl.hidden = !text;
+  }
+
   factLearned(fact: Fact): void {
-    this.toast(`Written in the chronicle: ${fact.text}`);
+    this.toast(fact.text, 'Written in the chronicle');
   }
 
   /** Sound captions stay visible even where the HUD is hidden (the sea, the Desk). */
@@ -73,8 +85,8 @@ export class Hud {
     this.captionTimer = window.setTimeout(() => this.captionEl.classList.remove('show'), 3000);
   }
 
-  toast(text: string): void {
-    this.toastEl.textContent = text;
+  toast(text: string, kicker?: string): void {
+    this.toastEl.replaceChildren(...(kicker ? [h('span', { className: 'toast-kicker' }, kicker)] : []), h('span', {}, text));
     this.toastEl.classList.add('show');
     window.clearTimeout(this.toastTimer);
     this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), 4500);
@@ -83,7 +95,7 @@ export class Hud {
   /** Side panels: the chronicle (C), the Book of Strangers (B). One at a time. */
   togglePanel(id: string, title: string, content: () => (Node | string)[]): void {
     if (this.openPanelId === id) return this.closePanel();
-    this.chronicleEl.replaceChildren(h('h2', {}, title), ...content(), h('p', { className: 'chronicle-hint' }, 'Esc to close'));
+    this.chronicleEl.replaceChildren(h('h2', {}, title), ...content(), h('p', { className: 'chronicle-hint' }, ...keyLine('Esc — close')));
     this.chronicleEl.hidden = false;
     this.openPanelId = id;
   }

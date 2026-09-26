@@ -6,6 +6,7 @@ import { SettingsPanel } from './ui/SettingsPanel.ts';
 import { Game } from './game.ts';
 import { drawSpiral } from './spiral.ts';
 import { mountDebugPanel } from './ui/DebugPanel.ts';
+import { PORTRAIT_IDS, portrait } from './ui/portraits.ts';
 
 const title = document.querySelector<HTMLElement>('#title')!;
 const titleCanvas = document.querySelector<HTMLCanvasElement>('#spiral')!;
@@ -26,6 +27,22 @@ settings.subscribe((s) => {
 const game = new Game(view, overlay, storyJson, settings);
 const titleSettings = new SettingsPanel(document.body, settings);
 document.querySelector('#settings')!.addEventListener('click', () => titleSettings.toggle());
+if (new URLSearchParams(location.search).has('portraits')) {
+  // Development sheet: every portrait, in both palettes, closed and talking.
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:99;overflow:auto;background:#1d1611;display:flex;flex-wrap:wrap;gap:12px;padding:12px';
+  for (const theme of ['vase', 'marble'] as const) {
+    for (const id of PORTRAIT_IDS) {
+      for (const open of [false, true]) {
+        const c = portrait(id, theme, open);
+        c.style.cssText = 'width:216px;height:216px;image-rendering:pixelated';
+        c.title = id;
+        sheet.append(c);
+      }
+    }
+  }
+  document.body.append(sheet);
+}
 if (new URLSearchParams(location.search).has('debug')) {
   mountDebugPanel(game, document.body);
   (window as unknown as { eferon: Game }).eferon = game;

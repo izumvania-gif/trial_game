@@ -1,6 +1,8 @@
 // Renders a scene at low resolution, then quantizes it to the stage palette with ordered
-// (Bayer) dithering — the Obra Dinn half of the look. Anything drawn with alpha 0 is exempt:
-// that is how the sea stays in full color inside dithered stages (see makeSeaMaterial).
+// (Bayer) dithering — the Obra Dinn half of the look. A second pass draws the scene's normals,
+// and edges in depth or normal become lines in the darkest palette color: the incisions of
+// black-figure painting. Anything drawn with alpha 0 is exempt from both: that is how the sea
+// stays in full color inside dithered stages (see makeSeaMaterial).
 import * as THREE from 'three';
 import { MAX_PALETTE, PALETTES, type Palette, type PaletteId } from './palettes.ts';
 
@@ -13,6 +15,12 @@ void main() {
 
 const POST_FRAGMENT = /* glsl */ `
 uniform sampler2D tScene;
+uniform sampler2D tDepth;
+uniform sampler2D tNormal;
+uniform bool outline;
+uniform bool ortho;
+uniform float near;
+uniform float far;
 uniform vec2 lowRes;
 uniform vec3 palette[${MAX_PALETTE}];
 uniform int paletteSize;
@@ -26,12 +34,43 @@ float bayer4(vec2 a) { return bayer2(0.5 * a) * 0.25 + bayer2(a); }
 
 vec3 toSrgb(vec3 c) { return pow(max(c, 0.0), vec3(1.0 / 2.2)); }
 
+float viewZ(vec2 uv) {
+  float d = texture2D(tDepth, uv).x;
+  if (ortho) return near + d * (far - near);
+  return (near * far) / (far - d * (far - near));
+}
+
+// A pixel is on a line if a neighbour is much farther away (it is the near side of a silhouette),
+// or if the surface turns sharply between it and the pixel to the right or below.
+bool edge(vec2 uv) {
+  vec2 px = 1.0 / lowRes;
+  float z = viewZ(uv);
+  float zr = viewZ(uv + vec2(px.x, 0.0));
+  float zl = viewZ(uv - vec2(px.x, 0.0));
+  float zu = viewZ(uv + vec2(0.0, px.y));
+  float zd = viewZ(uv - vec2(0.0, px.y));
+  float far4 = max(max(zr, zl), max(zu, zd));
+  if (far4 - z > 0.06 * z + 0.08) return true;
+  vec4 n = texture2D(tNormal, uv);
+  if (n.a < 0.5) return false;
+  vec4 nr = texture2D(tNormal, uv + vec2(px.x, 0.0));
+  vec4 nu = texture2D(tNormal, uv + vec2(0.0, px.y));
+  vec3 a = n.xyz * 2.0 - 1.0;
+  float kr = nr.a < 0.5 ? 1.0 : dot(a, nr.xyz * 2.0 - 1.0);
+  float ku = nu.a < 0.5 ? 1.0 : dot(a, nu.xyz * 2.0 - 1.0);
+  return min(kr, ku) < 0.72 && abs(zr - z) < 0.2 * z && abs(zu - z) < 0.2 * z;
+}
+
 void main() {
   vec4 src = texture2D(tScene, vUv);
   vec3 color = toSrgb(src.rgb);
   // alpha 0 marks the undithered layer (the sea), or a stage with no palette.
   if (src.a < 0.5 || paletteSize == 0) {
     gl_FragColor = vec4(color, 1.0);
+    return;
+  }
+  if (outline && edge(vUv)) {
+    gl_FragColor = vec4(palette[0], 1.0);
     return;
   }
   float lum = dot(color, vec3(0.299, 0.587, 0.114));
@@ -53,6 +92,9 @@ export class DitherRenderer {
   /** Screen pixels per dithered pixel. */
   pixelScale = 3;
   private target: THREE.WebGLRenderTarget;
+  /** Scene normals, for the outline pass. */
+  private normals: THREE.WebGLRenderTarget;
+  private normalMaterial = new THREE.MeshNormalMaterial();
   private post: THREE.ShaderMaterial;
   private postScene = new THREE.Scene();
   private postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -74,12 +116,20 @@ export class DitherRenderer {
       minFilter: THREE.NearestFilter,
       magFilter: THREE.NearestFilter,
       type: THREE.HalfFloatType,
+      depthTexture: new THREE.DepthTexture(1, 1),
     });
+    this.normals = new THREE.WebGLRenderTarget(1, 1, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
     this.post = new THREE.ShaderMaterial({
       vertexShader: POST_VERTEX,
       fragmentShader: POST_FRAGMENT,
       uniforms: {
         tScene: { value: this.target.texture },
+        tDepth: { value: this.target.depthTexture },
+        tNormal: { value: this.normals.texture },
+        outline: { value: false },
+        ortho: { value: false },
+        near: { value: 0.1 },
+        far: { value: 100 },
         lowRes: { value: new THREE.Vector2(1, 1) },
         palette: { value: Array.from({ length: MAX_PALETTE }, () => new THREE.Color()) },
         paletteSize: { value: 0 },
@@ -109,6 +159,7 @@ export class DitherRenderer {
     u.exposure!.value = this.palette.exposure;
     u.contrast!.value = this.palette.contrast;
     u.band!.value = this.palette.band;
+    u.outline!.value = this.palette.outline;
   }
 
   get paletteId(): PaletteId {
@@ -122,6 +173,7 @@ export class DitherRenderer {
     const lw = Math.max(1, Math.floor(w / this.pixelScale));
     const lh = Math.max(1, Math.floor(h / this.pixelScale));
     this.target.setSize(lw, lh);
+    this.normals.setSize(lw, lh);
     (this.post.uniforms.lowRes!.value as THREE.Vector2).set(lw, lh);
   }
 
@@ -189,6 +241,28 @@ export class DitherRenderer {
     this.gl.setClearAlpha(1);
     this.gl.clear();
     this.gl.render(scene, camera);
+    const u = this.post.uniforms;
+    if (this.palette.outline) {
+      // The same scene again, as normals; alpha 0 where nothing was drawn.
+      const cam = camera as THREE.PerspectiveCamera | THREE.OrthographicCamera;
+      u.ortho!.value = (cam as THREE.OrthographicCamera).isOrthographicCamera === true;
+      u.near!.value = cam.near;
+      u.far!.value = cam.far;
+      const background = scene.background;
+      scene.background = null;
+      scene.overrideMaterial = this.normalMaterial;
+      // The shadow maps are already up to date for this frame.
+      const shadows = this.gl.shadowMap.autoUpdate;
+      this.gl.shadowMap.autoUpdate = false;
+      this.gl.setRenderTarget(this.normals);
+      this.gl.setClearColor(0x000000, 0);
+      this.gl.clear();
+      this.gl.render(scene, camera);
+      this.gl.shadowMap.autoUpdate = shadows;
+      scene.overrideMaterial = null;
+      scene.background = background;
+      this.gl.setClearColor(0x000000, 1);
+    }
     this.gl.setRenderTarget(null);
     this.gl.render(this.postScene, this.postCamera);
   }

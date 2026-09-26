@@ -2,6 +2,7 @@
 // and runs the loop of the loop — dawn, the day, midnight (or an ending), the reset, dawn again.
 import { fetchStele, reportReset, scratchLine } from './api.ts';
 import { ENDINGS } from './content/endings.ts';
+import { STAGE_CONTROLS, STAGE_GUIDES, TIPS } from './content/guides.ts';
 import { KNOWLEDGE } from './content/knowledge.ts';
 import { pickHint } from './content/hints.ts';
 import { LEXICON } from './content/lexicon.ts';
@@ -30,7 +31,8 @@ import { StrikesStage } from './stages/strikes/StrikesStage.ts';
 import { TownStage } from './stages/town/TownStage.ts';
 import type { Stage, StageHost } from './stages/types.ts';
 import { bookOfStrangers, chronicle } from './ui/Book.ts';
-import { Dialogue } from './ui/Dialogue.ts';
+import { Dialogue, type DialogueOptions } from './ui/Dialogue.ts';
+import { Guides } from './ui/Guide.ts';
 import { h } from './ui/dom.ts';
 import { Hud } from './ui/Hud.ts';
 import { Lyre } from './ui/Lyre.ts';
@@ -81,6 +83,7 @@ export class Game {
 
   readonly settings: SettingsStore;
   private settingsPanel: SettingsPanel;
+  private guides: Guides;
   readonly audio: AudioEngine;
   private raining = false;
 
@@ -105,13 +108,17 @@ export class Game {
     this.modal = new Modal(overlay);
     this.resetScreen = new ResetScreen(overlay);
     this.settingsPanel = new SettingsPanel(overlay, settings);
+    this.guides = new Guides(overlay, () => this.memory.guides, () => this.settings.value.tips);
     settings.subscribe((s) => {
       this.clock.secondsPerMinute = s.dayMinutes / 18;
       this.renderer.setQuality(s.quality);
     });
     this.knowledge = new Knowledge(KNOWLEDGE, this.save.memory.facts, (fact) => {
       this.save.memory.facts.push(fact.id);
-      if (!this.lost('chronicle')) this.hud.factLearned(fact);
+      if (!this.lost('chronicle')) {
+        this.hud.factLearned(fact);
+        this.guides.tip(TIPS.chronicle!);
+      }
       this.audio.play(fact.id.startsWith('shard_') ? 'shard' : 'fact');
       if (fact.id.startsWith('shard_')) this.countShards();
       this.persist();
@@ -268,6 +275,7 @@ export class Game {
     this.canvas.hidden = palette === null;
     if (palette) this.renderer.setPalette(palette);
     this.hud.setVisible(!this.current.hideHud);
+    this.hud.setControls(STAGE_CONTROLS[id] ?? null);
     this.save.cycle.stage = id;
     this.current.enter(entry);
   }
@@ -291,7 +299,9 @@ export class Game {
     if (knot === 'spiral_seam' || knot === 'desk_profile') this.audio.play('seam');
     this.story.enter(knot);
     this.dialogue.run(this.story, (line) => this.onLine(line), () => this.afterDialogue(), {
+      ...this.dialogueLook(),
       quiet: this.current?.id === 'sea',
+      onFirstDejaVu: () => this.guides.tip(TIPS.dejavu!, true),
       dejavu: {
         canFinish: (id) => this.memory.heard.includes(id) && !this.lost('dejavu'),
         heard: (id) => {
@@ -304,6 +314,11 @@ export class Game {
         noRhythm: () => this.settings.value.noRhythm,
       },
     });
+  }
+
+  /** Portraits in the stage's own palette; lines written out unless motion is reduced. */
+  private dialogueLook(): DialogueOptions {
+    return { theme: this.current?.palette === 'marble' ? 'marble' : 'vase', typewriter: !this.settings.value.reducedMotion };
   }
 
   private onLine(line: StoryLine): void {
@@ -336,8 +351,10 @@ export class Game {
   private frame = (t: number): void => {
     const dt = Math.min(0.1, (t - this.lastTime) / 1000);
     this.lastTime = t;
-    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.phase !== 'playing';
+    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.guides.open || this.phase !== 'playing';
     this.input.enabled = !blocked;
+    this.overlay.classList.toggle('talking', this.dialogue.open);
+    if (!blocked) this.offerGuides();
 
     if (this.phase === 'playing') {
       this.handleKeys();
@@ -373,8 +390,29 @@ export class Game {
     requestAnimationFrame(this.frame);
   };
 
+  /** The how-to card for this place the first time the player is free to read it; then tips. */
+  private offerGuides(): void {
+    const guide = STAGE_GUIDES[this.current.id];
+    if ((guide && this.guides.first(guide)) || this.guides.tipVisible || this.current.id !== 'town') return;
+    const due: [boolean, keyof typeof TIPS][] = [
+      [this.memory.cycle >= 2, 'reset'],
+      [this.memory.seen.length > 0, 'book'],
+      [this.save.cycle.wind > 0 && !this.lost('clock'), 'wind'],
+      [this.memory.masks.length > 0 && !this.lost('masks'), 'mask'],
+    ];
+    for (const [now, id] of due) if (now && this.guides.tip(TIPS[id]!)) return;
+  }
+
   private handleKeys(): void {
     const i = this.input;
+    if (i.wasPressedRaw('KeyH') && !this.dialogue.open && !this.modal.open && !this.settingsPanel.open && !this.guides.open) {
+      const guide = STAGE_GUIDES[this.current.id];
+      if (guide) {
+        this.hud.closePanel();
+        this.guides.show(guide);
+        return;
+      }
+    }
     if (this.hud.panelOpen && (i.wasPressedRaw('Escape') || i.wasPressedRaw('KeyC') || i.wasPressedRaw('KeyB'))) {
       const which = i.wasPressedRaw('KeyC') ? 'chronicle' : i.wasPressedRaw('KeyB') ? 'book' : null;
       this.hud.closePanel();
@@ -410,7 +448,7 @@ export class Game {
     c.wornMask = i + 1 < masks.length ? masks[i + 1]! : null;
     if (c.wornMask) {
       this.notice('mask_worn', 0.03);
-      this.hud.toast(`${c.wornMask}: ${MASKS[c.wornMask]?.effect ?? ''}`);
+      this.hud.toast(MASKS[c.wornMask]?.effect ?? '', `Mask: ${c.wornMask}`);
     }
   }
 
@@ -504,7 +542,7 @@ export class Game {
     this.audio.play('thunder');
     this.audio.caption('rain');
     this.story.enter('midnight');
-    this.dialogue.run(this.story, () => {}, () => void this.resetCycle('midnight'));
+    this.dialogue.run(this.story, () => {}, () => void this.resetCycle('midnight'), this.dialogueLook());
   }
 
   private playSongOfReturn(): void {

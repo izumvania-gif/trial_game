@@ -38,6 +38,8 @@ export interface LoopMemory {
   epilogue: { mode: 'true' | 'prophet'; start: number; entries: { day: number; text: string }[] } | null;
   /** A backup was restored in the middle of the Night of Anamnesis: the world runs damaged. */
   damaged: boolean;
+  /** How-to cards and tips already shown (content/guides.ts). */
+  guides: string[];
 }
 
 export interface CycleState {
@@ -73,7 +75,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false,
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [],
   };
 }
 

@@ -19,6 +19,8 @@ export interface Settings {
   quality: 'auto' | 'high' | 'low';
   /** Keeps the service layer inside the game: no tab-title or favicon tricks, no console notes. */
   lessMeta: boolean;
+  /** How-to cards the first time in each place, and tips for new mechanics. */
+  tips: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -32,6 +34,7 @@ export const DEFAULT_SETTINGS: Settings = {
   dayMinutes: 18,
   quality: 'auto',
   lessMeta: false,
+  tips: true,
 };
 
 export function loadSettings(storage: KeyValueStorage | null): Settings {

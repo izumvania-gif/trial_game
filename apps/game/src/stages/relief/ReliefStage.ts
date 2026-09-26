@@ -2,6 +2,7 @@
 // First person, 1-bit. Walk close to a figure to hear the words that were in the air that second.
 import * as THREE from 'three';
 import { h } from '../../ui/dom.ts';
+import { cloneCanvas, portrait, portraitFor } from '../../ui/portraits.ts';
 import { disposeScene } from '../dispose.ts';
 import { lambert, makeFigure } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
@@ -28,6 +29,8 @@ export class ReliefStage implements Stage {
   private voices: Voice[] = [];
   private chip!: THREE.Mesh;
   private caption = h('div', { className: 'relief-caption' });
+  /** The voice whose caption is showing. */
+  private heard: Voice | null = null;
 
   constructor(host: StageHost) {
     this.host = host;
@@ -113,10 +116,12 @@ export class ReliefStage implements Stage {
     // Arrive at the edge of the moment, facing the altar.
     this.camera.position.set(0, 1.6, 3.2);
     this.yaw = 0;
+    this.heard = null;
     this.caption.hidden = true;
   }
 
   exit(): void {
+    this.heard = null;
     this.caption.hidden = true;
   }
 
@@ -155,11 +160,17 @@ export class ReliefStage implements Stage {
       this.host.knowledge.learn('shard_relief');
     }
     const near = this.voices.find((v) => Math.hypot(v.at.x - p.x, v.at.z - p.z) < 1.9);
-    if (near) {
-      this.caption.replaceChildren(h('span', { className: 'speaker' }, `${near.speaker}. `), near.text);
-    } else {
-      this.caption.replaceChildren(h('span', { className: 'relief-hint' }, 'W/S walk · A/D or drag to turn · Esc — let go of the carving'));
+    if (near !== this.heard) {
+      this.heard = near ?? null;
+      if (near) {
+        const info = portraitFor(near.speaker);
+        const face = info ? portrait(info.id, 'marble') : null;
+        this.caption.replaceChildren(
+          ...(face ? [h('span', { className: 'relief-face' }, cloneCanvas(face))] : []),
+          h('span', {}, h('span', { className: 'speaker' }, near.speaker), near.text),
+        );
+      }
+      this.caption.hidden = !near;
     }
-    this.caption.hidden = false;
   }
 }

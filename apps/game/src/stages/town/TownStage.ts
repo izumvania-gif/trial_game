@@ -8,7 +8,7 @@ import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
 import { distanceToStreets, PLACES, STREET_EDGES } from '../../core/streets.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
-import { amphora, bob, cypress, gableRoof, lambert, makeFigure } from '../figures.ts';
+import { amphora, bob, cypress, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
 
 interface Interactable {
@@ -40,9 +40,9 @@ const ENTRIES: Record<string, [number, number, number]> = {
 const PLACES_TO_TALK: Interactable[] = [
   { x: -4.5, z: -10, radius: 1.8, knot: 'stele', label: 'Star stele' },
   { x: 0, z: -13.2, radius: 1.6, knot: 'temple_door', label: 'Bronze door' },
-  { x: 10.5, z: 2.4, radius: 1.8, knot: 'agora_crier', label: 'Crier' },
-  { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'Path to the sea' },
-  { x: 10, z: -22.5, radius: 2, knot: 'mountain_path', label: 'Path up the mountain' },
+  { x: 10.5, z: 2.4, radius: 1.8, knot: 'agora_crier', label: 'Listen to the crier' },
+  { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'Go down to the sea' },
+  { x: 10, z: -22.5, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
   { x: -5.5, z: 5.5, radius: 1.7, knot: 'well', label: 'The well' },
   { x: -14.5, z: 14, radius: 1.4, knot: 'tavern_table', label: "Eion's table" },
@@ -71,6 +71,8 @@ export class TownStage implements Stage {
   private cloud = new THREE.Group();
   private npcs: Npc[] = [];
   private glaucusX = 0;
+  /** Floats over whatever E would talk to or look at. */
+  private marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: '#f4efe4' }));
   private mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.08), new THREE.MeshLambertMaterial({ color: '#f2ead6' }));
 
   constructor(host: StageHost, start: { x: number; z: number; facing: number }) {
@@ -82,6 +84,9 @@ export class TownStage implements Stage {
     this.mask.position.set(0, 1.47, 0.2);
     this.player.add(this.mask);
     this.scene.add(this.player);
+    this.marker.scale.set(1, 1.6, 1);
+    this.marker.visible = false;
+    this.scene.add(this.marker);
     for (const resident of RESIDENTS) {
       if (resident.appears && !resident.appears((f) => host.knowledge.knows(f))) continue;
       const figure = makeFigure(resident.color, resident.id === 'cleon' ? 1.85 : resident.id === 'talia' ? 1.45 : 1.7);
@@ -109,7 +114,7 @@ export class TownStage implements Stage {
     Object.assign(this.sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, far: 150 });
     s.add(this.sun, this.sun.target);
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 70), lambert('#a86a45'));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 70), lambert('#b8784e'));
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = -10;
     ground.receiveShadow = true;
@@ -135,12 +140,14 @@ export class TownStage implements Stage {
 
   /** Pale paving along the street graph, so the city reads as a map. */
   private buildStreets(): void {
-    const paving = lambert('#e2c9a4');
+    const paving = textured(pavingTexture(), '#f0e2c6');
     for (const [a, b] of STREET_EDGES) {
       const pa = PLACES[a];
       const pb = PLACES[b];
       const len = Math.hypot(pb.x - pa.x, pb.z - pa.z);
-      const strip = new THREE.Mesh(new THREE.PlaneGeometry(2.2, len + 2.2), paving);
+      const geo = new THREE.PlaneGeometry(2.2, len + 2.2);
+      worldUV(geo, 2.2, len + 2.2, 3.2);
+      const strip = new THREE.Mesh(geo, paving);
       strip.rotation.x = -Math.PI / 2;
       strip.rotation.z = -Math.atan2(pb.x - pa.x, pb.z - pa.z);
       strip.position.set((pa.x + pb.x) / 2, 0.005, (pa.z + pb.z) / 2);
@@ -158,26 +165,46 @@ export class TownStage implements Stage {
     return mesh;
   }
 
-  private addColumns(cx: number, cz: number, xs: number[], zs: number[], height: number): void {
+  /** Doric columns: a tapering shaft and a square capital. `base` is the height they stand on. */
+  private addColumns(cx: number, cz: number, xs: number[], zs: number[], height: number, base = 1): void {
+    const stone = lambert('#f2ead6');
     for (const x of xs) {
       for (const z of zs) {
-        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.45, height, 8), lambert('#f2ead6'));
-        col.position.set(cx + x, height / 2 + 1, cz + z);
+        const col = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.46, height - 0.3, 12), stone);
+        col.position.set(cx + x, base + (height - 0.3) / 2, cz + z);
         col.castShadow = true;
         this.scene.add(col);
+        const cap = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.3, 1.05), stone);
+        cap.position.set(cx + x, base + height - 0.15, cz + z);
+        cap.castShadow = true;
+        this.scene.add(cap);
       }
     }
   }
 
   private buildTemple(): void {
-    this.addBox(0, -19, 14, 10, 1, '#efe6cf'); // stylobate
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(9.5, 3, 4, 1), lambert('#d8ccb0'));
-    roof.rotation.y = Math.PI / 4;
-    roof.scale.set(1, 1, 0.62);
-    roof.position.set(0, 8.5, -19);
-    roof.castShadow = true;
+    // Three steps up, a peristyle, an entablature with triglyphs, a tiled roof with a pale pediment.
+    this.addBox(0, -19, 15, 11, 0.34, '#efe6cf');
+    const step2 = this.addBox(0, -19, 14.2, 10.2, 0.34, '#f2ead6');
+    step2.position.y = 0.34 + 0.17;
+    const step3 = this.addBox(0, -19, 13.4, 9.4, 0.34, '#efe6cf');
+    step3.position.y = 0.68 + 0.17;
+    this.addColumns(0, -19, [-5.8, -3.5, -1.2, 1.2, 3.5, 5.8], [4.1, -4.1], 6, 1.02);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.9, 9.2), lambert('#efe6cf'));
+    beam.position.set(0, 7.47, -19);
+    beam.castShadow = true;
+    this.scene.add(beam);
+    const glyph = lambert('#3a2618');
+    for (let i = 0; i < 14; i++) {
+      for (const z of [-19 + 4.62, -19 - 4.62]) {
+        const t = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.5, 0.06), glyph);
+        t.position.set(-6.2 + i * 0.955, 7.6, z);
+        this.scene.add(t);
+      }
+    }
+    const roof = gableRoof(13.2, 9.2, 2.2, '#9a5a3a', '#efe6cf');
+    roof.position.set(0, 7.92, -19);
     this.scene.add(roof);
-    this.addColumns(0, -19, [-5.8, -3.5, -1.2, 1.2, 3.5, 5.8], [4.4, -4.4], 6);
     this.addBox(0, -19, 9, 7, 6.5, '#e6dcc2'); // cella
     const door = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.2, 0.2), lambert('#3a2414'));
     door.position.set(0, 2.6, -15.45);
@@ -260,20 +287,21 @@ export class TownStage implements Stage {
       if (overlaps) continue;
       const hgt = 2 + rand() * 2.5;
       this.addBox(x, z, w, d, hgt, rand() > 0.3 ? '#ece2c8' : '#c9a57c');
+      this.houseFront(x, z, w, d, hgt, rand);
       // Tiled gable roof, ridge along the longer side.
       const alongX = w > d;
-      const roof = gableRoof(alongX ? d : w, alongX ? w : d, 0.9 + rand() * 0.5, '#8f4a2a');
+      const roof = gableRoof(alongX ? d : w, alongX ? w : d, 0.9 + rand() * 0.5, '#9a5a3a', '#e4d8bc');
       roof.position.set(x, hgt, z);
       if (alongX) roof.rotation.y = Math.PI / 2;
       this.scene.add(roof);
       placed++;
     }
     // Cypresses in the gaps, and amphorae by some doors: they do not block anyone.
-    for (let i = 0, tries = 0; i < 26 && tries < 400; tries++) {
+    for (let i = 0, tries = 0; i < 34 && tries < 500; tries++) {
       const x = -27 + rand() * 54;
       const z = -25 + rand() * 42;
       if (clear(x, z) || this.blocked(x, z)) continue;
-      const tree = cypress(3 + rand() * 3);
+      const tree = i % 3 === 2 ? olive(i) : cypress(3 + rand() * 3);
       tree.position.x = x;
       tree.position.z = z;
       this.scene.add(tree);
@@ -283,6 +311,38 @@ export class TownStage implements Stage {
       const a = amphora();
       a.position.set(x, 0, z);
       this.scene.add(a);
+    }
+  }
+
+  /** A door towards the nearest street, a couple of small high windows, a step. */
+  private houseFront(x: number, z: number, w: number, d: number, hgt: number, rand: () => number): void {
+    const dark = lambert('#24160f');
+    // Which side faces the street: try the four midpoints, keep the one closest to a street.
+    const sides = [
+      { nx: 0, nz: 1, len: w }, { nx: 0, nz: -1, len: w }, { nx: 1, nz: 0, len: d }, { nx: -1, nz: 0, len: d },
+    ].map((s) => ({ ...s, dist: distanceToStreets(x + (s.nx * w) / 2, z + (s.nz * d) / 2) }));
+    sides.sort((a, b) => a.dist - b.dist);
+    const front = sides[0]!;
+    const px = x + (front.nx * (w / 2 + 0.02));
+    const pz = z + (front.nz * (d / 2 + 0.02));
+    const along = (t: number) => ({ x: px + (front.nz !== 0 ? t : 0), z: pz + (front.nx !== 0 ? t : 0) });
+    const face = (width: number, height: number, t: number, y: number, mat: THREE.Material) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(front.nz !== 0 ? width : 0.08, height, front.nx !== 0 ? width : 0.08), mat);
+      const p = along(t);
+      m.position.set(p.x, y, p.z);
+      this.scene.add(m);
+    };
+    const doorAt = (rand() - 0.5) * (front.len - 1.4);
+    face(0.9, 1.7, doorAt, 0.85, dark);
+    const step = new THREE.Mesh(new THREE.BoxGeometry(front.nz !== 0 ? 1.3 : 0.5, 0.18, front.nx !== 0 ? 1.3 : 0.5), lambert('#efe6cf'));
+    const sp = along(doorAt);
+    step.position.set(sp.x + front.nx * 0.25, 0.09, sp.z + front.nz * 0.25);
+    step.receiveShadow = true;
+    this.scene.add(step);
+    const windows = 1 + Math.floor(rand() * 2);
+    for (let i = 0; i < windows; i++) {
+      const t = (i - (windows - 1) / 2) * 1.2 + (doorAt > 0 ? -0.9 : 0.9);
+      if (Math.abs(t) < front.len / 2 - 0.3) face(0.34, 0.42, t, hgt - 0.75, dark);
     }
   }
 
@@ -348,11 +408,18 @@ export class TownStage implements Stage {
 
     const near = this.nearest();
     this.host.prompt(near ? `E — ${near.label}` : null);
+    this.marker.visible = near !== null;
+    if (near) {
+      const npc = this.npcs.find((n) => n.resident.knot === near.knot);
+      const top = npc ? (npc.figure.position.y > 0.1 ? 1.2 : 2.35) : 2.2;
+      this.marker.position.set(near.x, top + Math.sin(this.time * 3) * 0.12, near.z);
+      this.marker.rotation.y = this.time * 1.5;
+    }
     if (near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) this.host.interact(near.knot);
 
     const p = this.player.position;
-    this.camera.position.set(p.x, p.y + 21, p.z + 17);
-    this.camera.lookAt(p.x, p.y + 1, p.z);
+    this.camera.position.set(p.x, p.y + 17, p.z + 16);
+    this.camera.lookAt(p.x, p.y + 1, p.z - 1);
   }
 
   private nearest(): Interactable | null {
@@ -361,7 +428,7 @@ export class TownStage implements Stage {
       ...PLACES_TO_TALK,
       ...this.npcs
         .filter((n) => n.figure.visible)
-        .map((n) => ({ x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: n.resident.knot, label: n.resident.name })),
+        .map((n) => ({ x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: n.resident.knot, label: `Talk to ${n.resident.name === 'The mask seller' ? 'the mask seller' : n.resident.name}` })),
     ];
     let best: Interactable | null = null;
     let bestD = Infinity;
@@ -433,7 +500,8 @@ export class TownStage implements Stage {
   private updateSky(progress: number): void {
     // Sun: rises in the east, sets in the west around 20:00 (progress ≈ 0.78), then night.
     const dayArc = Math.min(1, progress / 0.78);
-    const angle = Math.PI * dayArc;
+    // Never quite at the horizon: even at dawn the roofs catch the light.
+    const angle = Math.PI * (0.14 + 0.72 * dayArc);
     const night = THREE.MathUtils.smoothstep(progress, 0.72, 0.9);
     this.sun.position.set(Math.cos(angle) * 60, Math.max(4, Math.sin(angle) * 70), 20);
     this.sun.intensity = 2.2 * (1 - night) + 0.25;

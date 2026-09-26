@@ -21,7 +21,7 @@ const tileToWorld = ([c, r]: Tile) => new THREE.Vector3((c - (COLS - 1) / 2) * T
 
 export class BoardStage implements Stage {
   readonly id = 'board' as const;
-  readonly palette = 'vase' as const;
+  readonly palette = 'board' as const;
   readonly clockRuns = false;
   readonly hideHud = true;
   scene = new THREE.Scene();

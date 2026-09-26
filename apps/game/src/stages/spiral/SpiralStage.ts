@@ -184,7 +184,7 @@ export class SpiralStage implements Stage {
     const scribe = this.scribeUnderMouse();
     const overSeam = this.seam.visible && hit !== null && hit.distanceTo(this.seam.getWorldPosition(new THREE.Vector3())) < 0.4;
     this.host.prompt(
-      overSeam ? 'Click — the mark' : scribe ? 'Click — study the carving' : 'Drag a ring · Tab — registry · Esc — step back',
+      overSeam ? 'Click — the mark' : scribe ? 'Click — study the carving' : null,
     );
 
     if (input.wasClicked()) {
