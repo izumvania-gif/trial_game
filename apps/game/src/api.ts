@@ -52,3 +52,28 @@ export async function scratchLine(words: string[]): Promise<'ok' | 'wait' | null
     return null;
   }
 }
+
+export async function fetchNotes(): Promise<string[] | null> {
+  try {
+    const res = await fetch('/api/notes');
+    return res.ok ? ((await res.json()) as { notes: string[] }).notes : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Notes are premoderated: 'ok' means queued, never "published". */
+export async function postNote(text: string): Promise<'ok' | 'wait' | 'invalid' | null> {
+  try {
+    const res = await fetch('/api/notes', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    if (res.status === 429) return 'wait';
+    if (res.status === 400) return 'invalid';
+    return res.ok ? 'ok' : null;
+  } catch {
+    return null;
+  }
+}

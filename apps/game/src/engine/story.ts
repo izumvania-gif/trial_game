@@ -4,7 +4,7 @@ import { Story } from 'inkjs';
 import type { Knowledge } from '../core/knowledge.ts';
 import type { StageId } from '../core/types.ts';
 
-export type LineStyle = 'narration' | 'hand' | 'log' | 'hint';
+export type LineStyle = 'narration' | 'hand' | 'log' | 'hint' | 'voice';
 
 export interface StoryLine {
   text: string;
@@ -109,7 +109,7 @@ function parseLine(text: string, tags: string[]): StoryLine {
   for (const tag of tags) {
     const [key = '', value = ''] = tag.split(':').map((s) => s.trim());
     if (key === 'speaker') line.speaker = value;
-    else if (key === 'hand' || key === 'log' || key === 'hint') line.style = key;
+    else if (key === 'hand' || key === 'log' || key === 'hint' || key === 'voice') line.style = key;
     else if (key === 'stage' && (STAGES as string[]).includes(value)) line.stage = value as StageId;
     else if (key === 'spend') line.spendMinutes = Number(value) || 0;
     else if (key === 'dejavu') line.dejavu = value;

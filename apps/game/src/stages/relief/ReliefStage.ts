@@ -26,6 +26,7 @@ export class ReliefStage implements Stage {
   private host: StageHost;
   private yaw = 0;
   private voices: Voice[] = [];
+  private chip!: THREE.Mesh;
   private caption = h('div', { className: 'relief-caption' });
 
   constructor(host: StageHost) {
@@ -94,6 +95,11 @@ export class ReliefStage implements Stage {
     dust.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
     s.add(new THREE.Points(dust, new THREE.PointsMaterial({ color: '#ffffff', size: 0.04 })));
 
+    // A chip of the spiral hanging in the stopped air, at the very edge of the mountain.
+    this.chip = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    this.chip.position.set(-6.6, 1.3, -3.2);
+    s.add(this.chip);
+
     this.voices = [
       { at: new THREE.Vector3(0.3, 0, -1.9), speaker: 'The priest', text: '"Let the world return to its begin—"' },
       { at: new THREE.Vector3(0.9, 0, -0.8), speaker: 'Leont', text: 'If the voice stops, the ending stops. If the voice stops—' },
@@ -143,6 +149,11 @@ export class ReliefStage implements Stage {
     if (r > 8) p.multiplyScalar(8 / r).setY(1.6);
     this.camera.rotation.set(0, this.yaw, 0, 'YXZ');
 
+    this.chip.visible = !this.host.knowledge.knows('shard_relief');
+    this.chip.rotation.y += dt * 0.3; // the only thing here that moves, and only barely
+    if (this.chip.visible && Math.hypot(this.chip.position.x - p.x, this.chip.position.z - p.z) < 1.2) {
+      this.host.knowledge.learn('shard_relief');
+    }
     const near = this.voices.find((v) => Math.hypot(v.at.x - p.x, v.at.z - p.z) < 1.9);
     if (near) {
       this.caption.replaceChildren(h('span', { className: 'speaker' }, `${near.speaker}. `), near.text);

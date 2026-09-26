@@ -1,6 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import type { NoteStatus } from './notes.ts';
 
 /** The cycle number shown before any player has reset: the prologue is CYCLE RUN #1472. */
 export const CYCLE_RUN_FIRST = 1472;
@@ -11,6 +12,10 @@ export interface Store {
   addSteleLine(words: string[]): void;
   /** Up to `n` random lines, newest-biased. */
   randomSteleLines(n: number): string[][];
+  addNote(text: string): number;
+  randomApprovedNotes(n: number): string[];
+  notesByStatus(status: NoteStatus, limit: number): { id: number; text: string; createdAt: number }[];
+  setNoteStatus(id: number, status: NoteStatus): boolean;
   close(): void;
 }
 
@@ -29,6 +34,13 @@ export function openStore(dataDir: string | ':memory:'): Store {
       value INTEGER NOT NULL
     );
     INSERT OR IGNORE INTO counters (name, value) VALUES ('resets', 0);
+    CREATE TABLE IF NOT EXISTS notes (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      text       TEXT NOT NULL,
+      status     TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS notes_status ON notes (status, id);
     CREATE TABLE IF NOT EXISTS stele_lines (
       id         INTEGER PRIMARY KEY AUTOINCREMENT,
       words      TEXT NOT NULL,
@@ -47,7 +59,18 @@ export function openStore(dataDir: string | ':memory:'): Store {
     SELECT words FROM (SELECT words FROM stele_lines ORDER BY id DESC LIMIT 1000)
     ORDER BY random() LIMIT ?`);
 
+  const insertNote = db.prepare(`INSERT INTO notes (text, created_at) VALUES (?, ?) RETURNING id`);
+  const sampleNotes = db.prepare(`
+    SELECT text FROM (SELECT text FROM notes WHERE status = 'approved' ORDER BY id DESC LIMIT 1000)
+    ORDER BY random() LIMIT ?`);
+  const listNotes = db.prepare(`SELECT id, text, created_at AS createdAt FROM notes WHERE status = ? ORDER BY id LIMIT ?`);
+  const updateNote = db.prepare(`UPDATE notes SET status = ? WHERE id = ?`);
+
   return {
+    addNote: (text) => Number((insertNote.get(text, Date.now()) as { id: number }).id),
+    randomApprovedNotes: (n) => (sampleNotes.all(n) as { text: string }[]).map((r) => r.text),
+    notesByStatus: (status, limit) => listNotes.all(status, limit) as { id: number; text: string; createdAt: number }[],
+    setNoteStatus: (id, status) => Number(updateNote.run(status, id).changes) > 0,
     addSteleLine: (words) => void insertLine.run(JSON.stringify(words), Date.now()),
     randomSteleLines: (n) => (sampleLines.all(n) as { words: string }[]).map((r) => JSON.parse(r.words) as string[]),
     getCycleRun: () => CYCLE_RUN_FIRST + Number((select.get() as { value: number }).value),

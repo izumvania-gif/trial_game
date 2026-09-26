@@ -3,7 +3,14 @@ import { ATTEMPTS, FATES, PAST_LEONTS, type PastLeont } from '../content/leonts.
 import type { LoopMemory } from '../core/save.ts';
 import { h } from './dom.ts';
 
-const RING_NAMES = ['outer ring', 'second ring', 'inner ring'];
+const RING_NAMES = ['outer ring', 'second ring', 'third ring', 'inner ring'];
+
+function roman(n: number): string {
+  const table: [number, string][] = [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']];
+  let out = '';
+  for (const [v, s] of table) while (n >= v) { out += s; n -= v; }
+  return out;
+}
 
 function select(options: Record<string, string>, value: string | null, disabled: boolean, onChange: (v: string) => void): HTMLSelectElement {
   const el = h('select', { disabled });
@@ -16,7 +23,7 @@ export function registryRow(memory: LoopMemory, leont: PastLeont, onChange: () =
   const entry = (memory.registry[leont.id] ??= { attempt: null, ending: null, locked: false });
   const index = PAST_LEONTS.indexOf(leont) + 1;
   return h('div', { className: `registry-row${entry.locked ? ' locked' : ''}` },
-    h('span', { className: 'registry-name' }, `Leont ${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][index - 1]}`, h('small', {}, ` · ${RING_NAMES[leont.ring]}`)),
+    h('span', { className: 'registry-name' }, `Leont ${roman(index)}`, h('small', {}, ` · ${RING_NAMES[leont.ring]}`)),
     h('span', {}, 'He ', select(ATTEMPTS, entry.attempt, entry.locked, (v) => {
       entry.attempt = v || null;
       onChange();

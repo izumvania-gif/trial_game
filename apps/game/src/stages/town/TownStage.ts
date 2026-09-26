@@ -44,6 +44,8 @@ const PLACES_TO_TALK: Interactable[] = [
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'Path to the sea' },
   { x: 10, z: -22.5, radius: 2, knot: 'mountain_path', label: 'Path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
+  { x: -5.5, z: 5.5, radius: 1.7, knot: 'well', label: 'The well' },
+  { x: -14.5, z: 14, radius: 1.4, knot: 'tavern_table', label: "Eion's table" },
   { x: -19, z: -14.2, radius: 1.5, knot: 'villa_door', label: "Lysimachus' door" },
 ];
 
@@ -219,6 +221,11 @@ export class TownStage implements Stage {
     zeusRoof.position.set(23.2, 6.4, 6.5);
     zeusRoof.castShadow = true;
     this.scene.add(zeusRoof);
+    // The well where Phyllis waits every Golden Age.
+    const well = new THREE.Mesh(new THREE.CylinderGeometry(0.9, 1, 0.9, 10, 1, true), lambert('#efe6cf'));
+    well.position.set(-5.5, 0.45, 6.8);
+    this.scene.add(well);
+    this.boxes.push({ minX: -6.4, maxX: -4.6, minZ: 5.9, maxZ: 7.7 });
     // The mask seller's stall: an awning and a row of pale faces.
     this.addBox(5, 6.9, 2.6, 1, 0.9, '#6b3a22');
     for (let i = 0; i < 5; i++) {

@@ -23,5 +23,24 @@ He puts a knife in your hand, handle first.
         - else:
             Up on the mountain ten thousand voices answer the priest of Zeus. Yes. Theirs, not yours.
         }
-        The wind before the storm does not come. #action:ending:curator_missing
+        The wind before the storm does not come.
+        {true_night():
+            -> free
+        }
+        For a long moment nothing happens at all. #action:ending:curator_missing
         -> DONE
+
+= free
+Nothing happens. It goes on not happening.
+Up in the Hall there is only dust. Upstairs, in a room with no weather, a ticket stays where it is, and a Curator who has no chair does not approve anything.
+UNHANDLED EVENT: NON-CONFORMANT RITUAL OUTPUT TO RANDOM OCEAN LAYER #log
+AUTO-RESET: DISABLED #log
+MODE: FREE EVOLUTION #log
+Glaucus is gone. You are standing in the sea on your own. Behind you the city is dark and silent and there, for the first time.
+The criminal who broke the ritual, or the prophet who ended the ages. They will want you to be one of them by morning.
+* [Walk along the shore to the old hut by the water]
+    You walk. The sea comes up to your ankles and goes back, differently every time. #action:wake_test:true
+    -> DONE
+* [Go back up to the city. Someone has to tell them what happened]
+    You turn back towards the city. You have so much to tell them. #action:wake_test:prophet
+    -> DONE

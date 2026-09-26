@@ -3,7 +3,7 @@
 //   - The engine jumps straight to a knot with ChoosePathString; every knot ends in -> DONE.
 //   - Facts come from the knowledge graph: ~ learn(<fact>) and {knows(<fact>)}.
 //   - Line tags: #speaker:Name, #hand (Leont's slanted past hand), #log (service layer),
-//     #hint, #stage:<id> (switch stage after the dialogue), #spend:<minutes>,
+//     #hint, #voice (a past Leont talking), #stage:<id> (switch stage after the dialogue), #spend:<minutes>,
 //     #dejavu:<id> (the player can finish this line the second time; mark the cue word with ^),
 //     #action: carve, stele_lines, board or ending:<id> (UI to open after the dialogue).
 
@@ -27,6 +27,12 @@ EXTERNAL sprint()
 EXTERNAL dawn_hint()
 EXTERNAL wind()
 EXTERNAL ended_last_cycle(id)
+EXTERNAL shard_count()
+EXTERNAL curator_note()
+EXTERNAL true_night()
+EXTERNAL damaged()
+EXTERNAL shard_line()
+EXTERNAL voice()
 
 INCLUDE town.ink
 INCLUDE people.ink
@@ -78,3 +84,15 @@ INCLUDE sea.ink
 ~ return 0
 === function ended_last_cycle(id)
 ~ return false
+=== function shard_count()
+~ return 0
+=== function curator_note()
+~ return ""
+=== function true_night()
+~ return false
+=== function damaged()
+~ return false
+=== function shard_line()
+~ return ""
+=== function voice()
+~ return ""

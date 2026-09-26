@@ -214,3 +214,43 @@ button.carry { position: absolute; left: 50%; top: 40%; transform: translateX(-5
 .desk-chat-log li.me b { color: #d6e6dc; }
 .desk-chat-log .time { color: #6f8578; }
 .desk-replies { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.6rem; }
+
+/* Desk v2 */
+.desk-tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; }
+.desk-notes { list-style: none; padding: 0; }
+.desk-notes li { margin: 0.6rem 0; line-height: 1.5; }
+.note-tag { font-size: 0.7rem; color: #6f8578; border: 1px solid #4d5c54; padding: 0 0.3rem; }
+.sprint-panel { position: absolute; right: 1.5rem; top: 1.5rem; width: 20rem; background: #1b1f1d; color: var(--terminal); font-family: var(--mono); font-size: 0.8rem; border: 1px solid #34403a; padding: 1rem 1.2rem; }
+.sprint-panel h2 { font-size: 0.75rem; letter-spacing: 0.2em; text-transform: uppercase; color: #6f8578; margin-top: 0; }
+.sprint-panel button { display: block; width: 100%; text-align: left; font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0; text-transform: none; color: var(--terminal); border-color: #4d5c54; padding: 0.35rem 0.6rem; margin: 0.3rem 0; }
+.sprint-lanes { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.2rem; }
+.sprint-lanes li { padding: 0.25rem 0.5rem; border: 1px solid #34403a; }
+.sprint-lanes li.here { background: #2f3a35; color: #d6e6dc; }
+.sprint-bad { color: var(--terracotta); }
+.sprint-good { color: #d6e6dc; }
+
+/* Diary without dates */
+.diary { position: absolute; inset: 0; overflow-y: auto; background: #e8e2d0; color: #1d1611; padding: 4rem max(2rem, calc(50% - 22rem)); font-size: 1.15rem; line-height: 1.7; }
+.diary button { color: #1d1611; border-color: #1d1611; }
+.diary button:hover:not(:disabled) { background: #1d1611; color: #e8e2d0; }
+.diary-event { font-style: italic; }
+.diary-entries { list-style: none; padding: 0; margin: 2rem 0; }
+.diary-entries li { margin: 1.2rem 0; border-left: 2px solid #b5532a; padding-left: 1rem; }
+.diary-date { display: block; font-family: var(--mono); font-size: 0.75rem; color: #7a5a44; }
+.diary-wave { color: #3b5f66; }
+.diary-write textarea { width: 100%; font: inherit; background: transparent; border: none; border-bottom: 1px solid #1d1611; resize: none; color: inherit; outline: none; }
+.diary-write label { display: block; font-size: 0.85rem; margin: 0.6rem 0; }
+.diary footer { margin-top: 4rem; display: flex; gap: 1rem; align-items: center; }
+.diary-seam { border: none !important; letter-spacing: 0; opacity: 0.4; padding: 0; text-transform: none; }
+.diary .desk-note { color: #7a5a44; }
+.line-voice { font-family: var(--serif); font-style: italic; color: #c9b79a; }
+.modal-card.wake-test button { margin-top: 1.5rem; }
+.tablet-link { font-size: 0.7rem; padding: 0.3rem 1rem; margin-top: 1rem; }
+#tablet-panel { width: min(34rem, 90vw); font-size: 0.9rem; }
+#tablet-panel textarea { width: 100%; font-family: var(--mono); font-size: 0.7rem; background: #1d1611; color: var(--bone); border: 1px solid rgba(232, 226, 208, 0.3); }
+#tablet-panel button { font-size: 0.75rem; padding: 0.3rem 1rem; margin-top: 0.4rem; }
+
+/* Layering: stage UIs (desk, diary, board panels) < dialogue and lyre < modals. */
+.desk, .diary, .board-panel, .sprint-panel, .spiral-card { z-index: 1; }
+.dialogue, .lyre, .hud-toast { z-index: 4; }
+.modal { z-index: 6; }

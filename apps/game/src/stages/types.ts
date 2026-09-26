@@ -1,7 +1,7 @@
 import type * as THREE from 'three';
 import type { DayClock } from '../core/clock.ts';
 import type { Knowledge } from '../core/knowledge.ts';
-import type { CycleState, LoopMemory } from '../core/save.ts';
+import type { BreakShard, CycleState, LoopMemory } from '../core/save.ts';
 import type { Mechanic, StageId } from '../core/types.ts';
 import type { Input } from '../engine/input.ts';
 import type { PaletteId } from '../render/palettes.ts';
@@ -30,6 +30,10 @@ export interface StageHost {
   loseMechanic(m: Mechanic): void;
   /** Show an ending card; the game decides what comes after. */
   ending(id: string): void;
+  /** Wipe the save, keeping only the shard of the break. */
+  forget(): void;
+  /** What survived a previous true ending, if anything. */
+  breakShard(): BreakShard | null;
   persist(): void;
 }
 

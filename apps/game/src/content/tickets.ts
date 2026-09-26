@@ -11,8 +11,10 @@ export interface Ticket {
   body: string;
   /** Available patches; none = "no handler". */
   patches: { id: string; label: string }[];
-  /** Opening the ticket teaches a fact. */
-  reveals?: string;
+  /** Opening the ticket teaches these facts. */
+  reveals?: string[];
+  /** Appears only once the Curator knows this. */
+  requiresFact?: string;
 }
 
 export const TICKETS: Ticket[] = [
@@ -44,7 +46,7 @@ export const TICKETS: Ticket[] = [
     id: 'song_played', anomaly: 'song_played',
     title: 'Reset outside schedule',
     body: 'RESET INITIATED BY USER. Handler: none required. This is expected behaviour. The user has always initiated the reset.',
-    patches: [], reveals: 'reset_by_user',
+    patches: [], reveals: ['reset_by_user'],
   },
   {
     id: 'registry_read', anomaly: 'registry_read',
@@ -77,6 +79,12 @@ export const TICKETS: Ticket[] = [
     patches: [],
   },
   {
+    id: 'directors', fromSprint: 3, requiresFact: 'curator_chair',
+    title: 'Minutes: board of directors, quarterly',
+    body: 'Present: ________, ________, ________ (the directors). Resolved: the EFERON study continues. Resolved: catharsis yield is satisfactory. Signed: ________. Where the names should be, the terminal shows nothing at all, not even blank characters. Something small and white is attached where the signature should be.',
+    patches: [], reveals: ['board_of_directors', 'shard_directors'],
+  },
+  {
     id: 'ocean_variance',
     title: 'OCEAN_LAYER variance exceeds model',
     body: 'Fishing boat PELAGIA returned 14 minutes late. Cause not reproducible from seed. Previous 1,471 runs: same boat, different minutes.',
@@ -103,6 +111,9 @@ export const TICKETS: Ticket[] = [
 ];
 
 /** Tickets waiting for the Curator this sprint. */
-export function queue(anomalies: string[], sprint: number): Ticket[] {
-  return TICKETS.filter((t) => (t.anomaly ? anomalies.includes(t.anomaly) : sprint >= (t.fromSprint ?? 0)));
+export function queue(anomalies: string[], sprint: number, knows: (fact: string) => boolean = () => false): Ticket[] {
+  return TICKETS.filter((t) => {
+    if (t.requiresFact && !knows(t.requiresFact)) return false;
+    return t.anomaly ? anomalies.includes(t.anomaly) : sprint >= (t.fromSprint ?? 0);
+  });
 }

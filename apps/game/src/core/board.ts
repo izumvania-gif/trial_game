@@ -8,6 +8,9 @@ export type EnemyId = 'priest' | 'guardA' | 'guardB' | 'guardC' | 'lysimachus';
 export const COLS = 7;
 export const ROWS = 5;
 
+/** The old well, painted on the board. An ally who stands on it finds a shard of the spiral. */
+export const WELL_TILE: Tile = [0, 2];
+
 export const LANDMARKS: Record<string, Tile> = {
   mountain: [6, 0],
   hall: [3, 0],
@@ -81,6 +84,8 @@ export interface NightOutcome {
   hallClear: boolean;
   /** Lysimachus did not reach the shore to see what Leont does there. */
   shoreClear: boolean;
+  /** Double board only: the Curator kept the rollback from being approved. */
+  rollbackAvoided?: boolean;
 }
 
 /** One turn: every enemy that is still moving steps forward unless an ally who can stop them stands there. */

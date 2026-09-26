@@ -104,6 +104,11 @@ export class Knowledge {
     return true;
   }
 
+  /** Replace all known facts (loading a different save). No onLearn events. */
+  reset(facts: Iterable<string>): void {
+    this.known = new Set(facts);
+  }
+
   list(): string[] {
     return [...this.known];
   }

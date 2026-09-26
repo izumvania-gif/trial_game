@@ -15,4 +15,8 @@ Deployed to Amvera from `main` via the `Dockerfile` and `amvera.yml`; SQLite liv
 
 WASD walk · E talk · F finish someone's sentence (déjà vu) · C chronicle · B Book of Strangers · M mask · R lyre · Esc step back.
 
-The last day runs 06:00–midnight (~18 minutes). What you learn survives the reset; nothing else does. Ten people live the last day on fixed schedules; the Book of Strangers records what you have watched. Twelve past Leonts are carved on the spiral in the Hall of Anamnesis (Tab — registry); identifying them frees masks that change how Eferon treats you. If you are stuck, read the line at the bottom of the chronicle at dawn. Main endings: Exception Handled, Revolution, Sisyphus, The Aoidos, The Centre, Promotion (plus Awaiting Curator after the full Night of Anamnesis). The true ending, Diary Without Dates, arrives with the next milestone.
+The last day runs 06:00–midnight (~18 minutes). What you learn survives the reset; nothing else does. Ten people live the last day on fixed schedules; the Book of Strangers records what you have watched. Twelve past Leonts are carved on the spiral in the Hall of Anamnesis (Tab — registry); identifying them frees masks that change how Eferon treats you. If you are stuck, read the line at the bottom of the chronicle at dawn. Main endings: Exception Handled, Revolution, Sisyphus, The Aoidos, The Centre, Promotion (plus Awaiting Curator after the full Night of Anamnesis). The true ending, Diary Without Dates, needs all thirty-six Leonts, all twelve shards of the spiral, an awake Curator and a perfect night — and then continues in real time, one day at a time.
+
+## Moderating player notes
+
+Set `ADMIN_TOKEN` (in Amvera: project environment variables) and open `/admin`. Notes written in the epilogue are shown to other players only after approval.

@@ -1,5 +1,6 @@
 import storyJson from '../../../story/main.ink';
 import { fetchCycleRun } from './api.ts';
+import { exportTablet } from './core/save.ts';
 import { Game } from './game.ts';
 import { drawSpiral } from './spiral.ts';
 import { mountDebugPanel } from './ui/DebugPanel.ts';
@@ -26,6 +27,21 @@ void fetchCycleRun().then((run) => {
   const shown = run ?? game.cycleRun;
   cycleEl.textContent = shown === null ? 'CYCLE RUN #···· — SIGNAL LOST' : `CYCLE RUN #${shown}`;
 });
+
+// The wax tablet: export / import of the whole save as a code.
+const tabletPanel = document.querySelector<HTMLElement>('#tablet-panel')!;
+const tabletCode = document.querySelector<HTMLTextAreaElement>('#tablet-code')!;
+const tabletStatus = document.querySelector<HTMLElement>('#tablet-status')!;
+document.querySelector('#tablet')!.addEventListener('click', () => {
+  tabletPanel.hidden = !tabletPanel.hidden;
+  tabletCode.value = exportTablet(game.save);
+  tabletCode.select();
+});
+document.querySelector('#tablet-import')!.addEventListener('click', () => {
+  const ok = game.loadTablet(tabletCode.value);
+  tabletStatus.textContent = ok ? 'The wax takes it. Wake when you are ready.' : 'The wax will not take that.';
+});
+if (game.save.memory.epilogue) wakeBtn.textContent = 'Open the diary';
 
 wakeBtn.addEventListener('click', () => {
   window.removeEventListener('resize', redrawTitle);

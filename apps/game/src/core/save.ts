@@ -32,6 +32,12 @@ export interface LoopMemory {
   seen: string[];
   /** The most recent ending and the cycle it happened in; the next dawn remembers it. */
   lastEnding: { id: string; cycle: number } | null;
+  /** The first USER NOTE the Curator wrote not as noise; Leont reads it at dawn. */
+  curatorNote: string | null;
+  /** After the true ending (or as the prophet): the diary without dates, in real time. */
+  epilogue: { mode: 'true' | 'prophet'; start: number; entries: { day: number; text: string }[] } | null;
+  /** A backup was restored in the middle of the Night of Anamnesis: the world runs damaged. */
+  damaged: boolean;
 }
 
 export interface CycleState {
@@ -46,7 +52,7 @@ export interface CycleState {
   /** Mechanics destroyed by the strikes in the Night of Anamnesis. */
   lost: Mechanic[];
   /** How the planned night went on the board; null until it is played. */
-  night: { citySilent: boolean; hallClear: boolean; shoreClear: boolean } | null;
+  night: { citySilent: boolean; hallClear: boolean; shoreClear: boolean; rollbackAvoided?: boolean } | null;
 }
 
 export interface SaveFile {
@@ -67,7 +73,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null,
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false,
   };
 }
 
@@ -163,6 +169,34 @@ export function importTablet(code: string, contentVersion: string): SaveFile | n
     return status === 'corrupt' ? null : save;
   } catch {
     return null;
+  }
+}
+
+/**
+ * The illusion of the break: forgetting everything after the true ending keeps one shard —
+ * a few lines of the diary and the fact that the break happened. A new Leont finds them.
+ */
+export const SHARD_KEY = 'eferon.shard';
+
+export interface BreakShard {
+  lines: string[];
+  at: number;
+}
+
+export function readShard(storage: KeyValueStorage | null): BreakShard | null {
+  try {
+    const raw = storage?.getItem(SHARD_KEY);
+    return raw ? (JSON.parse(raw) as BreakShard) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeShard(storage: KeyValueStorage | null, shard: BreakShard): void {
+  try {
+    storage?.setItem(SHARD_KEY, JSON.stringify(shard));
+  } catch {
+    // Without storage there is no shard. The break is then simply forgotten.
   }
 }
 

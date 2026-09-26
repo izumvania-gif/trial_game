@@ -2,8 +2,9 @@
 // Place your allies, read the enemies' routes, then let the night play out.
 import * as THREE from 'three';
 import {
-  ALLY_NAMES, canPlace, COLS, ENEMIES, enemiesFor, EXTRA_GUARD, LANDMARKS, ROWS, sameTile, simulate, type AllyId, type Enemy, type EnemyState, type Tile,
+  ALLY_NAMES, canPlace, COLS, ENEMIES, enemiesFor, EXTRA_GUARD, LANDMARKS, WELL_TILE, ROWS, sameTile, simulate, type AllyId, type Enemy, type EnemyState, type Tile,
 } from '../../core/board.ts';
+import { ACTION_LABELS, canUse, initialSprint, LANES, rolledBack, sprintTurn, type CuratorAction, type SprintState } from '../../core/sprint.ts';
 import { makeSea } from '../../render/sea.ts';
 import { h } from '../../ui/dom.ts';
 import { disposeScene } from '../dispose.ts';
@@ -12,6 +13,8 @@ import type { Stage, StageHost } from '../types.ts';
 
 const TILE = 2.2;
 const STEP_SECONDS = 0.7;
+/** The Curator's half of the night always lasts this many turns, however quickly Eferon's half ends. */
+const NIGHT_TURNS = 7;
 
 const tileToWorld = ([c, r]: Tile) => new THREE.Vector3((c - (COLS - 1) / 2) * TILE, 0, (r - (ROWS - 1) / 2) * TILE);
 
@@ -37,13 +40,19 @@ export class BoardStage implements Stage {
   /** Decided when the night starts: how loud the day was decides whether a third guard comes. */
   private enemies: Enemy[] = ENEMIES;
   private routes = new Map<string, THREE.Group>();
+  /** The double board: present once the Curator is awake. */
+  private sprint: SprintState | null = null;
+  private sprintPanel = h('aside', { className: 'sprint-panel', hidden: true });
+  /** Night turn waiting for the Curator's move (playback pauses on it). */
+  private awaitingCurator = false;
+  private turn = 0;
 
   constructor(host: StageHost) {
     this.host = host;
     this.camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 100);
     this.camera.position.set(0, 18, 11);
     this.camera.lookAt(0, 0, 0.6);
-    host.overlay.append(this.panel);
+    host.overlay.append(this.panel, this.sprintPanel);
     this.build();
   }
 
@@ -83,6 +92,14 @@ export class BoardStage implements Stage {
     }
     g.fillStyle = '#0d0b09';
     for (const [c, r] of Object.values(LANDMARKS)) g.fillRect(c * 64 + 6, r * 64 + 6, 52, 52);
+    // The old well: a black ring with a white chip in it.
+    const [wc, wr] = WELL_TILE;
+    g.lineWidth = 7;
+    g.beginPath();
+    g.arc(wc * 64 + 32, wr * 64 + 32, 16, 0, Math.PI * 2);
+    g.stroke();
+    g.fillStyle = '#ffffff';
+    g.fillRect(wc * 64 + 28, wr * 64 + 28, 8, 8);
     const tex = new THREE.CanvasTexture(canvas);
     tex.magFilter = THREE.NearestFilter;
     // Unlit, so the painted colors land exactly on the palette and the labels stay crisp.
@@ -156,6 +173,7 @@ export class BoardStage implements Stage {
   private sea: ReturnType<typeof makeSea> | null = null;
 
   enter(): void {
+    this.sprint = this.host.knowledge.knows('curator_awake') ? initialSprint() : null;
     this.onResize();
     this.enemies = enemiesFor(this.host.cycle.wind);
     for (const [id, route] of this.routes) {
@@ -167,6 +185,10 @@ export class BoardStage implements Stage {
     this.selected = this.available()[0] ?? null;
     this.playback = null;
     this.result = null;
+    this.turn = 0;
+    this.awaitingCurator = false;
+    this.sprintPanel.hidden = !this.sprint;
+    this.renderSprint();
     for (const fig of this.allyFigures.values()) fig.visible = false;
     for (const e of this.enemies) this.enemyFigures.get(e.id)!.position.copy(tileToWorld(e.path[0]!));
     this.panel.hidden = false;
@@ -175,19 +197,25 @@ export class BoardStage implements Stage {
 
   exit(): void {
     this.panel.hidden = true;
+    this.sprintPanel.hidden = true;
   }
 
   dispose(): void {
     this.panel.remove();
+    this.sprintPanel.remove();
     disposeScene(this.scene);
   }
 
   onResize(): void {
-    // Frame the board in the space to the right of the plan panel (~24rem wide).
+    // Frame the board between the plan panel (~24rem, left) and, on the double board,
+    // the Curator's panel (~22rem, right); zoom out if the space between them is narrow.
     const aspect = this.host.aspect();
-    const halfH = 6.8;
+    const leftPx = 24 * 16;
+    const rightPx = this.sprint ? 22 * 16 : 0;
+    const freePx = Math.max(200, window.innerWidth - leftPx - rightPx);
+    const halfH = Math.max(6.8, ((COLS * TILE + 1) * window.innerHeight) / (2 * freePx));
     const unitsPerPx = (halfH * 2) / window.innerHeight;
-    const shift = (24 * 16 * unitsPerPx) / 2;
+    const shift = ((leftPx - rightPx) * unitsPerPx) / 2;
     this.camera.left = -halfH * aspect - shift;
     this.camera.right = halfH * aspect - shift;
     this.camera.top = halfH;
@@ -233,7 +261,15 @@ export class BoardStage implements Stage {
 
   private play(dt: number): void {
     const pb = this.playback!;
+    if (this.awaitingCurator) return;
+    const before = Math.floor(pb.t);
     pb.t += dt / STEP_SECONDS;
+    // On the double board every new turn waits for the Curator's move.
+    if (this.sprint && Math.floor(pb.t) > before && this.turn < NIGHT_TURNS) {
+      pb.t = Math.floor(pb.t);
+      this.awaitingCurator = true;
+      this.renderSprint();
+    }
     const i = Math.min(pb.turns.length - 1, Math.floor(pb.t));
     const frac = Math.min(1, pb.t - i);
     const now = pb.turns[i]!;
@@ -243,13 +279,47 @@ export class BoardStage implements Stage {
       const b = tileToWorld(e.path[next.find((s) => s.id === e.id)!.step]!);
       this.enemyFigures.get(e.id)!.position.lerpVectors(a, b, frac);
     }
-    if (pb.t >= pb.turns.length) {
+    const curatorDone = !this.sprint || this.turn >= NIGHT_TURNS;
+    if (pb.t >= pb.turns.length && curatorDone) {
       this.playback = null;
+      if (this.sprint && this.result) this.result.rollbackAvoided = !rolledBack(this.sprint);
       this.host.cycle.night = this.result;
       this.host.knowledge.learn('board_played');
+      if (Object.values(this.allies).some((t) => sameTile(t, WELL_TILE))) this.host.knowledge.learn('shard_board');
       this.host.persist();
       this.renderPanel();
     }
+  }
+
+  private curatorMove(action: CuratorAction): void {
+    if (!this.sprint || !this.awaitingCurator) return;
+    this.sprint = sprintTurn(this.sprint, action);
+    this.turn += 1;
+    this.awaitingCurator = false;
+    this.renderSprint();
+  }
+
+  private renderSprint(): void {
+    const s = this.sprint;
+    if (!s) return;
+    const lanes = h('ol', { className: 'sprint-lanes' }, ...LANES.map((name, i) =>
+      h('li', { className: i === s.lane ? 'here' : '' }, name, i === s.lane ? ' ◀ ticket EFR-ROLLBACK' : '')));
+    const children: (Node | string)[] = [
+      h('h2', {}, 'Curator P-7 · the same night'),
+      h('p', { className: 'desk-note' }, 'Minotaur_ops is pushing a rollback of tonight through the pipeline, one lane per turn. If it reaches ROLLBACK, none of this happened.'),
+      lanes,
+      h('p', {}, `Turn ${Math.min(this.turn + 1, NIGHT_TURNS)} of ${NIGHT_TURNS}`),
+    ];
+    if (rolledBack(s)) children.push(h('p', { className: 'sprint-bad' }, 'ROLLBACK APPROVED. Whatever happens below, the morning will not know it.'));
+    else if (this.awaitingCurator) {
+      for (const a of ['wait', 'defer', 'reply', 'noise'] as CuratorAction[]) {
+        const b = h('button', { type: 'button', className: 'ghost', disabled: a !== 'wait' && !canUse(s, a) }, `${ACTION_LABELS[a]}${a === 'wait' ? '' : ` · ${Math.max(0, (a === 'noise' ? 1 : 2) - s.used[a])} left`}`);
+        b.addEventListener('click', () => this.curatorMove(a));
+        children.push(b);
+      }
+    } else if (this.turn >= NIGHT_TURNS) children.push(h('p', { className: 'sprint-good' }, 'The ticket is still in the pipeline at dawn. Nobody approved anything.'));
+    else children.push(h('p', { className: 'desk-note' }, this.playback ? 'The night moves…' : 'Waiting for the night to begin.'));
+    this.sprintPanel.replaceChildren(...children);
   }
 
   private renderPanel(): void {
@@ -284,7 +354,8 @@ export class BoardStage implements Stage {
       children.push(h('div', { className: 'board-result' },
         h('p', {}, r.citySilent ? 'The priest never reaches the mountain. Nobody will lead the Yes.' : 'The priest reaches the mountain. The city will answer him.'),
         h('p', {}, r.hallClear ? 'The Hall is empty. The spiral is yours.' : 'Guards stand in the Hall. They will mend what you break.'),
-        h('p', {}, r.shoreClear ? 'Nobody waits on the shore.' : 'Lysimachus waits on the shore, watching the water.')));
+        h('p', {}, r.shoreClear ? 'Nobody waits on the shore.' : 'Lysimachus waits on the shore, watching the water.'),
+        r.rollbackAvoided === undefined ? '' : h('p', {}, r.rollbackAvoided ? 'Upstairs, the rollback never gets approved.' : 'Upstairs, the rollback is approved.')));
       const hall = h('button', { type: 'button' }, 'Go down to the Hall');
       hall.addEventListener('click', () => this.host.switchStage('strikes'));
       const again = h('button', { type: 'button', className: 'ghost' }, 'Plan again');

@@ -54,7 +54,25 @@ The carvings seem to settle into the stone, as if they had been waiting to be re
     ~ learn("past_attempts")
     ~ learn("eion_was_leont")
 }
-{registry_locked() >= 12:
+{registry_locked() >= 18 and not knows("shard_registry_18"):
+    Something small falls out of the spiral and ticks across the floor: a chip of the marble, from nowhere you can see.
+    ~ learn("shard_registry_18")
+}
+{registry_locked() >= 24 and not knows("shard_registry_24"):
+    Another chip falls. The spiral does not look damaged. It looks lighter.
+    ~ learn("shard_registry_24")
+}
+{registry_locked() >= 30 and not knows("shard_registry_30"):
+    A third chip. You could swear the inner ring turned a little by itself.
+    ~ learn("shard_registry_30")
+}
+{registry_locked() >= 36 and not knows("registry_all"):
+    Thirty-six. Every scribe on every ring has a name, and every name is yours.
+    A last chip falls from the empty centre. The circle is still empty.
+    ~ learn("shard_registry_36")
+    ~ learn("registry_all")
+}
+{registry_locked() >= 12 and not knows("sea_absent"):
     -> no_sea
 }
 -> DONE
@@ -68,3 +86,9 @@ there is no sea on the spiral. Not one wave. Not a boat, not a shore. The city o
 === spiral_no_sea ===
 Glaucus said: look for me on your stone wheel. You look. Market, council, plague ships — plague ships without water under them.
 -> registry_confirmed.no_sea
+
+=== spiral_shard ===
+On the outer ring, where there has never been anything, a carving you have never seen.
+A scribe at the very edge of the stone, cutting his palm over nothing. Where the sea should be, the carver left the marble blank.
+You do not remember doing it. The stone does.
+-> DONE

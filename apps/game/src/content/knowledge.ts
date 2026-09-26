@@ -1,4 +1,5 @@
 import type { KnowledgeGraph } from '../core/knowledge.ts';
+import { SHARDS } from './shards.ts';
 
 // The knowledge graph of the main game. Fact ids are referenced from ink via learn("id") / knows("id").
 // The four questions Leont must close before the Night of Anamnesis (docs/concept.md §3):
@@ -44,6 +45,15 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'debts_reformed', text: 'In the face of the Orator I made the assembly cancel the debts. By law. For one afternoon.' },
     { id: 'debts_settled', text: 'Kora\'s people owe nothing tonight. If the flood does not come, they will not be slaves tomorrow.' },
     { id: 'board_played', text: 'We painted the night on the tavern table and played it through.' },
+    ...SHARDS.map((sh) => ({ id: sh.fact, text: sh.text })),
+    { id: 'shards_4', text: 'Four shards of the spiral. Together they spell a word I can carve: UNWRITTEN.' },
+    { id: 'shards_8', text: 'Eight shards. A second word: SILENCE.' },
+    { id: 'shards_12', text: 'All twelve shards. The last word: FIRST.' },
+    { id: 'human_notes_seen', text: 'A feed on the Desk labelled HUMAN NOTES, classified as noise. It is the only thing the Curator cannot predict.' },
+    { id: 'curator_chair', text: 'The Curator tried to remember the chair it is sitting on, and could not.' },
+    { id: 'board_of_directors', text: 'Above the Curator: directors whose names are not blank. There is simply nothing there, not even a font.' },
+    { id: 'curator_awake', text: 'The Curator wrote a USER NOTE into Eferon that was not a correction. It copied a human sentence, on purpose.' },
+    { id: 'registry_all', text: 'All thirty-six of us have names now. Every way to fight the day has been tried, and every one fed the spiral.' },
   ],
   sources: [
     { id: 'chronicle_at_dawn', stage: 'town', requires: [], gives: ['other_hand'] },
@@ -70,6 +80,25 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'blackmail', stage: 'town', requires: ['kora_debts', 'hierocles_paid'], gives: ['debts_released', 'debts_settled'] },
     { id: 'assembly', stage: 'town', requires: ['kora_debts', 'mask_orator'], gives: ['debts_reformed', 'debts_settled'] },
     { id: 'board', stage: 'board', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'], gives: ['board_played'] },
+    // Shards: town spots, registry milestones, the Desk, the relief, the board.
+    { id: 'well_at_noon', stage: 'town', requires: ['aristion_phyllis'], gives: ['shard_well'] },
+    { id: 'tavern_after_eion', stage: 'town', requires: ['eion_song'], gives: ['shard_tavern'] },
+    { id: 'path_before_procession', stage: 'town', requires: ['rain_at_midnight'], gives: ['shard_path'] },
+    { id: 'aristion_fist', stage: 'town', requires: ['aristion_trust'], gives: ['shard_aristion'] },
+    { id: 'registry_18', stage: 'spiral', requires: ['sea_absent'], gives: ['shard_registry_18'] },
+    { id: 'registry_24', stage: 'spiral', requires: ['shard_registry_18'], gives: ['shard_registry_24'] },
+    { id: 'registry_30', stage: 'spiral', requires: ['shard_registry_24'], gives: ['shard_registry_30'] },
+    { id: 'registry_36', stage: 'spiral', requires: ['shard_registry_30'], gives: ['shard_registry_36', 'registry_all'] },
+    { id: 'desk_attachment', stage: 'desk', requires: ['desk_agent_id'], gives: ['shard_attachment'] },
+    { id: 'human_notes_tab', stage: 'desk', requires: ['desk_agent_id'], gives: ['human_notes_seen'] },
+    { id: 'the_chair', stage: 'desk', requires: ['desk_agent_id'], gives: ['curator_chair'] },
+    { id: 'directors_minutes', stage: 'desk', requires: ['curator_chair'], gives: ['board_of_directors', 'shard_directors'] },
+    { id: 'first_user_note', stage: 'desk', requires: ['human_notes_seen', 'board_of_directors'], gives: ['curator_awake'] },
+    { id: 'relief_edge', stage: 'relief', requires: ['spiral_repeats'], gives: ['shard_relief'] },
+    { id: 'board_well', stage: 'board', requires: ['board_played'], gives: ['shard_board'] },
+    { id: 'four_shards', stage: 'town', requires: ['shard_well', 'shard_tavern', 'shard_path', 'shard_aristion'], gives: ['shards_4'] },
+    { id: 'eight_shards', stage: 'town', requires: ['shards_4', 'shard_registry_18', 'shard_registry_24', 'shard_registry_30', 'shard_registry_36'], gives: ['shards_8'] },
+    { id: 'twelve_shards', stage: 'town', requires: ['shards_8', 'shard_attachment', 'shard_directors', 'shard_relief', 'shard_board'], gives: ['shards_12'] },
     { id: 'cleon_twice', stage: 'town', requires: ['rain_at_midnight'], gives: ['cleon_repeats'] },
     { id: 'kora_talk', stage: 'town', requires: [], gives: ['kora_debts'] },
     { id: 'kora_convinced', stage: 'town', requires: ['cleon_repeats'], gives: ['kora_ally'] },
@@ -90,7 +119,13 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'curator_missing', title: 'Awaiting Curator', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'] },
     {
       id: 'diary_without_dates', title: 'Diary Without Dates', trueEnding: true,
-      requires: ['last_line', 'past_attempts', 'sea_absent', 'kora_ally', 'aristion_trust', 'desk_agent_id', 'reset_by_user', 'sea_differs', 'debts_settled', 'board_played'],
+      requires: [
+        'last_line', 'past_attempts', 'sea_absent', 'kora_ally', 'aristion_trust', 'desk_agent_id', 'reset_by_user',
+        'sea_differs', 'debts_settled', 'board_played', 'registry_all', 'shards_12', 'curator_awake',
+      ],
     },
+    { id: 'prophet', title: 'Prophet', requires: ['registry_all', 'shards_12', 'curator_awake', 'board_played'] },
+    { id: 'wake_pressed', title: 'Reset Initiated by User', requires: ['registry_all', 'shards_12', 'curator_awake', 'board_played'] },
+    { id: 'intermediate', title: 'Intermediate World', requires: ['board_played'] },
   ],
 };

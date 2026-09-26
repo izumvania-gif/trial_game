@@ -67,7 +67,13 @@ You have the key. What more do you want from a sick old man? #speaker:Aristion
 Aristion is burning. He talks to the doorpost.
 Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Phyllis. #speaker:Aristion
 ~ learn("aristion_phyllis")
-He does not know you.
+{knows("aristion_trust") and not knows("shard_aristion"):
+    His right fist is clenched on something. When you take his hand, he knows you for a moment, and opens it.
+    Keep it. It fell out of the wall of the Hall when I was your age. I put the moss back. #speaker:Aristion
+    ~ learn("shard_aristion")
+- else:
+    He does not know you. His right fist is clenched on something, and stays clenched.
+}
 -> DONE
 
 === kora ===

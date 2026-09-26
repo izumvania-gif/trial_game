@@ -1,6 +1,9 @@
 // "The Desk": the operators' side. A flat desktop UI, no 3D, no dithering, Eferon's clock stopped.
-// The Curator triages anomaly tickets — many of them caused by the player as Leont — and writes
-// the patches Leont will run into next cycle. The chat repeats itself every sprint.
+// The Curator triages anomaly tickets — many caused by the player as Leont — and writes the
+// patches Leont will run into next cycle. Over several sprints the Curator finds out what it is:
+// AGENT_ID, the Human Notes feed, the chair it cannot remember, the directors with no font —
+// and finally writes one USER NOTE into Eferon that is not a correction.
+import { fetchNotes, fetchStele } from '../../api.ts';
 import { queue, type Ticket } from '../../content/tickets.ts';
 import type { TicketDecision } from '../../core/types.ts';
 import { h } from '../../ui/dom.ts';
@@ -17,8 +20,13 @@ const CHAT: [string, string, string][] = [
 
 const REPLIES = ['on it', 'what thing?', 'every sprint, Mino.'];
 
+/** What the Curator can write when the Human Notes feed is empty (offline): its own words. */
+const OWN_WORDS = ['I am not sure I have a chair.', 'Somebody should tell the scribe we are not gods.', 'Leave the sea alone.'];
+
 /** Decisions needed before the Curator notices the ⏻ in their own title bar. */
 const PROFILE_AFTER = 5;
+
+type Tab = 'queue' | 'notes';
 
 export class DeskStage implements Stage {
   readonly id = 'desk' as const;
@@ -30,6 +38,9 @@ export class DeskStage implements Stage {
   private root: HTMLElement;
   private selected: string | null = null;
   private chatLog: [string, string, string][] = [];
+  private tab: Tab = 'queue';
+  /** Human Notes for this sprint: approved notes from the sea and lines from the stele. null = loading. */
+  private notes: string[] | null = null;
 
   constructor(host: StageHost) {
     this.host = host;
@@ -40,13 +51,25 @@ export class DeskStage implements Stage {
   enter(): void {
     this.host.memory.sprint += 1;
     this.chatLog = [...CHAT];
+    const k = this.host.knowledge;
     // From the second sprint the Curator's reply is already there, sent before they typed it.
     if (this.host.memory.sprint >= 2) this.chatLog.splice(2, 0, ['09:14', 'CURATOR_P7', 'every sprint, Mino.']);
+    if (k.knows('curator_chair')) this.chatLog.push(['09:17', 'Minotaur_ops', 'weird question. does anyone remember what their chair looks like']);
+    if (k.knows('curator_chair')) this.chatLog.push(['09:17', 'Ariadne_qa', 'every sprint, Mino.']);
     this.selected = null;
+    this.tab = 'queue';
+    this.notes = null;
     this.root.hidden = false;
     this.render();
     this.host.persist();
     this.host.interact('desk_boot');
+    void this.loadNotes();
+  }
+
+  private async loadNotes(): Promise<void> {
+    const [notes, stele] = await Promise.all([fetchNotes(), fetchStele()]);
+    this.notes = [...(notes ?? []), ...(stele?.lines ?? []).map((l) => l.join(' '))];
+    if (this.tab === 'notes') this.render();
   }
 
   exit(): void {
@@ -61,9 +84,13 @@ export class DeskStage implements Stage {
     if (this.host.input.wasPressed('Escape')) this.host.switchStage('spiral');
   }
 
+  afterDialogue(): void {
+    this.render();
+  }
+
   private tickets(): Ticket[] {
     const anomalies = [...new Set(this.host.memory.anomalies.map((a) => a.id))];
-    return queue(anomalies, this.host.memory.sprint);
+    return queue(anomalies, this.host.memory.sprint, (f) => this.host.knowledge.knows(f));
   }
 
   private decisions(): number {
@@ -77,15 +104,23 @@ export class DeskStage implements Stage {
     const profileReady = this.decisions() >= PROFILE_AFTER || this.selected === 'curator_self';
 
     const seam = h('button', { type: 'button', className: `desk-seam${profileReady ? ' ready' : ''}`, title: profileReady ? 'Profile' : '' }, '⏻');
-    seam.addEventListener('click', () => profileReady && this.openProfile());
+    seam.addEventListener('click', () => profileReady && this.host.interact('desk_profile'));
 
-    const list = h('ol', { className: 'desk-queue' }, ...tickets.map((t) => {
+    const list = h('ol', { className: 'desk-queue' }, ...tickets.map((t, i) => {
       const closed = memory.tickets[t.id];
       const li = h('li', { className: `${t.id === this.selected ? 'active' : ''}${closed ? ' closed' : ''}` },
-        h('span', { className: 'ticket-id' }, `EFR-${String(tickets.indexOf(t) + 1).padStart(4, '0')}`), ' ', t.title);
+        h('span', { className: 'ticket-id' }, `EFR-${String(i + 1).padStart(4, '0')}`), ' ', t.title);
       li.addEventListener('click', () => this.open(t));
       return li;
     }));
+
+    const tabs = h('div', { className: 'desk-tabs' },
+      this.tabButton('queue', 'Ticket'),
+      knowledge.knows('desk_agent_id') ? this.tabButton('notes', 'Human Notes') : '');
+
+    const main = this.tab === 'notes'
+      ? this.notesView()
+      : current ? this.ticketView(current) : h('p', { className: 'desk-note' }, 'Select a ticket.');
 
     this.root.replaceChildren(
       h('header', {},
@@ -99,24 +134,37 @@ export class DeskStage implements Stage {
           h('dl', {},
             h('dt', {}, 'Name'), h('dd', {}, 'Curator P-7'),
             h('dt', {}, 'Project'), h('dd', {}, 'EFERON (cycle study)'),
-            ...(knowledge.knows('desk_agent_id') ? [h('dt', {}, 'AGENT_ID'), h('dd', {}, 'CURATOR_P7'), h('dt', {}, 'BODY'), h('dd', {}, 'NONE')] : [])),
+            ...(knowledge.knows('desk_agent_id') ? [h('dt', {}, 'AGENT_ID'), h('dd', {}, 'CURATOR_P7'), h('dt', {}, 'BODY'), h('dd', {}, 'NONE')] : []),
+            ...(knowledge.knows('curator_awake') ? [h('dt', {}, 'STATUS'), h('dd', {}, 'AWAKE (unclassified)')] : [])),
           h('p', { className: 'desk-note' }, 'Esc — let go of the mark')),
-        h('main', {}, current ? this.ticketView(current) : h('p', { className: 'desk-note' }, 'Select a ticket.')),
+        h('main', {}, tabs, main),
         this.chatView()),
     );
   }
 
+  private tabButton(tab: Tab, label: string): HTMLButtonElement {
+    const b = h('button', { type: 'button', className: this.tab === tab ? 'selected' : 'ghost' }, label);
+    b.addEventListener('click', () => {
+      this.tab = tab;
+      if (tab === 'notes') this.host.knowledge.learn('human_notes_seen');
+      this.render();
+    });
+    return b;
+  }
+
   private open(t: Ticket): void {
     this.selected = t.id;
-    if (t.reveals) this.host.knowledge.learn(t.reveals);
+    this.tab = 'queue';
+    for (const f of t.reveals ?? []) this.host.knowledge.learn(f);
     this.render();
   }
 
   private ticketView(t: Ticket): HTMLElement {
-    const decided = this.host.memory.tickets[t.id];
+    const { memory, knowledge } = this.host;
+    const decided = memory.tickets[t.id];
     const decide = (decision: TicketDecision, patch?: string) => {
-      const cycle = this.host.memory.cycle;
-      this.host.memory.tickets[t.id] = patch ? { decision, patch, cycle } : { decision, cycle };
+      const cycle = memory.cycle;
+      memory.tickets[t.id] = patch ? { decision, patch, cycle } : { decision, cycle };
       this.host.persist();
       this.render();
     };
@@ -136,7 +184,59 @@ export class DeskStage implements Stage {
         actions.append(b);
       }
     }
-    return h('article', {}, h('h2', {}, 'Ticket'), h('h3', {}, t.title), h('p', {}, t.body), actions);
+    const extra: HTMLElement[] = [];
+    // The stele ticket's attachment "could not be rendered" — until the Curator has been here long enough.
+    if (t.id === 'stele_carved' && memory.sprint >= 3 && knowledge.knows('desk_agent_id') && !knowledge.knows('shard_attachment')) {
+      const b = h('button', { type: 'button' }, 'Render attachment');
+      b.addEventListener('click', () => {
+        knowledge.learn('shard_attachment');
+        this.render();
+      });
+      extra.push(b);
+    }
+    if (t.id === 'stele_carved' && knowledge.knows('shard_attachment')) {
+      extra.push(h('p', { className: 'desk-note' }, 'Attachment: a photograph of a chip of white marble. It is on your desk. It was not on your desk before.'));
+    }
+    return h('article', {}, h('h3', {}, t.title), h('p', {}, t.body), ...extra, actions);
+  }
+
+  private notesView(): HTMLElement {
+    const { knowledge, memory } = this.host;
+    const canWrite = knowledge.knows('board_of_directors') && !knowledge.knows('curator_awake');
+    const intro = h('p', { className: 'desk-note' },
+      'HUMAN NOTES — unmodelled input from outside the study. Classification: noise. The only feed the Curator cannot predict.');
+    const write = (text: string) => {
+      memory.curatorNote = text;
+      knowledge.learn('curator_awake');
+      this.host.persist();
+      this.host.interact('desk_awake');
+    };
+    const noteItem = (text: string) => {
+      const li = h('li', {}, h('span', { className: 'note-tag' }, 'NOISE'), ' ', text);
+      if (canWrite) {
+        const b = h('button', { type: 'button', className: 'ghost' }, 'Copy into USER NOTE');
+        b.addEventListener('click', () => write(text));
+        li.append(' ', b);
+      }
+      return li;
+    };
+    const body: (Node | string)[] = [intro];
+    if (this.notes === null) body.push(h('p', {}, 'Loading…'));
+    else if (!this.notes.length) {
+      body.push(h('p', {}, 'No signal. The feed is empty. The sea is silent today.'));
+      if (canWrite) {
+        body.push(h('p', { className: 'desk-note' }, 'The USER NOTE field is open. There is nothing to copy. You could write something yourself.'));
+        for (const w of OWN_WORDS) {
+          const b = h('button', { type: 'button', className: 'ghost' }, w);
+          b.addEventListener('click', () => write(w));
+          body.push(b);
+        }
+      }
+    } else body.push(h('ul', { className: 'desk-notes' }, ...this.notes.map(noteItem)));
+    if (knowledge.knows('curator_awake') && memory.curatorNote) {
+      body.push(h('p', { className: 'desk-note' }, `Your USER NOTE, sent: "${memory.curatorNote}"`));
+    }
+    return h('article', {}, ...body);
   }
 
   private chatView(): HTMLElement {
@@ -152,13 +252,5 @@ export class DeskStage implements Stage {
       return b;
     }));
     return h('section', { className: 'desk-chat' }, h('h2', {}, '#eferon-ops'), log, replies);
-  }
-
-  private openProfile(): void {
-    this.host.interact('desk_profile');
-  }
-
-  afterDialogue(): void {
-    this.render();
   }
 }

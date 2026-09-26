@@ -11,9 +11,9 @@ import { disposeScene } from '../dispose.ts';
 import { lambert, makeFigure } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
 
-const RINGS = 3;
+const RINGS = 4;
 const OUTER = 4.6;
-const BAND = 1.05;
+const BAND = 0.9;
 const ALIGN_TOLERANCE = 0.07;
 /** The two scribes whose alignment reveals the seam: one on the outer ring, one on the second. */
 const ALIGN_PAIR = ['l1', 'l3'];
@@ -85,7 +85,7 @@ export class SpiralStage implements Stage {
       band.receiveShadow = true;
       group.add(band);
       // Reliefs: the same scenes on every ring, cruder towards the centre. No sea anywhere.
-      const count = 14 - i * 4;
+      const count = 12 - i * 2;
       const size = 0.18 + i * 0.08;
       for (let k = 0; k < count; k++) {
         const a = (k / count) * Math.PI * 2 + rand() * 0.2;
@@ -98,8 +98,8 @@ export class SpiralStage implements Stage {
       }
       for (const leont of PAST_LEONTS.filter((l) => l.ring === i)) {
         const r = (inner + outer) / 2;
-        const scribe = makeFigure(eroded && i === 1 ? '#6d6862' : '#141110', 0.55 + i * 0.1);
-        scribe.position.set(Math.cos(leont.angle) * r, Math.sin(leont.angle) * r - 0.25, 0.12);
+        const scribe = makeFigure(eroded && i === 1 ? '#6d6862' : '#141110', 0.5 + i * 0.05);
+        scribe.position.set(Math.cos(leont.angle) * r, Math.sin(leont.angle) * r - 0.22, 0.12);
         scribe.userData.leont = leont.id;
         group.add(scribe);
         this.scribes.set(leont.id, scribe);
@@ -136,6 +136,11 @@ export class SpiralStage implements Stage {
     if (!k.knows('spiral_repeats')) this.host.interact('spiral_enter');
     // After Glaucus: look for the sea on the stone.
     else if (k.knows('glaucus_no_calendar') && !k.knows('sea_absent')) this.host.interact('spiral_no_sea');
+    // The illusion of the break: a previous Leont's act is carved on the outer ring.
+    else if (this.host.breakShard() && !this.shardShown) {
+      this.shardShown = true;
+      this.host.interact('spiral_shard');
+    }
   }
 
   exit(): void {
@@ -207,6 +212,7 @@ export class SpiralStage implements Stage {
   }
 
   private press: { scribe: PastLeont | null; overSeam: boolean } | null = null;
+  private shardShown = false;
 
   private pointOnDisk(): THREE.Vector3 | null {
     const { mouse } = this.host.input;

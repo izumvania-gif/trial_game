@@ -9,10 +9,22 @@
 - ended_last_cycle("curator_missing"):
     ROLLBACK APPROVED BY: CURATOR_P7 (auto) #log
 }
+{knows("curator_awake") and curator_note() != "":
+    Before you open your eyes, a line in the service script, the one you are not supposed to read:
+    USER NOTE: {curator_note()} #log
+    It is not an order. It is not a correction. Someone copied it for you.
+}
 {cycle() == 1:
     Grey light on the wax. You fell asleep over the chronicle again.
 - else:
     Grey light on the wax. You fell asleep over the chronicle. Again.
+}
+{damaged():
+    The stars were late last night. You checked twice. The tables say one thing and the sky says another, and neither is sure.
+}
+{shard_line() != "":
+    On the first tablet, older than the others, in a slanted hand you almost recognise:
+    {shard_line()} #hand
 }
 {
 - ended_last_cycle("promotion"):
@@ -28,6 +40,9 @@
     {dawn_hint()} #hand
 }
 ~ learn("other_hand")
+{voice() != "":
+    {voice()} #voice
+}
 {knows("rain_at_midnight") and not ended_last_cycle("promotion"):
     The letters lean the way yours would, if you were in a hurry. If you had done this before.
 }
@@ -102,6 +117,12 @@ The path goes down between the rocks to the water.
 }
 
 === mountain_path ===
+{hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
+    The path up the holy mountain, empty for one more hour. Among the pale stones one is paler than the rest, and square-edged.
+    It is a chip of the white marble from the Hall. Nobody carried it here. Nobody could have.
+    ~ learn("shard_path")
+    -> DONE
+}
 {hour() < 22:
     The path up the holy mountain. Tonight the whole city climbs it. Not yet.
     -> DONE
@@ -133,4 +154,33 @@ On the mountain ten thousand voices answer the priest. Yes. #speaker:Eferon
 Then the rain.
 ~ learn("rain_at_midnight")
 RESET COMPLETED SUCCESSFULLY #log
+-> DONE
+
+=== well ===
+The old well by the square. The rope is new every morning; the stones are very old.
+{knows("aristion_phyllis"):
+    Every Golden Age, Aristion says, his wife is standing here. You look at the place where she would stand.
+}
+{
+- hour() == 12 and not knows("shard_well"):
+    The noon sun stands straight over the shaft, and for a moment the water at the bottom is a white eye. In it, something whiter.
+    You go down on the rope. It is a chip of the marble from the Hall, lying on the bottom as if it had been dropped from a great height. #spend:30
+    ~ learn("shard_well")
+- hour() != 12 and not knows("shard_well") and knows("aristion_phyllis"):
+    The water is dark. At another hour, perhaps, you would see the bottom.
+}
+-> DONE
+
+=== tavern_table ===
+{hour() < 14:
+    Eion is asleep under this table, one hand on his lyre.
+    -> DONE
+}
+{hour() >= 23 and not knows("shard_tavern") and knows("eion_song"):
+    Eion has gone down to the sea. Under his table, where his head lay all morning, a chip of white marble is pressed into the floor.
+    It is warm, like something that has been slept on.
+    ~ learn("shard_tavern")
+    -> DONE
+}
+The table where Eion sleeps in the mornings. It smells of wine and of lyre strings.
 -> DONE

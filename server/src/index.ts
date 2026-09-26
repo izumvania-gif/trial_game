@@ -9,5 +9,7 @@ const port = Number(process.env.PORT ?? 3000);
 const dataDir = process.env.DATA_DIR ?? resolve(here, '../../data');
 const staticDir = process.env.STATIC_DIR ?? resolve(here, '../../apps/game/dist');
 
-const app = await buildApp({ store: openStore(dataDir), staticDir, logger: true });
+// Moderation of player notes is enabled only when ADMIN_TOKEN is set (in Amvera: project variables).
+const adminToken = process.env.ADMIN_TOKEN || undefined;
+const app = await buildApp({ store: openStore(dataDir), staticDir, adminToken, logger: true });
 await app.listen({ port, host: '0.0.0.0' });

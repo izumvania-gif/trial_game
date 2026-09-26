@@ -6,17 +6,21 @@ import { KNOWLEDGE } from './content/knowledge.ts';
 import { pickHint } from './content/hints.ts';
 import { LEXICON } from './content/lexicon.ts';
 import { MASKS } from './content/masks.ts';
+import { SHARD_WORDS, SHARDS } from './content/shards.ts';
+import { VOICES } from './content/voices.ts';
 import { PAST_LEONTS } from './content/leonts.ts';
 import { DayClock, endMinuteForWind } from './core/clock.ts';
 import { Knowledge } from './core/knowledge.ts';
 import {
-  browserStorage, freshCycle, hashContent, loadSave, writeSave, type KeyValueStorage, type SaveFile,
+  browserStorage, clearSave, freshCycle, hashContent, importTablet, loadSave, readShard, writeSave, writeShard,
+  type BreakShard, type KeyValueStorage, type SaveFile,
 } from './core/save.ts';
 import type { Mechanic, StageId } from './core/types.ts';
 import { Input } from './engine/input.ts';
 import { StoryEngine, type StoryLine } from './engine/story.ts';
 import { DitherRenderer } from './render/DitherRenderer.ts';
 import { BoardStage } from './stages/board/BoardStage.ts';
+import { DiaryStage } from './stages/diary/DiaryStage.ts';
 import { DeskStage } from './stages/desk/DeskStage.ts';
 import { ReliefStage } from './stages/relief/ReliefStage.ts';
 import { SeaStage } from './stages/sea/SeaStage.ts';
@@ -66,6 +70,10 @@ export class Game {
   private storyJson: string;
   /** Déjà vu results of this cycle, read by ink through dejavu_ok(). */
   private dejavuResults = new Map<string, boolean>();
+  /** What survived the last "Forget everything" after a true ending. */
+  readonly breakShard: BreakShard | null;
+  /** Set when an imported wax tablet was carved during the Night of Anamnesis. */
+  private backupDetected = false;
 
   constructor(canvas: HTMLCanvasElement, overlay: HTMLElement, storyJson: string) {
     this.canvas = canvas;
@@ -76,6 +84,7 @@ export class Game {
     this.save = loaded.save;
     this.saveBlocked = loaded.status === 'unavailable';
     this.cycleRun = this.save.memory.lastCycleRun;
+    this.breakShard = readShard(this.storage);
 
     this.input = new Input(canvas);
     this.renderer = new DitherRenderer(canvas);
@@ -87,6 +96,7 @@ export class Game {
     this.knowledge = new Knowledge(KNOWLEDGE, this.save.memory.facts, (fact) => {
       this.save.memory.facts.push(fact.id);
       if (!this.lost('chronicle')) this.hud.factLearned(fact);
+      if (fact.id.startsWith('shard_')) this.countShards();
       this.persist();
     });
 
@@ -98,7 +108,16 @@ export class Game {
 
   /** Called from the title screen. Resumes the saved day, or starts at dawn. */
   start(): void {
-    this.beginCycle(this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
+    if (this.memory.epilogue) {
+      this.beginCycle(false);
+      this.activate('diary');
+    } else {
+      this.beginCycle(this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
+      if (this.backupDetected) {
+        this.memory.damaged = true;
+        this.ending('intermediate');
+      }
+    }
     requestAnimationFrame((t) => {
       this.lastTime = t;
       this.frame(t);
@@ -144,6 +163,8 @@ export class Game {
       lost: (m) => this.lost(m),
       loseMechanic: (m) => this.loseMechanic(m),
       ending: (id) => this.ending(id),
+      forget: () => this.forget(),
+      breakShard: () => this.breakShard,
       persist: () => this.persist(),
     };
   }
@@ -174,6 +195,7 @@ export class Game {
       board: new BoardStage(host),
       strikes: new StrikesStage(host),
       sea: new SeaStage(host),
+      diary: new DiaryStage(host),
     };
     this.current = undefined as unknown as Stage;
     this.phase = 'playing';
@@ -206,6 +228,12 @@ export class Game {
       sprint: () => this.memory.sprint,
       registry_locked: () => Object.values(this.memory.registry).filter((e) => e.locked).length,
       identified: (id: string) => this.memory.registry[id]?.locked === true,
+      curator_note: () => this.memory.curatorNote ?? '',
+      true_night: () => this.trueNightMissing().length === 0,
+      damaged: () => this.memory.damaged,
+      shard_line: () => (this.breakShard && this.memory.cycle <= 3 ? this.breakShard.lines[this.memory.cycle - 1] ?? '' : ''),
+      voice: () => this.voiceLine(),
+      shard_count: () => SHARDS.filter((s) => this.knowledge.knows(s.fact)).length,
       night: (key: string) => {
         const n = this.save.cycle.night;
         return n ? n[key as keyof typeof n] === true : false;
@@ -272,7 +300,8 @@ export class Game {
   }
 
   private runAction(action: string): void {
-    if (action === 'carve') this.openCarving();
+    if (action.startsWith('wake_test:')) this.wakeTest(action.endsWith('prophet') ? 'prophet' : 'true');
+    else if (action === 'carve') this.openCarving();
     else if (action === 'stele_lines') void this.openSteleLines();
     else if (action === 'board') this.switchStage('board');
     else if (action.startsWith('ending:')) this.ending(action.slice('ending:'.length));
@@ -337,6 +366,12 @@ export class Game {
       this.notice('mask_worn', 0.03);
       this.hud.toast(`${c.wornMask}: ${MASKS[c.wornMask]?.effect ?? ''}`);
     }
+  }
+
+  /** Every four shards of the spiral teach a new stele word. */
+  private countShards(): void {
+    const n = SHARDS.filter((s) => this.knowledge.knows(s.fact)).length;
+    for (const w of SHARD_WORDS) if (n >= w.count) this.knowledge.learn(w.fact);
   }
 
   loseMechanic(m: Mechanic): void {
@@ -426,6 +461,89 @@ export class Game {
     void this.resetCycle('song');
   }
 
+  /** What the true night still lacks; also shown as log lines when the night fails. */
+  trueNightMissing(): string[] {
+    const k = this.knowledge;
+    const n = this.save.cycle.night;
+    const read = Object.values(this.memory.registry).filter((e) => e.locked).length;
+    const missing: string[] = [];
+    if (!k.knows('registry_all')) missing.push(`ARCHIVE: ${PAST_LEONTS.length - read} LEONTS UNREAD`);
+    if (this.memory.steleWords[this.memory.steleWords.length - 1] !== 'FIRST') missing.push("STELE: 'FIRST' NOT CARVED");
+    if (!k.knows('debts_settled')) missing.push('PORT: DEBTS OUTSTANDING');
+    if (!n?.citySilent) missing.push('MOUNTAIN: THE CITY ANSWERED YES');
+    if (!n?.hallClear) missing.push('HALL: ARCHIVE MENDED BY GUARDS');
+    if (!k.knows('curator_awake')) missing.push('CURATOR_P7: NOT AWAKE');
+    else if (!n?.rollbackAvoided) missing.push('ROLLBACK: APPROVED BY Minotaur_ops');
+    return missing;
+  }
+
+  /** Dawn voice of one identified past Leont, chosen by the cycle number. */
+  private voiceLine(): string {
+    if (this.lost('masks')) return '';
+    const heard = PAST_LEONTS.filter((l) => this.memory.registry[l.id]?.locked).map((l) => VOICES[l.attempt]).filter(Boolean);
+    const unique = [...new Set(heard)] as string[];
+    return unique.length ? unique[this.memory.cycle % unique.length]! : '';
+  }
+
+  /** The last test: everything is done, and a button says Wake. Do not press it. */
+  private wakeTest(mode: 'true' | 'prophet'): void {
+    const seconds = 45;
+    let left = seconds;
+    const label = h('p', { className: 'log' }, '');
+    const wake = button('Wake', () => {
+      window.clearInterval(timer);
+      this.modal.close();
+      this.ending('wake_pressed');
+    });
+    const tick = () => {
+      label.textContent = left > 0 ? `AUTO-RESET: DISABLED · MODE: FREE EVOLUTION · ${left}` : '';
+      if (left-- <= 0) {
+        window.clearInterval(timer);
+        this.modal.close();
+        this.beginEpilogue(mode);
+      }
+    };
+    const timer = window.setInterval(tick, 1000);
+    this.modal.show('ending wake-test', [
+      h('p', {}, 'The wind does not come. Nothing comes. It is very quiet.'),
+      h('p', {}, 'Somewhere a button is waiting for you, the way it always has.'),
+      label,
+      wake,
+    ], { dismissable: false });
+    tick();
+  }
+
+  private beginEpilogue(mode: 'true' | 'prophet'): void {
+    const id = mode === 'true' ? 'diary_without_dates' : 'prophet_path';
+    if (mode === 'true' && !this.memory.endingsSeen.includes('diary_without_dates')) this.memory.endingsSeen.push('diary_without_dates');
+    this.memory.epilogue = { mode, start: Date.now(), entries: [] };
+    this.memory.lastEnding = { id, cycle: this.memory.cycle };
+    this.persist();
+    this.activate('diary');
+  }
+
+  /** Forget everything — except the shard. A new Leont will find it. */
+  forget(): void {
+    const lines = (this.memory.epilogue?.entries ?? []).slice(-3).map((e) => e.text);
+    if (this.memory.epilogue) writeShard(this.storage, { lines, at: Date.now() });
+    clearSave(this.storage);
+    location.reload();
+  }
+
+  /** Restores a wax tablet. Returns false if the code is not a save. */
+  loadTablet(code: string): boolean {
+    const save = importTablet(code, this.contentVersion);
+    if (!save) return false;
+    // A tablet carved during the Night of Anamnesis carries the night with it.
+    this.backupDetected = save.cycle.night !== null;
+    if (this.backupDetected) save.cycle = freshCycle();
+    this.save = save;
+    this.knowledge.reset(save.memory.facts);
+    this.cycleRun = save.memory.lastCycleRun;
+    this.persist(false);
+    return true;
+  }
+
   ending(id: string): void {
     const card = ENDINGS[id];
     if (!card) return;
@@ -437,9 +555,10 @@ export class Game {
       h('p', { className: 'ending-kicker' }, 'Ending'),
       h('h2', {}, card.title),
       ...card.lines.map((l) => h('p', {}, l)),
-      h('div', { className: 'ending-log' }, ...card.log.map((l) => h('p', { className: 'log' }, l))),
+      h('div', { className: 'ending-log' }, ...[...card.log, ...(id === 'curator_missing' ? this.trueNightMissing() : [])]
+        .map((l) => h('p', { className: 'log' }, l))),
       button('Wake', () => this.modal.close()),
-    ], { dismissable: false, onClose: () => void this.resetCycle('ending') });
+    ], { dismissable: false, onClose: () => (id === 'prophet' ? this.forget() : void this.resetCycle('ending')) });
   }
 
   private async resetCycle(reason: 'midnight' | 'song' | 'ending'): Promise<void> {
@@ -495,6 +614,16 @@ export class Game {
     }
     for (const l of PAST_LEONTS) this.memory.registry[l.id] = { attempt: l.attempt, ending: l.fate, locked: true };
     if (!this.memory.masks.includes('Extinguisher')) this.memory.masks.push('Extinguisher');
+    this.persist();
+  }
+
+  /** Everything the true night needs except playing it: registry, shards, the Curator, debts, FIRST. */
+  debugPrepareTrue(): void {
+    this.debugPrepareNight();
+    for (const f of ['kora_ally', 'aristion_trust', 'talia_friend', 'kora_debts', 'debts_settled', 'desk_agent_id', 'human_notes_seen',
+      'curator_chair', 'board_of_directors', 'curator_awake', 'registry_all', ...SHARDS.map((s) => s.fact)]) this.knowledge.learn(f);
+    this.memory.curatorNote ??= 'Leave the sea alone.';
+    this.memory.steleWords.push('FIRST');
     this.persist();
   }
 }

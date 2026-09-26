@@ -23,6 +23,18 @@ export const HINTS: Hint[] = [
   { when: ['glaucus_no_calendar'], until: 'sea_absent', text: 'Look for the sea on the spiral.' },
   { when: ['sea_differs'], until: 'talia_friend', text: 'The fisherman\'s girl waits for a boat nobody can predict. Tell her the truth about that.' },
   { when: ['last_line', 'past_attempts', 'sea_absent', 'hall_key'], until: 'board_played', text: 'The singer will paint the night on a table. Go to him after dark.' },
+  // The long way: the true path.
+  { when: ['desk_agent_id'], until: 'curator_chair', text: 'Go back upstairs, sprint after sprint. Ask the Curator what its chair looks like.' },
+  { when: ['curator_chair'], until: 'board_of_directors', text: 'Above the Curator there are directors. Read their minutes.' },
+  { when: ['board_of_directors'], until: 'curator_awake', text: 'There is a feed upstairs they call noise. Make the Curator copy one line of it to you.' },
+  { when: ['aristion_phyllis'], until: 'shard_well', text: 'Noon, at the well. Look straight down.' },
+  { when: ['eion_song'], until: 'shard_tavern', text: 'When the singer goes down to the sea, look under his table.' },
+  { when: ['rain_at_midnight'], until: 'shard_path', text: 'The mountain path, the hour before the procession.' },
+  { when: ['aristion_trust'], until: 'shard_aristion', text: 'In his fever the old man holds something in his fist. He will open it for someone he trusts.' },
+  { when: ['past_attempts'], until: 'registry_all', text: 'Thirty-six of us. Every ring, even the scratches. Read us all.' },
+  { when: ['spiral_repeats'], until: 'shard_relief', text: 'Inside the deep carving, walk to the very edge of the mountain.' },
+  { when: ['board_played'], until: 'shard_board', text: 'There is a well painted on the singer\'s table. Somebody should stand on it.' },
+  { when: ['desk_agent_id'], until: 'shard_attachment', text: 'The stele ticket upstairs has an attachment that will not open. Try again in a later sprint.' },
 ];
 
 export function pickHint(knows: (fact: string) => boolean): string | null {

@@ -52,3 +52,34 @@ test('stele: one line per IP per cooldown', async () => {
   assert.equal((await post()).statusCode, 429);
   await app.close();
 });
+
+test('notes: premoderated — nothing is visible until approved', async () => {
+  const app = await buildApp({ store: openStore(':memory:'), steleCooldownMs: 0, adminToken: 'secret' });
+  assert.equal((await app.inject({ method: 'POST', url: '/api/notes', payload: { text: 'The sea took my name and gave back a better one.' } })).statusCode, 200);
+  assert.deepEqual((await app.inject({ method: 'GET', url: '/api/notes' })).json().notes, []);
+
+  const unauth = await app.inject({ method: 'GET', url: '/api/admin/notes' });
+  assert.equal(unauth.statusCode, 401);
+  const auth = { authorization: 'Bearer secret' };
+  const pending = (await app.inject({ method: 'GET', url: '/api/admin/notes', headers: auth })).json().notes;
+  assert.equal(pending.length, 1);
+  const approve = await app.inject({ method: 'POST', url: `/api/admin/notes/${pending[0].id}`, headers: auth, payload: { status: 'approved' } });
+  assert.equal(approve.statusCode, 200);
+  assert.deepEqual((await app.inject({ method: 'GET', url: '/api/notes' })).json().notes, ['The sea took my name and gave back a better one.']);
+  await app.close();
+});
+
+test('notes: links, other scripts, the forbidden words and over-long notes are refused', async () => {
+  const { cleanNote } = await import('../src/notes.ts');
+  assert.equal(cleanNote('see https://spam.example'), null);
+  assert.equal(cleanNote('Привет'), null);
+  assert.equal(cleanNote('the golden age returns'), null);
+  assert.equal(cleanNote('x'.repeat(141)), null);
+  assert.equal(cleanNote('  today   the fisherman did not come back  '), 'today the fisherman did not come back');
+});
+
+test('admin endpoints do not exist without ADMIN_TOKEN', async () => {
+  const app = await buildApp({ store: openStore(':memory:') });
+  assert.equal((await app.inject({ method: 'GET', url: '/api/admin/notes' })).statusCode, 404);
+  await app.close();
+});

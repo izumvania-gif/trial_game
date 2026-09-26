@@ -77,7 +77,7 @@ test('déjà vu lines: cue marker is parsed and removed; host functions drive br
 });
 
 test('every action tag in the story is one the game handles', () => {
-  const known = new RegExp(`^(carve|stele_lines|board|ending:(${Object.keys(ENDINGS).join('|')}))$`);
+  const known = new RegExp(`^(carve|stele_lines|board|wake_test:(true|prophet)|ending:(${Object.keys(ENDINGS).join("|")}))$`);
   for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
     const src = readFileSync(resolve(storyDir, file), 'utf8');
     for (const m of src.matchAll(/#action:(\S+)/g)) assert.match(m[1]!, known, `${file}: #action:${m[1]}`);

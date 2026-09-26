@@ -6,6 +6,34 @@ export interface EndingCard {
 }
 
 export const ENDINGS: Record<string, EndingCard> = {
+  wake_pressed: {
+    id: 'wake_pressed',
+    title: 'Reset Initiated by User',
+    lines: [
+      'Everything was done. The disk was dust, the city was silent, the Curator kept the ticket from moving, the blood was in the sea.',
+      'And then the button said Wake, and you pressed it, because you always have.',
+    ],
+    log: ['RESET INITIATED BY USER', 'RESET COMPLETED SUCCESSFULLY'],
+  },
+  intermediate: {
+    id: 'intermediate',
+    title: 'Intermediate World',
+    lines: [
+      'You carried a copy of yourself across the night, on a wax tablet, and pressed it back into the world.',
+      'The world took it. It did not take it well. The stars are late now, and the words of the ritual do not quite catch.',
+    ],
+    log: ['BACKUP DETECTED', 'AUTO-RESET: DEFERRED', 'STATE: INCONSISTENT (TOLERATED)'],
+  },
+  prophet: {
+    id: 'prophet',
+    title: 'Prophet',
+    lines: [
+      'You went back up to the city to tell them what had happened. They listened. They wrote it down.',
+      'They carved your words on a stele in the agora, and put a date under them, and then another date, and then a calendar.',
+      'This morning, in the margin of your diary, a small circle with a line through it.',
+    ],
+    log: ['LOG: CYCLE RUN #1', 'MODULE: PROPHET_ASTRO_ASSIST', 'RESET SCHEDULE: RESTORED'],
+  },
   revolution: {
     id: 'revolution',
     title: 'Revolution',
