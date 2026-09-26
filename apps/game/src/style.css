@@ -92,6 +92,8 @@ h1 { margin: 0; font-size: 4.2rem; letter-spacing: 0.6em; margin-right: -0.6em; 
   display: flex; flex-direction: column; gap: 0.2rem;
 }
 .hud-toast.show { opacity: 1; transform: none; }
+/* With a side panel open, news appears beside it, not over its title. */
+#overlay:has(.chronicle:not([hidden])) .hud-toast { right: calc(min(31rem, 92vw) + 1.25rem); }
 .toast-kicker { font-family: var(--mono); font-style: normal; font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ember); }
 .hud-wind, .hud-mask { position: absolute; bottom: 2.6rem; padding: 0.2rem 0.55rem; font-family: var(--mono); font-size: 0.8rem; letter-spacing: 0.08em; color: var(--bone); transition: opacity 0.25s; }
 .hud-wind { left: calc(50% + 4.2rem); }
@@ -462,3 +464,7 @@ html.reduced-motion .desk::after, html.reduced-motion .desk.arriving .desk-queue
 .diary-entries li.fresh { animation: ink 2.4s ease-out both; }
 @keyframes ink { from { color: #0b0806; text-shadow: 0 0 3px rgba(29, 22, 17, 0.7); letter-spacing: 0.01em; } }
 html.reduced-motion .diary-entries li.fresh { animation: none; }
+
+/* The Book of Strangers: where they are now. */
+.book-entry li.current { color: var(--bone); }
+.book-now { margin-left: 0.5rem; padding: 0 0.35rem; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bone); border: 1px solid var(--terracotta); }

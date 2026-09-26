@@ -69,8 +69,8 @@ export class StoryEngine {
     return this.story.KnotContainerWithName(knot) !== null;
   }
 
-  enter(knot: string): void {
-    this.story.ChoosePathString(knot);
+  enter(knot: string, args: string[] = []): void {
+    this.story.ChoosePathString(knot, true, args);
   }
 
   /** Next line, or null when the story waits for a choice or has ended. */

@@ -156,7 +156,12 @@ The wind rises. It always rises first.
 On the mountain ten thousand voices answer the priest. Yes. #speaker:Eferon
 Then the rain.
 ~ learn("rain_at_midnight")
-RESET COMPLETED SUCCESSFULLY #log
+-> DONE
+
+// The last hour: a named resident has stopped wherever eleven found them, facing the mountain.
+=== still(name) ===
+{name} has stopped mid-step at the eleventh hour, facing the mountain. Not a word. Not a blink.
+You say the name. Nothing. The whole city is listening to something you cannot hear.
 -> DONE
 
 === well ===

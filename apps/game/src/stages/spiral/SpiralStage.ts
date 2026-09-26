@@ -16,6 +16,9 @@ const RINGS = 4;
 const OUTER = 4.6;
 const BAND = 0.9;
 const ALIGN_TOLERANCE = 0.07;
+/** Draws nothing and writes no depth: only there for the raycaster. */
+const HIT_MATERIAL = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+
 /** The two scribes whose alignment reveals the seam: one on the outer ring, one on the second. */
 const ALIGN_PAIR = ['l1', 'l3'];
 
@@ -110,6 +113,11 @@ export class SpiralStage implements Stage {
         const scribe = makeFigure(eroded && i === 1 ? '#6d6862' : '#141110', 0.5 + i * 0.05);
         scribe.position.set(Math.cos(leont.angle) * r, Math.sin(leont.angle) * r - 0.22, 0.12);
         scribe.userData.leont = leont.id;
+        // A wider, invisible target around the small figure, so the mouse finds it without hunting.
+        const target = new THREE.Mesh(new THREE.CircleGeometry(0.42 + i * 0.04, 12), HIT_MATERIAL);
+        target.position.set(0, 0.28, 0.02);
+        target.userData.noOutline = true;
+        scribe.add(target);
         group.add(scribe);
         this.scribes.set(leont.id, scribe);
       }
@@ -154,6 +162,7 @@ export class SpiralStage implements Stage {
 
   exit(): void {
     this.dragging = null;
+    document.body.style.cursor = '';
     this.closeCard();
     this.host.prompt(null);
   }
@@ -200,7 +209,10 @@ export class SpiralStage implements Stage {
       overSeam ? 'Click — the mark' : scribe ? 'Click — study the carving' : null,
     );
 
-    if (input.wasClicked()) {
+    // Show that a scribe can be clicked.
+    document.body.style.cursor = scribe || overSeam ? 'pointer' : '';
+    const pressedNow = input.wasClicked();
+    if (pressedNow) {
       this.press = { scribe, overSeam };
       this.dragDistance = 0;
       this.grindAt = 0;
@@ -208,7 +220,8 @@ export class SpiralStage implements Stage {
       this.dragging = this.aligned || overSeam ? null : this.rings.find((ring) => r >= ring.inner && r <= ring.outer) ?? null;
     }
     // Only while the button is still held: movement after release must not turn the ring.
-    if (this.dragging && input.mouse.buttons & 1) {
+    // Movement that arrived in the same frame as the press happened before it: it is not a drag.
+    if (this.dragging && input.mouse.buttons & 1 && !pressedNow) {
       this.dragging.group.rotation.z -= input.mouse.dx * 0.006;
       this.dragDistance += Math.abs(input.mouse.dx) + Math.abs(input.mouse.dy);
       // Stone on stone, every so often while the ring turns.
@@ -272,6 +285,7 @@ export class SpiralStage implements Stage {
 
   private openCard(leont: PastLeont): void {
     this.dragging = null;
+    document.body.style.cursor = '';
     const render = () => {
       const rows = [
         h('p', { className: 'carving' }, leont.carving),

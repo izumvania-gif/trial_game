@@ -23,6 +23,8 @@ interface Interactable {
   z: number;
   radius: number;
   knot: string;
+  /** Arguments for a knot that takes them (the last hour's 'still'). */
+  args?: string[];
   label: string;
 }
 
@@ -55,7 +57,14 @@ const PLACES_TO_TALK: Interactable[] = [
 interface Npc {
   resident: Resident;
   figure: THREE.Group;
+  /** Stopped for the last hour, facing the mountain. */
+  still?: boolean;
 }
+
+/** Residents the last hour does not stop. */
+const FREE_AT_LAST = ['eion', 'glaucus'];
+/** How far apart people sharing one spot stand. */
+const SPREAD = 1.1;
 
 export class TownStage implements Stage {
   readonly id = 'town' as const;
@@ -481,12 +490,12 @@ export class TownStage implements Stage {
     this.host.prompt(near ? `E — ${near.label}` : null);
     this.marker.visible = near !== null;
     if (near) {
-      const npc = this.npcs.find((n) => n.resident.knot === near.knot);
+      const npc = this.npcs.find((n) => n.resident.knot === near.knot || (near.args?.[0] === n.resident.name));
       const top = npc ? (npc.figure.position.y > 0.1 ? 1.2 : 2.35) : 2.2;
       this.marker.position.set(near.x, top + Math.sin(this.time * 3) * 0.12, near.z);
       this.marker.rotation.y = this.time * 1.5;
     }
-    if (near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) this.host.interact(near.knot);
+    if (near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) this.host.interact(near.knot, near.args);
 
     // A stutter: the person nearest the scribe takes the same few steps over and over.
     const g = this.glitch;
@@ -533,7 +542,13 @@ export class TownStage implements Stage {
       ...PLACES_TO_TALK,
       ...this.npcs
         .filter((n) => n.figure.visible)
-        .map((n) => ({ x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: n.resident.knot, label: `Talk to ${n.resident.name === 'The mask seller' ? 'the mask seller' : n.resident.name}` })),
+        .map((n) => {
+          const name = n.resident.name === 'The mask seller' ? 'the mask seller' : n.resident.name;
+          // In the last hour they do not answer: a line about the stillness instead of their day.
+          return n.still
+            ? { x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: 'still', args: [n.resident.name], label: `Look at ${name}` }
+            : { x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: n.resident.knot, label: `Talk to ${name}` };
+        }),
     ];
     let best: Interactable | null = null;
     let bestD = Infinity;
@@ -552,22 +567,46 @@ export class TownStage implements Stage {
     const patches = this.host.patches();
     const p = this.player.position;
     // The last hour: wherever they are at eleven, they stop there and look at the mountain.
+    // Not the singer, who goes down to the water, and not the priest of the sea.
     const lastHour = clock.minute >= at(23);
-    for (const { resident, figure } of this.npcs) {
-      const state = residentAt(resident, Math.min(clock.minute, at(23)), patches);
-      if (lastHour) state.walking = false;
-      if (resident.seaSpot) {
+    const placed = this.npcs.map((npc) => {
+      const free = FREE_AT_LAST.includes(npc.resident.id);
+      const state = residentAt(npc.resident, free ? clock.minute : Math.min(clock.minute, at(23)), patches);
+      npc.still = lastHour && !free;
+      if (npc.still) state.walking = false;
+      if (npc.resident.seaSpot) {
         state.x = this.glaucusX;
         state.z = 22.4;
       }
+      return { npc, state };
+    });
+    // Two people standing at the same spot (Kora waiting where Cleon speaks) would hide one behind
+    // the other, and the nearer would always take the prompt: stand them apart, in a small circle.
+    const groups: (typeof placed)[] = [];
+    for (const item of placed) {
+      if (item.state.walking || item.state.entry.pose === 'lying') continue;
+      const near = groups.find((g) => Math.hypot(g[0]!.state.x - item.state.x, g[0]!.state.z - item.state.z) < SPREAD * 1.5);
+      if (near) near.push(item);
+      else groups.push([item]);
+    }
+    for (const group of groups) {
+      if (group.length < 2) continue;
+      group.forEach(({ state }, i) => {
+        const a = (i / group.length) * Math.PI * 2 + 0.6;
+        state.x += Math.cos(a) * SPREAD;
+        state.z += Math.sin(a) * SPREAD;
+      });
+    }
+    for (const { npc, state } of placed) {
+      const { resident, figure } = npc;
       figure.position.set(state.x, 0, state.z);
       // Lying figures: Aristion in his fever, Eion asleep under the table.
       const lying = !state.walking && state.entry.pose === 'lying';
       const toMountain = Math.atan2(SUMMIT.x - state.x, SUMMIT.z - state.z);
-      figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : lastHour && !lying ? toMountain : figure.rotation.y, 0);
+      figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : npc.still && !lying ? toMountain : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
       bob(figure, this.time, state.walking ? 1 : 0);
-      if (!state.walking && !lastHour) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
+      if (!state.walking && !npc.still) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
       // Once the player has watched a resident at a point of their day, the Book of Strangers records it.
       const key = `${resident.id}:${state.entryIndex}`;
       if (!state.walking && Math.hypot(state.x - p.x, state.z - p.z) < SEEN_DISTANCE && !memory.seen.includes(key)) {

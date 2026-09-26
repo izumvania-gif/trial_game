@@ -190,7 +190,7 @@ export class Game {
       overlay: this.overlay,
       aspect: () => this.renderer.aspect,
       lowResHeight: () => this.renderer.lowResHeight,
-      interact: (knot) => this.interact(knot),
+      interact: (knot, args) => this.interact(knot, args),
       switchStage: (id, entry) => this.switchStage(id, entry),
       prompt: (label) => this.hud.prompt(this.dialogue.open ? null : label),
       patches: () => this.patches(),
@@ -336,7 +336,7 @@ export class Game {
     this.persist();
   }
 
-  interact(knot: string): void {
+  interact(knot: string, args?: string[]): void {
     if (this.dialogue.open || this.phase !== 'playing') return;
     if (!this.story.hasKnot(knot)) {
       console.warn(`No ink knot "${knot}"`);
@@ -344,7 +344,7 @@ export class Game {
     }
     this.hud.prompt(null);
     if (knot === 'spiral_seam' || knot === 'desk_profile') this.audio.play('seam');
-    this.story.enter(knot);
+    this.story.enter(knot, args);
     this.dialogue.run(this.story, (line) => this.onLine(line), () => this.afterDialogue(), {
       ...this.dialogueLook(),
       quiet: this.current?.id === 'sea',
@@ -493,7 +493,7 @@ export class Game {
     }
     if (i.wasPressedRaw('KeyB') && inWorld) {
       this.hud.togglePanel('book', 'Book of Strangers', () =>
-        this.lost('schedules') ? [h('p', {}, 'The pages are blank. They were always blank.')] : bookOfStrangers(this.memory, this.knowledge, this.patches()));
+        this.lost('schedules') ? [h('p', {}, 'The pages are blank. They were always blank.')] : bookOfStrangers(this.memory, this.knowledge, this.patches(), this.clock.minute));
     }
     if (i.wasPressed('KeyM') && this.current.id === 'town') this.toggleMask();
     if (i.wasPressed('KeyR') && this.current.id === 'town') {

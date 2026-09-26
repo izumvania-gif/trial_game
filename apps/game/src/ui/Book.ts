@@ -1,16 +1,43 @@
 // The Book of Strangers (Bombers' Notebook): who does what, when — as far as Leont has watched.
 import { RESIDENTS } from '../content/residents.ts';
+import { DAWN_HOUR } from '../core/clock.ts';
 import { isOpen, threadView, THREADS } from '../content/threads.ts';
 import type { Knowledge } from '../core/knowledge.ts';
 import type { LoopMemory } from '../core/save.ts';
 import { h } from './dom.ts';
 
-export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patches: string[]): (Node | string)[] {
+/** Where a place is, in the words a stranger would use: enough to find it, not what happens there. */
+const PLACE_NAMES: Record<string, string> = {
+  temple: 'the temple of Apollo', stele: 'the star stele', center: 'the central square', agora: 'the agora',
+  council: 'the council steps', aristion: "Aristion's house, west of the temple", shrine: 'the shrine of Demeter, east',
+  port: 'the port', tavern: 'the port tavern', shore: 'the shore', mountain: 'the mountain path',
+  villa: "Lysimachus' villa, north-west", zeus: 'the temple of Zeus, east', stall: 'the stall by the agora',
+  shoreWest: 'the west end of the beach', shoreEast: 'the east end of the beach',
+};
+
+function clockLabel(minute: number): string {
+  const total = DAWN_HOUR * 60 + minute;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Who was where, and when. What someone does at an hour is written only once the player has
+ * seen it; for the hours not yet seen the book still says when and where, so they can be found.
+ * The hour it is now is marked.
+ */
+export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patches: string[], minute = 0): (Node | string)[] {
   const met = RESIDENTS.filter((r) => memory.seen.some((s) => s.startsWith(`${r.id}:`)));
   if (!met.length) return [h('p', {}, 'Blank pages. Watch the people of Eferon and their day will write itself here.')];
   return met.map((r) => {
     const entries = r.schedule(patches);
-    const notes = entries.map((e, i) => (memory.seen.includes(`${r.id}:${i}`) ? h('li', {}, e.note) : h('li', { className: 'unknown' }, '· · ·')));
+    let current = 0;
+    entries.forEach((e, i) => { if (e.from <= minute) current = i; });
+    const notes = entries.map((e, i) => {
+      const now = i === current ? h('span', { className: 'book-now' }, 'now') : '';
+      return memory.seen.includes(`${r.id}:${i}`)
+        ? h('li', { className: i === current ? 'current' : '' }, e.note, now)
+        : h('li', { className: `unknown${i === current ? ' current' : ''}` }, `${clockLabel(e.from)} · ${PLACE_NAMES[e.place] ?? 'somewhere'} — not seen yet`, now);
+    });
     return h('section', { className: 'book-entry' },
       h('h3', {}, r.name, h('span', {}, ` — ${r.epithet}`)),
       h('ul', {}, ...notes),

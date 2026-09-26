@@ -82,6 +82,7 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
     I've seen that face. On the old stones, pouring water on the fire. It didn't work, you know. It never works. #speaker:Kora #mood:anger
 }
 {
+- hour() >= 22: Kora climbs towards the mountain with the procession, a torch in her fist, looking at nobody.
 - hour() >= 18: At the tavern Kora is buying a round for the dockworkers. Nobody drinks more than one. Nobody pays.
 - hour() >= 13: Kora is back at the shrine of Demeter, counting something on her fingers.
 - hour() >= 10: Kora stands at the edge of the agora with her arms crossed, waiting for Cleon.
