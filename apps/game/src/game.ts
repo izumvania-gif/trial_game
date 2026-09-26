@@ -31,7 +31,7 @@ import { SpiralStage } from './stages/spiral/SpiralStage.ts';
 import { StrikesStage } from './stages/strikes/StrikesStage.ts';
 import { TownStage } from './stages/town/TownStage.ts';
 import type { Stage, StageHost } from './stages/types.ts';
-import { bookOfStrangers, chronicle } from './ui/Book.ts';
+import { bookOfStrangers, chronicle, hintLine } from './ui/Book.ts';
 import { Dialogue, type DialogueOptions } from './ui/Dialogue.ts';
 import { Guides } from './ui/Guide.ts';
 import { h } from './ui/dom.ts';
@@ -262,7 +262,7 @@ export class Game {
       learned.length ? list(learned.map((f) => [f.text])) : h('p', { className: 'recap-empty' }, 'Nothing new. It was the same day, and you lived it the same way.'),
     ];
     if (opened.length) body.push(h('h3', {}, 'Now open'), list(opened.map((u) => [u])));
-    if (open.length) body.push(h('h3', {}, 'Still unanswered'), list(open.map((v) => [h('strong', {}, v.thread.question), ...(v.next ? [h('span', { className: 'recap-next' }, v.next)] : [])])));
+    if (open.length) body.push(h('h3', {}, 'Still unanswered'), list(open.map((v) => [h('strong', {}, v.thread.question), ...(v.next && v.hintKey ? [hintLine(v.next, v.hintKey, m.hintsShown)] : [])])));
     body.push(h('p', { className: 'recap-kept' }, 'Kept: the chronicle, the Book of Strangers, your masks. Gone: everything anyone did yesterday. C opens the chronicle.'));
     this.guides.showCard(`Day ${m.cycle}`, 'The same morning', body, 'Begin the day', undefined, 'recap');
   }
@@ -477,7 +477,7 @@ export class Game {
     const inWorld = this.current.id === 'town' || this.current.id === 'spiral';
     if (i.wasPressedRaw('KeyC') && inWorld) {
       this.hud.togglePanel('chronicle', 'Chronicle', () =>
-        this.lost('chronicle') ? [h('p', {}, 'Ash. The wax has run into the cracks of the floor.')] : chronicle(this.knowledge, KNOWLEDGE.facts));
+        this.lost('chronicle') ? [h('p', {}, 'Ash. The wax has run into the cracks of the floor.')] : chronicle(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown));
     }
     if (i.wasPressedRaw('KeyB') && inWorld) {
       this.hud.togglePanel('book', 'Book of Strangers', () =>

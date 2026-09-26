@@ -402,3 +402,6 @@ html.reduced-motion .guide, html.reduced-motion .guide-tip, html.reduced-motion 
 .recap-next { display: block; font-style: italic; font-size: 0.9rem; color: var(--muted); }
 .recap-empty { font-style: italic; color: var(--muted); margin: 0; }
 .recap-kept { margin: 1.2rem 0 0; font-size: 0.85rem; color: var(--muted); }
+button.hint-button { font-size: 0.72rem; letter-spacing: 0.15em; padding: 0.2rem 0.7rem; border-color: var(--rule); color: var(--muted); font-style: normal; }
+button.hint-button:hover, button.hint-button:focus-visible { color: var(--lacquer); }
+.guide.recap .thread-next { margin-top: 0.25rem; font-size: 0.9rem; color: var(--muted); }

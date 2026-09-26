@@ -129,19 +129,23 @@ export interface ThreadView {
   found: string[];
   /** Where to look next, while open. */
   next: string | null;
+  /** The step the hint is for: a revealed hint stays revealed until the step is done. */
+  hintKey: string | null;
 }
 
 export function threadView(thread: Thread, knows: (fact: string) => boolean): ThreadView {
   const closed = knows(thread.closes);
   const found = thread.steps.filter(knows);
   let next: string | null = null;
+  let hintKey: string | null = null;
   if (!closed) {
     const step = thread.steps.find((s) => !knows(s)) ?? thread.closes;
+    hintKey = `${thread.id}:${step}`;
     // Prefer the dawn note written for exactly this step, if the player already qualifies for it.
     const note = HINTS.find((h) => h.until === step && h.when.every(knows));
     next = note?.text ?? thread.clues[step] ?? null;
   }
-  return { thread, closed, found, next };
+  return { thread, closed, found, next, hintKey };
 }
 
 export function isOpen(thread: Thread, knows: (fact: string) => boolean): boolean {

@@ -42,6 +42,8 @@ export interface LoopMemory {
   guides: string[];
   /** The loop cycle each fact was learned in: the morning recap tells what yesterday taught. */
   learnedOn: Record<string, number>;
+  /** Hints the player chose to see, as "thread:step". */
+  hintsShown: string[];
 }
 
 export interface CycleState {
@@ -77,7 +79,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {},
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [],
   };
 }
 

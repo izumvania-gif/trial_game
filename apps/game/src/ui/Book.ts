@@ -20,10 +20,29 @@ export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patche
 }
 
 /**
+ * "Where to look next" is there only if the player asks for it; once asked, it stays shown
+ * until that step is done.
+ */
+export function hintLine(text: string, key: string, hintsShown: string[]): HTMLElement {
+  const line = h('p', { className: 'thread-next' });
+  const reveal = () => line.replaceChildren(h('span', {}, 'Next'), text);
+  if (hintsShown.includes(key)) reveal();
+  else {
+    const btn = h('button', { type: 'button', className: 'hint-button' }, 'Show hint');
+    btn.addEventListener('click', () => {
+      if (!hintsShown.includes(key)) hintsShown.push(key);
+      reveal();
+    });
+    line.append(btn);
+  }
+  return line;
+}
+
+/**
  * The chronicle: first the questions still open, each with what bears on it and where to look
  * next; then the ones answered; then everything written, in full.
  */
-export function chronicle(knowledge: Knowledge, facts: { id: string; text: string }[]): (Node | string)[] {
+export function chronicle(knowledge: Knowledge, facts: { id: string; text: string }[], hintsShown: string[]): (Node | string)[] {
   const known = facts.filter((f) => knowledge.knows(f.id));
   if (!known.length) return [h('p', {}, 'The wax is smooth. Nothing written yet.')];
   const knows = (id: string) => knowledge.knows(id);
@@ -38,7 +57,7 @@ export function chronicle(knowledge: Knowledge, facts: { id: string; text: strin
       out.push(h('section', { className: 'thread' },
         h('p', { className: 'thread-question' }, v.thread.question),
         ...(v.found.length ? [h('ul', { className: 'thread-found' }, ...v.found.map((f) => h('li', {}, text(f))))] : []),
-        ...(v.next ? [h('p', { className: 'thread-next' }, h('span', {}, 'Next'), v.next)] : []),
+        ...(v.next && v.hintKey ? [hintLine(v.next, v.hintKey, hintsShown)] : []),
       ));
     }
   }
