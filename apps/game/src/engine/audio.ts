@@ -6,6 +6,7 @@
 // With captions on, meaningful sounds are also written out: "[the wind rises]".
 import { seaRandom } from '../core/rng.ts';
 import type { Settings, SettingsStore } from '../core/settings.ts';
+import { noteAt, PIECES } from './music.ts';
 
 export interface AudioState {
   stage: string;
@@ -34,31 +35,7 @@ const CAPTIONS: Record<string, string> = {
   lyre: '[the lyre]',
 };
 
-/**
- * The same lyre everywhere, a different tune for each place. Notes are semitones above A3
- * (null is a rest); `accent` is how often a louder note falls.
- */
-interface Theme {
-  notes: (number | null)[];
-  step: number;
-  volume: number;
-  accent: number;
-  /** A hand drum on the accents (the market). */
-  drum?: boolean;
-  /** Sent through the echo of a stone hall. */
-  echo?: boolean;
-}
-
-const THEMES: Record<string, Theme> = {
-  // The streets: the minor-pentatonic ostinato the town has always had.
-  streets: { notes: [0, 3, 7, 10, 7, 3, 5, 0], step: 0.5, volume: 0.3, accent: 8 },
-  // The agora: quick, bright, a dance in threes over a drum.
-  agora: { notes: [0, 7, 12, 7, 10, 7, 12, 14, 12, 10, 7, 5], step: 0.26, volume: 0.24, accent: 3, drum: true },
-  // The port: low and slow, rising and falling like the swell, with rests for the water.
-  port: { notes: [-12, -5, 0, null, 2, 0, -5, null, -9, -5, -2, null, -5, null, null, null], step: 0.62, volume: 0.34, accent: 4 },
-  // The Hall: a few high notes a long way apart, a half step that does not resolve, and the stone answering.
-  hall: { notes: [12, null, null, 13, null, null, null, 8, null, null, 7, null, null, null, null, null], step: 0.6, volume: 0.26, accent: 16, echo: true },
-};
+// The same lyre everywhere, a different piece for each place: see engine/music.ts.
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -79,6 +56,8 @@ export class AudioEngine {
   private loopIndex = 0;
   private detune = 0;
   private theme: string | null = null;
+  /** Where each piece had got to: coming back to a place picks its tune up where it left off. */
+  private positions = new Map<string, number>();
   private echo!: GainNode;
   private lastGusts = 0;
   private lastStage = '';
@@ -234,10 +213,14 @@ export class AudioEngine {
       : s.stage === 'town' ? (s.place === 'agora' || s.place === 'port' ? s.place : 'streets')
         : s.stage === 'spiral' || s.stage === 'relief' ? 'hall' : null;
     if (theme !== this.theme) {
+      if (this.theme) this.positions.set(this.theme, this.loopIndex);
       this.theme = theme;
-      this.loopIndex = 0;
+      // Back to the start of a bar, so the tune does not come back in mid-phrase.
+      const piece = theme ? PIECES[theme] : undefined;
+      const saved = theme ? this.positions.get(theme) ?? 0 : 0;
+      this.loopIndex = piece ? saved - (saved % piece.stepsPerBar) : 0;
       window.clearInterval(this.loopTimer);
-      if (theme) this.loopTimer = window.setInterval(() => this.loopNote(), THEMES[theme]!.step * 1000);
+      if (theme) this.loopTimer = window.setInterval(() => this.loopNote(), PIECES[theme]!.step * 1000);
     }
     this.detune = Math.max(0, s.progress - 0.75) * 1.6; // up to ~0.4 semitone flat
 
@@ -252,14 +235,13 @@ export class AudioEngine {
   }
 
   private loopNote(): void {
-    const theme = this.theme ? THEMES[this.theme] : undefined;
-    if (!theme) return;
-    const semis = theme.notes[this.loopIndex % theme.notes.length];
-    const accent = this.loopIndex % theme.accent === 0;
-    this.loopIndex++;
-    if (theme.drum && accent) this.drum();
-    if (semis === null || semis === undefined) return;
-    this.pluck(semis - this.detune, theme.volume * (accent ? 1.6 : 1), theme.echo ? this.echo : this.music);
+    const piece = this.theme ? PIECES[this.theme] : undefined;
+    if (!piece) return;
+    const note = noteAt(piece, this.loopIndex++);
+    const bus = piece.echo ? this.echo : this.music;
+    if (note.drum) this.drum();
+    if (note.bass !== null) this.pluck(note.bass - this.detune, piece.volume * 0.9, bus);
+    if (note.melody !== null) this.pluck(note.melody - this.detune, piece.volume * (note.accent ? 1.35 : 1), bus);
   }
 
   /** A hand drum: a short thump of filtered noise. */
