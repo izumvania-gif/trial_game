@@ -236,7 +236,7 @@ export class SpiralStage implements Stage {
       const press = this.press;
       this.press = null;
       this.dragging = null;
-      if (this.dragDistance < 5) {
+      if (input.pressTravel < 6) {
         if (press.overSeam) this.host.interact('spiral_seam');
         else if (press.scribe) this.openCard(press.scribe);
       }

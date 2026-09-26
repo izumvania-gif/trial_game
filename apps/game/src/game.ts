@@ -66,6 +66,8 @@ export class Game {
   private lyre: Lyre;
   private resetScreen: ResetScreen;
   private passage: Passage;
+  /** Déjà vu lines the player had heard when the current conversation began. */
+  private heardBefore = new Set<string>();
   private story!: StoryEngine;
   private stages!: Record<StageId, Stage>;
   private current!: Stage;
@@ -287,7 +289,8 @@ export class Game {
         return true;
       },
       seen_ending: (id: string) => this.memory.endingsSeen.includes(id),
-      heard: (id: string) => this.memory.heard.includes(id),
+      // Heard before this conversation began: hearing a line now does not count as having heard it before.
+      heard: (id: string) => this.heardBefore.has(id),
       dawn_hint: () => pickHint((f) => this.knowledge.knows(f)) ?? '',
       ended_last_cycle: (id: string) => this.memory.lastEnding?.id === id && this.memory.lastEnding.cycle === this.memory.cycle - 1,
       wind: () => Math.round(this.save.cycle.wind * 100),
@@ -344,6 +347,7 @@ export class Game {
     }
     this.hud.prompt(null);
     if (knot === 'spiral_seam' || knot === 'desk_profile') this.audio.play('seam');
+    this.heardBefore = new Set(this.memory.heard);
     this.story.enter(knot, args);
     this.dialogue.run(this.story, (line) => this.onLine(line), () => this.afterDialogue(), {
       ...this.dialogueLook(),

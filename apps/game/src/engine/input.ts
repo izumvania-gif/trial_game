@@ -5,6 +5,10 @@ export class Input {
   private pressed = new Set<string>();
   mouse = { x: 0, y: 0, dx: 0, dy: 0, buttons: 0 };
   private clicked = false;
+  /** Pixels the pointer has moved since the button went down, measured on the events themselves:
+   *  a click stays a click and a drag a drag however few frames the machine manages. */
+  pressTravel = 0;
+  private pressAt: { x: number; y: number } | null = null;
   /** When false (dialogue, menus) the stages see no input. */
   enabled = true;
 
@@ -21,10 +25,13 @@ export class Input {
       this.mouse.dy += e.movementY;
       this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
       this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+      if (this.pressAt && e.buttons & 1) this.pressTravel = Math.max(this.pressTravel, Math.hypot(e.clientX - this.pressAt.x, e.clientY - this.pressAt.y));
     });
     target.addEventListener('mousedown', (e) => {
       this.mouse.buttons = e.buttons;
       this.clicked = true;
+      this.pressAt = { x: e.clientX, y: e.clientY };
+      this.pressTravel = 0;
     });
     window.addEventListener('mouseup', (e) => (this.mouse.buttons = e.buttons));
   }
