@@ -10,8 +10,10 @@ export class DayClock {
   minute: number;
   paused = false;
   speed = 1;
-  /** When the day ends. The wind brings it closer (see gustsToEnd). */
+  /** When the day ends. The wind brings it closer (see endMinuteForWind). */
   endMinute = DAY_MINUTES;
+  /** Real seconds per game minute; the "length of the last day" setting changes it. */
+  secondsPerMinute = DEFAULT_SECONDS_PER_MINUTE;
 
   constructor(minute = 0) {
     this.minute = minute;
@@ -20,7 +22,7 @@ export class DayClock {
   /** Advances by real seconds; returns true on the tick the day runs out. */
   tick(realSeconds: number): boolean {
     if (this.paused || this.isOver) return false;
-    this.minute = Math.min(this.endMinute, this.minute + (realSeconds * this.speed) / DEFAULT_SECONDS_PER_MINUTE);
+    this.minute = Math.min(this.endMinute, this.minute + (realSeconds * this.speed) / this.secondsPerMinute);
     return this.isOver;
   }
 

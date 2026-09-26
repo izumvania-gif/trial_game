@@ -33,6 +33,7 @@ export function mountDebugPanel(game: Game, parent: HTMLElement): void {
     status.textContent = [
       `day ${game.save.memory.cycle} · ${game.clock.label()} · ×${game.clock.speed}`,
       `facts ${game.save.memory.facts.length}`,
+      `quality ${game.qualityLabel}`,
       game.saveBlocked ? 'SAVE BLOCKED' : 'saved',
     ].join('\n');
   }, 250);

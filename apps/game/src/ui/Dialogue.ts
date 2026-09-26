@@ -18,12 +18,14 @@ export interface DejaVuHooks {
   canFinish(id: string): boolean;
   heard(id: string): void;
   result(id: string, ok: boolean): void;
+  /** Accessibility: no timing window, any press while the line is spoken counts. */
+  noRhythm(): boolean;
 }
 
 /** Milliseconds per spoken word in a déjà vu line. */
 const WORD_MS = 380;
 /** The press counts if it lands while the word before the cue is spoken, or just after. */
-const LATE_MS = 120;
+const LATE_MS = 180;
 
 export class Dialogue {
   private root = h('div', { className: 'dialogue', hidden: true });
@@ -132,7 +134,10 @@ export class Dialogue {
     const id = line.dejavu!;
     const words = line.text.split(/\s+/);
     const spans = words.map((w, i) => h('span', { className: i === line.cue ? 'word cue' : 'word' }, w + ' '));
-    const hint = h('p', { className: 'dejavu-hint' }, 'You have heard this before. F — finish the sentence');
+    const relaxed = this.dejavu?.noRhythm() ?? false;
+    const hint = h('p', { className: 'dejavu-hint' }, relaxed
+      ? 'You have heard this before. F — finish the sentence (any time)'
+      : 'You have heard this before. F — finish the sentence');
     this.body.replaceChildren(h('p', { className: `line line-${line.style} dejavu` }, ...this.speakerTag(line), ...spans), hint);
 
     const start = performance.now();
@@ -164,7 +169,7 @@ export class Dialogue {
     this.speaking = {
       finish: () => {
         const t = performance.now() - start;
-        end(t >= cueAt - WORD_MS && t <= cueAt + LATE_MS);
+        end(relaxed || (t >= cueAt - WORD_MS && t <= cueAt + LATE_MS));
       },
     };
   }

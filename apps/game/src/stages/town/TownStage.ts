@@ -8,7 +8,7 @@ import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
 import { distanceToStreets, PLACES, STREET_EDGES } from '../../core/streets.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
-import { lambert, makeFigure } from '../figures.ts';
+import { amphora, bob, cypress, gableRoof, lambert, makeFigure } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
 
 interface Interactable {
@@ -258,8 +258,31 @@ export class TownStage implements Stage {
       if (corners.some(([cx, cz]) => clear(cx!, cz!))) continue;
       const overlaps = this.boxes.some((b) => x + w / 2 > b.minX - 1 && x - w / 2 < b.maxX + 1 && z + d / 2 > b.minZ - 1 && z - d / 2 < b.maxZ + 1);
       if (overlaps) continue;
-      this.addBox(x, z, w, d, 2 + rand() * 2.5, rand() > 0.3 ? '#ece2c8' : '#c9a57c');
+      const hgt = 2 + rand() * 2.5;
+      this.addBox(x, z, w, d, hgt, rand() > 0.3 ? '#ece2c8' : '#c9a57c');
+      // Tiled gable roof, ridge along the longer side.
+      const alongX = w > d;
+      const roof = gableRoof(alongX ? d : w, alongX ? w : d, 0.9 + rand() * 0.5, '#8f4a2a');
+      roof.position.set(x, hgt, z);
+      if (alongX) roof.rotation.y = Math.PI / 2;
+      this.scene.add(roof);
       placed++;
+    }
+    // Cypresses in the gaps, and amphorae by some doors: they do not block anyone.
+    for (let i = 0, tries = 0; i < 26 && tries < 400; tries++) {
+      const x = -27 + rand() * 54;
+      const z = -25 + rand() * 42;
+      if (clear(x, z) || this.blocked(x, z)) continue;
+      const tree = cypress(3 + rand() * 3);
+      tree.position.x = x;
+      tree.position.z = z;
+      this.scene.add(tree);
+      i++;
+    }
+    for (const [x, z] of [[4.2, 7.9], [5.8, 7.9], [-10.2, 15.2], [-9.6, 15.4], [-15.8, -12.9], [17.4, 4.2]] as const) {
+      const a = amphora();
+      a.position.set(x, 0, z);
+      this.scene.add(a);
     }
   }
 
@@ -367,6 +390,7 @@ export class TownStage implements Stage {
       const lying = !state.walking && state.entry.pose === 'lying';
       figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
+      bob(figure, this.time, state.walking ? 1 : 0);
       if (!state.walking) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
       // Once the player has watched a resident at a point of their day, the Book of Strangers records it.
       const key = `${resident.id}:${state.entryIndex}`;
@@ -376,14 +400,18 @@ export class TownStage implements Stage {
     }
   }
 
+  private time = 0;
+
   private movePlayer(dt: number): void {
     const { input } = this.host;
+    this.time += dt;
     let dx = 0;
     let dz = 0;
     if (input.isDown('KeyW') || input.isDown('ArrowUp')) dz -= 1;
     if (input.isDown('KeyS') || input.isDown('ArrowDown')) dz += 1;
     if (input.isDown('KeyA') || input.isDown('ArrowLeft')) dx -= 1;
     if (input.isDown('KeyD') || input.isDown('ArrowRight')) dx += 1;
+    bob(this.player, this.time, dx || dz ? 1 : 0);
     if (!dx && !dz) return;
     const len = Math.hypot(dx, dz);
     const step = (SPEED * dt) / len;

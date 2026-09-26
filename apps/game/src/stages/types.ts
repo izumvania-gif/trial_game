@@ -34,6 +34,10 @@ export interface StageHost {
   forget(): void;
   /** What survived a previous true ending, if anything. */
   breakShard(): BreakShard | null;
+  /** Accessibility: no camera shake or other violent motion. */
+  reducedMotion(): boolean;
+  /** Sound effects and their captions (the audio engine). */
+  sound(id: string): void;
   persist(): void;
 }
 

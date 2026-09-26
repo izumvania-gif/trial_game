@@ -21,6 +21,8 @@ export class Hud {
   private windEl = h('div', { className: 'hud-wind' });
   private maskEl = h('div', { className: 'hud-mask' });
   private clockEl: HTMLElement;
+  private captionEl = h('div', { className: 'caption' });
+  private captionTimer = 0;
 
   constructor(parent: HTMLElement) {
     const clock = h('div', { className: 'hud-clock' });
@@ -35,7 +37,7 @@ export class Hud {
     this.arcEl = clock.querySelectorAll('circle')[1] as SVGCircleElement;
     this.clockEl = clock;
     this.root.append(this.cycleEl, clock, this.windEl, this.maskEl, this.promptEl, this.toastEl);
-    parent.append(this.root, this.chronicleEl);
+    parent.append(this.root, this.chronicleEl, this.captionEl);
   }
 
   setVisible(visible: boolean): void {
@@ -61,6 +63,14 @@ export class Hud {
 
   factLearned(fact: Fact): void {
     this.toast(`Written in the chronicle: ${fact.text}`);
+  }
+
+  /** Sound captions stay visible even where the HUD is hidden (the sea, the Desk). */
+  caption(text: string): void {
+    this.captionEl.textContent = text;
+    this.captionEl.classList.add('show');
+    window.clearTimeout(this.captionTimer);
+    this.captionTimer = window.setTimeout(() => this.captionEl.classList.remove('show'), 3000);
   }
 
   toast(text: string): void {

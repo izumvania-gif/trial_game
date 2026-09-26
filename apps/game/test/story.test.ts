@@ -34,7 +34,7 @@ test('StoryEngine: knots, choices, learning and stage tags', async () => {
   engine.enter('stele');
   assert.match(engine.next()!.text, /star stele/);
   assert.equal(engine.canContinue(), false);
-  assert.deepEqual(engine.choices().map((c) => c.text), ['Scrape the moss from the corner', 'Run your fingers along the cracks', 'Leave it']);
+  assert.deepEqual(engine.choices().map((c) => c.text), ['Scrape the moss from the corner', 'Carve a word while nobody is watching', 'Run your fingers along the cracks', 'Leave it']);
   engine.choose(0);
   const lines = [];
   for (let l = engine.next(); l; l = engine.next()) lines.push(l);
@@ -77,7 +77,7 @@ test('déjà vu lines: cue marker is parsed and removed; host functions drive br
 });
 
 test('every action tag in the story is one the game handles', () => {
-  const known = new RegExp(`^(carve|stele_lines|board|wake_test:(true|prophet)|ending:(${Object.keys(ENDINGS).join("|")}))$`);
+  const known = new RegExp(`^(carve|carve_now|stele_lines|board|wake_test:(true|prophet)|ending:(${Object.keys(ENDINGS).join("|")}))$`);
   for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
     const src = readFileSync(resolve(storyDir, file), 'utf8');
     for (const m of src.matchAll(/#action:(\S+)/g)) assert.match(m[1]!, known, `${file}: #action:${m[1]}`);

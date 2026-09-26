@@ -60,6 +60,9 @@ The star stele of the temple of Apollo. Tables of eclipses, the five ages, the n
 {not knows("name_in_stone"):
     * [Scrape the moss from the corner] -> scrape
 }
+* {hour() < 7} [Carve a word while nobody is watching]
+    You take out the little chisel you have never admitted to owning. #action:carve_now
+    -> DONE
 * [Run your fingers along the cracks]
     Other letters, scratched, not carved. Different hands. #action:stele_lines
     -> DONE

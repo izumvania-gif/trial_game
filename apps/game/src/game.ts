@@ -16,6 +16,7 @@ import {
   type BreakShard, type KeyValueStorage, type SaveFile,
 } from './core/save.ts';
 import type { Mechanic, StageId } from './core/types.ts';
+import { AudioEngine } from './engine/audio.ts';
 import { Input } from './engine/input.ts';
 import { StoryEngine, type StoryLine } from './engine/story.ts';
 import { DitherRenderer } from './render/DitherRenderer.ts';
@@ -34,7 +35,10 @@ import { h } from './ui/dom.ts';
 import { Hud } from './ui/Hud.ts';
 import { Lyre } from './ui/Lyre.ts';
 import { button, Modal } from './ui/Modal.ts';
+import { updateMeta } from './ui/meta.ts';
 import { ResetScreen } from './ui/ResetScreen.ts';
+import { SettingsPanel } from './ui/SettingsPanel.ts';
+import type { SettingsStore } from './core/settings.ts';
 
 type Phase = 'playing' | 'midnight' | 'reset';
 
@@ -75,7 +79,14 @@ export class Game {
   /** Set when an imported wax tablet was carved during the Night of Anamnesis. */
   private backupDetected = false;
 
-  constructor(canvas: HTMLCanvasElement, overlay: HTMLElement, storyJson: string) {
+  readonly settings: SettingsStore;
+  private settingsPanel: SettingsPanel;
+  readonly audio: AudioEngine;
+  private raining = false;
+
+  constructor(canvas: HTMLCanvasElement, overlay: HTMLElement, storyJson: string, settings: SettingsStore) {
+    this.settings = settings;
+    this.audio = new AudioEngine(settings, (text) => this.hud?.caption(text));
     this.canvas = canvas;
     this.overlay = overlay;
     this.storyJson = storyJson;
@@ -90,12 +101,18 @@ export class Game {
     this.renderer = new DitherRenderer(canvas);
     this.hud = new Hud(overlay);
     this.dialogue = new Dialogue(overlay);
-    this.lyre = new Lyre(overlay);
+    this.lyre = new Lyre(overlay, (note) => this.audio.pluck(note, 0.7));
     this.modal = new Modal(overlay);
     this.resetScreen = new ResetScreen(overlay);
+    this.settingsPanel = new SettingsPanel(overlay, settings);
+    settings.subscribe((s) => {
+      this.clock.secondsPerMinute = s.dayMinutes / 18;
+      this.renderer.setQuality(s.quality);
+    });
     this.knowledge = new Knowledge(KNOWLEDGE, this.save.memory.facts, (fact) => {
       this.save.memory.facts.push(fact.id);
       if (!this.lost('chronicle')) this.hud.factLearned(fact);
+      this.audio.play(fact.id.startsWith('shard_') ? 'shard' : 'fact');
       if (fact.id.startsWith('shard_')) this.countShards();
       this.persist();
     });
@@ -108,6 +125,7 @@ export class Game {
 
   /** Called from the title screen. Resumes the saved day, or starts at dawn. */
   start(): void {
+    this.audio.unlock();
     if (this.memory.epilogue) {
       this.beginCycle(false);
       this.activate('diary');
@@ -165,6 +183,8 @@ export class Game {
       ending: (id) => this.ending(id),
       forget: () => this.forget(),
       breakShard: () => this.breakShard,
+      reducedMotion: () => this.settings.value.reducedMotion,
+      sound: (id) => this.audio.play(id),
       persist: () => this.persist(),
     };
   }
@@ -268,6 +288,7 @@ export class Game {
       return;
     }
     this.hud.prompt(null);
+    if (knot === 'spiral_seam' || knot === 'desk_profile') this.audio.play('seam');
     this.story.enter(knot);
     this.dialogue.run(this.story, (line) => this.onLine(line), () => this.afterDialogue(), {
       quiet: this.current?.id === 'sea',
@@ -276,7 +297,11 @@ export class Game {
         heard: (id) => {
           if (!this.memory.heard.includes(id)) this.memory.heard.push(id);
         },
-        result: (id, ok) => this.dejavuResults.set(id, ok),
+        result: (id, ok) => {
+          this.dejavuResults.set(id, ok);
+          if (ok) this.audio.play('dejavu');
+        },
+        noRhythm: () => this.settings.value.noRhythm,
       },
     });
   }
@@ -302,6 +327,7 @@ export class Game {
   private runAction(action: string): void {
     if (action.startsWith('wake_test:')) this.wakeTest(action.endsWith('prophet') ? 'prophet' : 'true');
     else if (action === 'carve') this.openCarving();
+    else if (action === 'carve_now') this.openCarving(true);
     else if (action === 'stele_lines') void this.openSteleLines();
     else if (action === 'board') this.switchStage('board');
     else if (action.startsWith('ending:')) this.ending(action.slice('ending:'.length));
@@ -310,7 +336,7 @@ export class Game {
   private frame = (t: number): void => {
     const dt = Math.min(0.1, (t - this.lastTime) / 1000);
     this.lastTime = t;
-    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.phase !== 'playing';
+    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.phase !== 'playing';
     this.input.enabled = !blocked;
 
     if (this.phase === 'playing') {
@@ -324,6 +350,22 @@ export class Game {
     this.hud.setClockVisible(!this.lost('clock'));
     this.hud.setWind(this.save.cycle.wind, this.lost('clock'));
     this.hud.setMask(this.save.cycle.wornMask);
+    const town = this.stages.town.snapshot?.();
+    this.audio.update({
+      stage: this.phase === 'reset' ? 'reset' : this.current.id,
+      progress: this.clock.progress,
+      wind: this.save.cycle.wind,
+      raining: this.raining,
+      sea: this.current.id === 'sea' || this.current.id === 'diary' ? 1 : this.current.id === 'town' && town ? Math.max(0, Math.min(1, (town.z - 4) / 16)) : 0,
+    });
+
+    updateMeta({
+      lessMeta: this.settings.value.lessMeta,
+      stage: this.current.id,
+      cycleRun: this.cycleRun,
+      knowsOtherHand: this.knowledge.knows('other_hand'),
+      knowsSeam: this.knowledge.knows('seam_symbol'),
+    });
 
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE_SECONDS && this.phase === 'playing') this.persist();
@@ -338,7 +380,11 @@ export class Game {
       this.hud.closePanel();
       if (!which) return;
     }
-    if (this.dialogue.open || this.modal.open || this.lyre.open) return;
+    if (i.wasPressedRaw('KeyO') && !this.settingsPanel.open && !this.dialogue.open) {
+      this.settingsPanel.show();
+      return;
+    }
+    if (this.dialogue.open || this.modal.open || this.lyre.open || this.settingsPanel.open) return;
     const inWorld = this.current.id === 'town' || this.current.id === 'spiral';
     if (i.wasPressedRaw('KeyC') && inWorld) {
       this.hud.togglePanel('chronicle', 'Chronicle', () =>
@@ -383,9 +429,13 @@ export class Game {
 
   // ─── Carving and the stele ────────────────────────────────────────────────
 
-  private openCarving(): void {
+  /** At dawn, only when a new word has been learned; at the stele before the first hour, always. */
+  private openCarving(force = false): void {
     const words = LEXICON.filter((w) => this.knowledge.knows(w.fact));
     if (!words.length) return;
+    const fresh = words.filter((w) => !this.memory.lexicon.includes(w.word));
+    if (!force && !fresh.length) return;
+    for (const w of fresh) this.memory.lexicon.push(w.word);
     const current = this.memory.steleWords[this.memory.steleWords.length - 1];
     this.modal.show('carve', [
       h('h2', {}, 'Before the city wakes'),
@@ -450,6 +500,9 @@ export class Game {
     this.hud.closePanel();
     if (this.current.id !== 'town') this.activate('town', this.current.id === 'sea' ? 'shore' : 'temple');
     this.overlay.classList.add('raining');
+    this.raining = true;
+    this.audio.play('thunder');
+    this.audio.caption('rain');
     this.story.enter('midnight');
     this.dialogue.run(this.story, () => {}, () => void this.resetCycle('midnight'));
   }
@@ -564,6 +617,7 @@ export class Game {
   private async resetCycle(reason: 'midnight' | 'song' | 'ending'): Promise<void> {
     this.phase = 'reset';
     this.overlay.classList.remove('raining');
+    this.raining = false;
     for (const stage of Object.values(this.stages)) stage.exit();
     // The cycle state dies here; only loop memory survives.
     this.memory.cycle += 1;
@@ -594,6 +648,10 @@ export class Game {
   }
 
   // ─── Debug hooks ──────────────────────────────────────────────────────────
+
+  get qualityLabel(): string {
+    return this.renderer.qualityLabel;
+  }
 
   debugSetSpeed(speed: number): void {
     this.clock.speed = speed;

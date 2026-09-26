@@ -1,5 +1,6 @@
 // Eion's lyre. R raises it; arrow keys pluck the four strings. The Song of Return
 // (Majora's Song of Time, turned inside out) sends Leont back to dawn — at his own request.
+import { LYRE_NOTES } from '../engine/audio.ts';
 import { h } from './dom.ts';
 
 export const SONG_OF_RETURN = ['ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
@@ -11,8 +12,10 @@ export class Lyre {
   private status = h('p', { className: 'lyre-status' });
   private notes: string[] = [];
   private onSong: (() => void) | null = null;
+  private onPluck: (semis: number) => void;
 
-  constructor(parent: HTMLElement) {
+  constructor(parent: HTMLElement, onPluck: (semis: number) => void = () => {}) {
+    this.onPluck = onPluck;
     this.root.append(h('p', { className: 'lyre-title' }, 'The lyre'), this.staff, this.status,
       h('p', { className: 'lyre-hint' }, 'Arrow keys pluck the strings · R or Esc to lower it'));
     parent.append(this.root);
@@ -45,6 +48,7 @@ export class Lyre {
   }
 
   private pluck(code: string): void {
+    this.onPluck(LYRE_NOTES[code] ?? 0);
     this.notes.push(code);
     const n = this.notes.length;
     const matches = SONG_OF_RETURN.slice(0, n).every((c, i) => c === this.notes[i]);

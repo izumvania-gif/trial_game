@@ -1,6 +1,8 @@
 import storyJson from '../../../story/main.ink';
 import { fetchCycleRun } from './api.ts';
-import { exportTablet } from './core/save.ts';
+import { browserStorage, exportTablet } from './core/save.ts';
+import { SettingsStore } from './core/settings.ts';
+import { SettingsPanel } from './ui/SettingsPanel.ts';
 import { Game } from './game.ts';
 import { drawSpiral } from './spiral.ts';
 import { mountDebugPanel } from './ui/DebugPanel.ts';
@@ -16,7 +18,14 @@ const redrawTitle = () => drawSpiral(titleCanvas, 0);
 window.addEventListener('resize', redrawTitle);
 redrawTitle();
 
-const game = new Game(view, overlay, storyJson);
+const settings = new SettingsStore(browserStorage());
+settings.subscribe((s) => {
+  document.documentElement.classList.toggle('large-text', s.largeText);
+  document.documentElement.classList.toggle('reduced-motion', s.reducedMotion);
+});
+const game = new Game(view, overlay, storyJson, settings);
+const titleSettings = new SettingsPanel(document.body, settings);
+document.querySelector('#settings')!.addEventListener('click', () => titleSettings.toggle());
 if (new URLSearchParams(location.search).has('debug')) {
   mountDebugPanel(game, document.body);
   (window as unknown as { eferon: Game }).eferon = game;

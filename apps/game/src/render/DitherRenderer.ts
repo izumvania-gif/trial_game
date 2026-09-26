@@ -57,6 +57,13 @@ export class DitherRenderer {
   private postScene = new THREE.Scene();
   private postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   private palette: Palette = PALETTES.vase;
+  private quality: 'auto' | 'high' | 'low' = 'auto';
+  /** Auto quality: 0 = full, 1 = no shadows, 2 = no shadows and coarser pixels. Only ever steps down. */
+  private autoLevel = 0;
+  private slowSince: number | null = null;
+  private lastFrame = 0;
+  private frameAvg = 16;
+  private shadowsDirty = false;
 
   constructor(canvas: HTMLCanvasElement) {
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: false });
@@ -118,11 +125,66 @@ export class DitherRenderer {
     (this.post.uniforms.lowRes!.value as THREE.Vector2).set(lw, lh);
   }
 
+  setQuality(q: 'auto' | 'high' | 'low'): void {
+    this.quality = q;
+    if (q !== 'auto') this.autoLevel = 0;
+    this.applyQuality();
+  }
+
+  /** Human-readable, for the debug panel. */
+  get qualityLabel(): string {
+    return `${this.quality}${this.quality === 'auto' ? `:${this.autoLevel}` : ''} · ${this.pixelScale}px · ${Math.round(this.frameAvg)}ms`;
+  }
+
+  private applyQuality(): void {
+    const level = this.quality === 'high' ? 0 : this.quality === 'low' ? 2 : this.autoLevel;
+    const shadows = level === 0;
+    const scale = level >= 2 ? 4 : 3;
+    if (this.gl.shadowMap.enabled !== shadows) {
+      this.gl.shadowMap.enabled = shadows;
+      this.shadowsDirty = true;
+    }
+    if (this.pixelScale !== scale) {
+      this.pixelScale = scale;
+      this.resize();
+    }
+  }
+
+  /** Watches frame time; if the machine struggles for three seconds, step quality down. */
+  private measure(): void {
+    const now = performance.now();
+    if (this.lastFrame) {
+      const dt = Math.min(200, now - this.lastFrame);
+      this.frameAvg += (dt - this.frameAvg) * 0.05;
+    }
+    this.lastFrame = now;
+    if (this.quality !== 'auto' || this.autoLevel >= 2 || document.hidden) return;
+    if (this.frameAvg > 28) {
+      this.slowSince ??= now;
+      if (now - this.slowSince > 3000) {
+        this.autoLevel += 1;
+        this.slowSince = null;
+        this.frameAvg = 16;
+        this.applyQuality();
+      }
+    } else this.slowSince = null;
+  }
+
   get aspect(): number {
     return window.innerWidth / window.innerHeight;
   }
 
   render(scene: THREE.Scene, camera: THREE.Camera): void {
+    this.measure();
+    if (this.shadowsDirty) {
+      // Materials compiled with (or without) shadow code must be rebuilt.
+      scene.traverse((o) => {
+        const m = (o as THREE.Mesh).material;
+        if (Array.isArray(m)) m.forEach((x) => (x.needsUpdate = true));
+        else if (m) m.needsUpdate = true;
+      });
+      this.shadowsDirty = false;
+    }
     this.gl.setRenderTarget(this.target);
     this.gl.setClearAlpha(1);
     this.gl.clear();

@@ -254,3 +254,23 @@ button.carry { position: absolute; left: 50%; top: 40%; transform: translateX(-5
 .desk, .diary, .board-panel, .sprint-panel, .spiral-card { z-index: 1; }
 .dialogue, .lyre, .hud-toast { z-index: 4; }
 .modal { z-index: 6; }
+
+/* Settings */
+.settings { position: fixed; inset: 0; z-index: 30; background: rgba(13, 11, 9, 0.75); display: flex; align-items: center; justify-content: center; }
+.settings-card { width: min(34rem, 92vw); max-height: 90vh; overflow-y: auto; background: #1d1611; border: 1px solid rgba(232, 226, 208, 0.3); padding: 1.6rem 2rem; }
+.settings-card h2 { font-weight: normal; letter-spacing: 0.25em; text-transform: uppercase; font-size: 1rem; margin-top: 0; }
+.settings-card h3 { font-weight: normal; font-size: 0.8rem; letter-spacing: 0.2em; text-transform: uppercase; opacity: 0.6; margin: 1.4rem 0 0.4rem; }
+.setting { display: flex; gap: 0.8rem; align-items: center; margin: 0.5rem 0; }
+.setting > span { flex: 1; }
+.setting small { opacity: 0.6; }
+.setting input[type=range] { width: 12rem; accent-color: var(--terracotta); }
+.setting input[type=checkbox] { accent-color: var(--terracotta); width: 1.1rem; height: 1.1rem; }
+.title-links { display: flex; gap: 0.6rem; }
+
+/* Accessibility */
+html.large-text { font-size: 20px; }
+html.large-text .dialogue .line { font-size: 1.25rem; }
+html.reduced-motion #overlay.raining::before { animation: none; opacity: 0.35; }
+html.reduced-motion .hud-toast, html.reduced-motion .desk-seam.ready, html.reduced-motion button.carry { transition: none; animation: none; }
+.caption { position: fixed; left: 1.25rem; bottom: 1.25rem; z-index: 25; font-family: var(--mono); font-size: 0.85rem; background: rgba(13, 11, 9, 0.85); color: var(--bone); padding: 0.3rem 0.7rem; opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+.caption.show { opacity: 1; }

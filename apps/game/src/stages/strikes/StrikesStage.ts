@@ -124,7 +124,8 @@ export class StrikesStage implements Stage {
     if (!hit) return;
     const age = hit.object.userData.age as number;
     this.hits[age]! += 1;
-    this.shake = 1;
+    if (!this.host.reducedMotion()) this.shake = 1;
+    this.host.sound('strike');
     if (this.hits[age]! < this.strikesNeeded()) {
       this.say('The marble cracks. A guard kneels and presses the crack shut with his palms.');
       return;
