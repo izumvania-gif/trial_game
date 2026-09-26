@@ -2,8 +2,8 @@
 // route is shown before the night starts). Pure logic; BoardStage draws it.
 
 export type Tile = [number, number]; // [column, row], row 0 = north
-export type AllyId = 'kora' | 'aristion' | 'eion';
-export type EnemyId = 'priest' | 'guardA' | 'guardB' | 'lysimachus';
+export type AllyId = 'kora' | 'aristion' | 'eion' | 'talia';
+export type EnemyId = 'priest' | 'guardA' | 'guardB' | 'guardC' | 'lysimachus';
 
 export const COLS = 7;
 export const ROWS = 5;
@@ -39,21 +39,31 @@ export const ENEMIES: Enemy[] = [
     path: [[6, 2], [5, 2], [4, 2], [3, 2], [3, 1], [3, 0]],
   },
   {
-    id: 'lysimachus', name: 'Lysimachus the merchant', goal: 'shore', stoppedBy: ['kora', 'aristion', 'eion'],
+    id: 'lysimachus', name: 'Lysimachus the merchant', goal: 'shore', stoppedBy: ['kora', 'aristion', 'eion', 'talia'],
     path: [[1, 0], [1, 1], [1, 2], [2, 2], [2, 3], [3, 3], [3, 4]],
   },
 ];
 
-export const ALLY_NAMES: Record<AllyId, string> = { kora: 'Kora', aristion: 'Aristion', eion: 'Eion' };
+/** The counterplan: if the day was loud (a strong wind by evening), a third guard comes up from the port. */
+export const EXTRA_GUARD: Enemy = {
+  id: 'guardC', name: 'Temple guard', goal: 'hall', stoppedBy: ['aristion'],
+  path: [[5, 4], [4, 4], [4, 3], [4, 2], [3, 2], [3, 1], [3, 0]],
+};
+
+export function enemiesFor(wind: number): Enemy[] {
+  return wind >= 0.66 ? [...ENEMIES, EXTRA_GUARD] : ENEMIES;
+}
+
+export const ALLY_NAMES: Record<AllyId, string> = { kora: 'Kora', aristion: 'Aristion', eion: 'Eion', talia: 'Talia' };
 
 export const sameTile = (a: Tile, b: Tile) => a[0] === b[0] && a[1] === b[1];
 
 /** Tiles where an ally may stand: not a landmark, not an enemy's starting tile. */
-export function canPlace(tile: Tile): boolean {
+export function canPlace(tile: Tile, enemies: Enemy[] = ENEMIES): boolean {
   const [c, r] = tile;
   if (c < 0 || r < 0 || c >= COLS || r >= ROWS) return false;
   if (Object.values(LANDMARKS).some((t) => sameTile(t, tile))) return false;
-  return !ENEMIES.some((e) => sameTile(e.path[0]!, tile));
+  return !enemies.some((e) => sameTile(e.path[0]!, tile));
 }
 
 export interface EnemyState {
@@ -74,9 +84,9 @@ export interface NightOutcome {
 }
 
 /** One turn: every enemy that is still moving steps forward unless an ally who can stop them stands there. */
-export function step(states: EnemyState[], allies: Partial<Record<AllyId, Tile>>): EnemyState[] {
+export function step(states: EnemyState[], allies: Partial<Record<AllyId, Tile>>, enemies: Enemy[] = ENEMIES): EnemyState[] {
   return states.map((s) => {
-    const enemy = ENEMIES.find((e) => e.id === s.id)!;
+    const enemy = enemies.find((e) => e.id === s.id)!;
     if (s.held || s.step >= enemy.path.length - 1) return s;
     const next = enemy.path[s.step + 1]!;
     const blocker = (Object.entries(allies) as [AllyId, Tile][]).find(([id, t]) => sameTile(t, next) && enemy.stoppedBy.includes(id));
@@ -85,24 +95,24 @@ export function step(states: EnemyState[], allies: Partial<Record<AllyId, Tile>>
   });
 }
 
-export function initialStates(): EnemyState[] {
-  return ENEMIES.map((e) => ({ id: e.id, step: 0, held: false, heldBy: null }));
+export function initialStates(enemies: Enemy[] = ENEMIES): EnemyState[] {
+  return enemies.map((e) => ({ id: e.id, step: 0, held: false, heldBy: null }));
 }
 
-export function finished(states: EnemyState[]): boolean {
-  return states.every((s) => s.held || s.step >= ENEMIES.find((e) => e.id === s.id)!.path.length - 1);
+export function finished(states: EnemyState[], enemies: Enemy[] = ENEMIES): boolean {
+  return states.every((s) => s.held || s.step >= enemies.find((e) => e.id === s.id)!.path.length - 1);
 }
 
-export function simulate(allies: Partial<Record<AllyId, Tile>>): { turns: EnemyState[][]; outcome: NightOutcome } {
-  const turns = [initialStates()];
-  while (!finished(turns[turns.length - 1]!) && turns.length < 20) turns.push(step(turns[turns.length - 1]!, allies));
-  return { turns, outcome: outcomeOf(turns[turns.length - 1]!) };
+export function simulate(allies: Partial<Record<AllyId, Tile>>, enemies: Enemy[] = ENEMIES): { turns: EnemyState[][]; outcome: NightOutcome } {
+  const turns = [initialStates(enemies)];
+  while (!finished(turns[turns.length - 1]!, enemies) && turns.length < 20) turns.push(step(turns[turns.length - 1]!, allies, enemies));
+  return { turns, outcome: outcomeOf(turns[turns.length - 1]!, enemies) };
 }
 
-export function outcomeOf(states: EnemyState[]): NightOutcome {
+export function outcomeOf(states: EnemyState[], enemies: Enemy[] = ENEMIES): NightOutcome {
   const reached = (goal: Enemy['goal']) =>
     states.some((s) => {
-      const e = ENEMIES.find((x) => x.id === s.id)!;
+      const e = enemies.find((x) => x.id === s.id)!;
       return e.goal === goal && !s.held && s.step >= e.path.length - 1;
     });
   return { citySilent: !reached('mountain'), hallClear: !reached('hall'), shoreClear: !reached('shore') };

@@ -2,7 +2,7 @@
 // Place your allies, read the enemies' routes, then let the night play out.
 import * as THREE from 'three';
 import {
-  ALLY_NAMES, canPlace, COLS, ENEMIES, LANDMARKS, ROWS, sameTile, simulate, type AllyId, type EnemyState, type Tile,
+  ALLY_NAMES, canPlace, COLS, ENEMIES, enemiesFor, EXTRA_GUARD, LANDMARKS, ROWS, sameTile, simulate, type AllyId, type Enemy, type EnemyState, type Tile,
 } from '../../core/board.ts';
 import { makeSea } from '../../render/sea.ts';
 import { h } from '../../ui/dom.ts';
@@ -34,6 +34,9 @@ export class BoardStage implements Stage {
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private playback: { turns: EnemyState[][]; t: number } | null = null;
   private result: ReturnType<typeof simulate>['outcome'] | null = null;
+  /** Decided when the night starts: how loud the day was decides whether a third guard comes. */
+  private enemies: Enemy[] = ENEMIES;
+  private routes = new Map<string, THREE.Group>();
 
   constructor(host: StageHost) {
     this.host = host;
@@ -49,6 +52,7 @@ export class BoardStage implements Stage {
     const out: AllyId[] = ['eion'];
     if (k.knows('kora_ally')) out.push('kora');
     if (k.knows('aristion_trust')) out.push('aristion');
+    if (k.knows('talia_friend')) out.push('talia');
     return out;
   }
 
@@ -89,7 +93,10 @@ export class BoardStage implements Stage {
 
     // Enemies and their telegraphed routes: black lines ending in a black arrowhead.
     const ink = lambert('#0d0b09');
-    for (const enemy of ENEMIES) {
+    for (const enemy of [...ENEMIES, EXTRA_GUARD]) {
+      const route = new THREE.Group();
+      s.add(route);
+      this.routes.set(enemy.id, route);
       for (let i = 1; i < enemy.path.length; i++) {
         const a = tileToWorld(enemy.path[i - 1]!);
         const b = tileToWorld(enemy.path[i]!);
@@ -97,18 +104,18 @@ export class BoardStage implements Stage {
         const seg = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, len), ink);
         seg.position.copy(a).add(b).multiplyScalar(0.5).setY(0.05);
         seg.lookAt(b.x, 0.05, b.z);
-        s.add(seg);
+        route.add(seg);
       }
       const end = tileToWorld(enemy.path[enemy.path.length - 1]!);
       const head = new THREE.Mesh(new THREE.ConeGeometry(0.3, 0.6, 4), ink);
       head.position.copy(end).setY(0.4);
-      s.add(head);
+      route.add(head);
       const fig = makeFigure(enemy.id.startsWith('guard') ? '#3a2414' : '#0d0b09', 1.3);
       fig.position.copy(tileToWorld(enemy.path[0]!));
       s.add(fig);
       this.enemyFigures.set(enemy.id, fig);
     }
-    for (const id of ['kora', 'aristion', 'eion'] as AllyId[]) {
+    for (const id of ['kora', 'aristion', 'eion', 'talia'] as AllyId[]) {
       const fig = makeFigure('#f2ead6', 1.4);
       fig.visible = false;
       s.add(fig);
@@ -150,12 +157,18 @@ export class BoardStage implements Stage {
 
   enter(): void {
     this.onResize();
+    this.enemies = enemiesFor(this.host.cycle.wind);
+    for (const [id, route] of this.routes) {
+      const active = this.enemies.some((e) => e.id === id);
+      route.visible = active;
+      this.enemyFigures.get(id)!.visible = active;
+    }
     this.allies = {};
     this.selected = this.available()[0] ?? null;
     this.playback = null;
     this.result = null;
     for (const fig of this.allyFigures.values()) fig.visible = false;
-    for (const e of ENEMIES) this.enemyFigures.get(e.id)!.position.copy(tileToWorld(e.path[0]!));
+    for (const e of this.enemies) this.enemyFigures.get(e.id)!.position.copy(tileToWorld(e.path[0]!));
     this.panel.hidden = false;
     this.renderPanel();
   }
@@ -189,7 +202,7 @@ export class BoardStage implements Stage {
     if (this.result) return;
     const tile = this.tileUnderMouse();
     if (input.wasClicked() && tile && this.selected) {
-      if (canPlace(tile) && !Object.values(this.allies).some((t) => sameTile(t, tile))) {
+      if (canPlace(tile, this.enemies) && !Object.values(this.allies).some((t) => sameTile(t, tile))) {
         this.allies[this.selected] = tile;
         const fig = this.allyFigures.get(this.selected)!;
         fig.position.copy(tileToWorld(tile));
@@ -212,7 +225,7 @@ export class BoardStage implements Stage {
   }
 
   private start(): void {
-    const { turns, outcome } = simulate(this.allies);
+    const { turns, outcome } = simulate(this.allies, this.enemies);
     this.playback = { turns, t: 0 };
     this.result = outcome;
     this.renderPanel();
@@ -225,7 +238,7 @@ export class BoardStage implements Stage {
     const frac = Math.min(1, pb.t - i);
     const now = pb.turns[i]!;
     const next = pb.turns[Math.min(pb.turns.length - 1, i + 1)]!;
-    for (const e of ENEMIES) {
+    for (const e of this.enemies) {
       const a = tileToWorld(e.path[now.find((s) => s.id === e.id)!.step]!);
       const b = tileToWorld(e.path[next.find((s) => s.id === e.id)!.step]!);
       this.enemyFigures.get(e.id)!.position.lerpVectors(a, b, frac);
@@ -233,6 +246,7 @@ export class BoardStage implements Stage {
     if (pb.t >= pb.turns.length) {
       this.playback = null;
       this.host.cycle.night = this.result;
+      this.host.knowledge.learn('board_played');
       this.host.persist();
       this.renderPanel();
     }
@@ -253,12 +267,13 @@ export class BoardStage implements Stage {
       h('li', {}, 'The Hall is top centre, the Mountain top right, the Shore bottom centre, the tavern bottom left.'),
       h('li', {}, 'Black lines: where each of them will walk tonight.'),
       h('li', {}, 'An ally standing on a route stops whoever they can talk to.'),
-      h('li', {}, 'Guards listen only to Aristion. Nobody listens to a blind singer about the ritual.'),
+      h('li', {}, 'Guards listen only to Aristion. Nobody listens to a blind singer about the ritual. Talia can only talk down the merchant.'),
       h('li', {}, 'Stop the priest before the Mountain, the guards before the Hall, Lysimachus before the Shore.'));
-    const missing = (['kora', 'aristion'] as AllyId[]).filter((a) => !avail.includes(a)).map((a) => ALLY_NAMES[a]);
+    const missing = (['kora', 'aristion', 'talia'] as AllyId[]).filter((a) => !avail.includes(a)).map((a) => ALLY_NAMES[a]);
 
     const children: (Node | string)[] = [h('h2', {}, 'The Night of Anamnesis'), rules,
       h('p', {}, 'Choose an ally, then a tile:'), h('div', { className: 'board-allies' }, ...allyButtons)];
+    if (this.enemies.length > 4) children.push(h('p', { className: 'desk-note' }, 'The day was loud. A third guard is coming up from the port.'));
     if (missing.length) children.push(h('p', { className: 'desk-note' }, `Not with you tonight: ${missing.join(', ')}.`));
     if (!this.result) {
       const go = h('button', { type: 'button' }, 'Let the night come');

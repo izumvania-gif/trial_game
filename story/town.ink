@@ -1,25 +1,34 @@
 === dawn ===
+{
+- ended_last_cycle("sisyphus"):
+    One must imagine Leont happy. #hint
+- ended_last_cycle("aoidos"):
+    Under the window an old man is singing. He sings about a scribe who carried the tablets out of the fire. Don't, he sings. Don't carry them.
+- ended_last_cycle("exception_handled"):
+    ACCOUNTED FOR #log
+- ended_last_cycle("curator_missing"):
+    ROLLBACK APPROVED BY: CURATOR_P7 (auto) #log
+}
 {cycle() == 1:
     Grey light on the wax. You fell asleep over the chronicle again.
 - else:
     Grey light on the wax. You fell asleep over the chronicle. Again.
 }
-{seen_ending("aoidos"):
-    Under the window an old man is singing. He sings about a scribe who carried the tablets out of the fire. Don't, he sings. Don't carry them.
-}
-At the bottom of the last tablet there is a line you did not write.
 {
-- knows("song_of_return") and not knows("reset_by_user"):
-    The morning comes because someone asks for it. Find out who. #hand
-- knows("past_attempts") and not knows("last_line"):
-    Carve her name, and let the singer see it. #hand
-- knows("hall_key") and not knows("spiral_repeats"):
-    The door was never the hard part. #hand
-- else:
-    Don't look at the sky. Look into the stone. #hand
+- ended_last_cycle("promotion"):
+    At the bottom of the last tablet, in a hand that does not slant at all, very even, very tired:
+    Welcome back. You won't remember this. I will. — P8 #hand
+- ended_last_cycle("centre"):
+    At the bottom of the last tablet, in the slanted hand, two words, pressed so hard the wax tore:
+    First, memory. #hand
+- ended_last_cycle("revolution"):
+    At the bottom of the last tablet, in the slanted hand: Just this once, she said. It is always just this once. #hand
+- dawn_hint() != "":
+    At the bottom of the last tablet there is a line you did not write.
+    {dawn_hint()} #hand
 }
 ~ learn("other_hand")
-{knows("rain_at_midnight"):
+{knows("rain_at_midnight") and not ended_last_cycle("promotion"):
     The letters lean the way yours would, if you were in a hurry. If you had done this before.
 }
 {stele_word() != "":
@@ -54,7 +63,10 @@ There are many Leonts in Eferon. You tell yourself that twice.
     The bronze door to the Hall of Anamnesis. Locked. The key hangs on old Aristion's belt, they say, and he has not got up in a week.
     -> DONE
 }
-{patched("hall_guard") and hour() < 10:
+{
+- patched("hall_guard") and hour() < 10 and wearing() == "Killer":
+    The new guard at the bronze door looks at your face and takes one step to the side, and then another. He does not know why. His hands do.
+- patched("hall_guard") and hour() < 10:
     A temple guard you have never seen stands at the bronze door, very straight, very new. #speaker:Guard
     Not before the fifth hour, scribe. New orders. #speaker:Guard
     Whose orders, he doesn't say. He doesn't seem to know.
@@ -103,6 +115,12 @@ Let the world return to its beginning, as the sun returns to its rising. #speake
 * {knows("cleon_repeats")} [Shout the priest's next words before he can]
     ~ notice("spoke_first", 0.34)
     You shout it first. The crowd turns. Somewhere a woman makes the sign against the evil eye. #action:ending:exception_handled
+    -> DONE
+* {knows("kora_ally") and knows("debts_reformed")} [Let Kora take the altar from Hierocles]
+    Kora climbs onto the altar steps. The dockworkers climb with her. Hierocles looks round for the archons, and the archons are already running. #action:ending:revolution
+    -> DONE
+* {knows("last_line") and knows("aristion_phyllis")} [Write the last line yourself, cleanly, for Aristion]
+    You take out your tablet. You know exactly what the last line is. You write it in your best hand, and give it to Hierocles, and step back into the crowd. #action:ending:sisyphus
     -> DONE
 * [Say Yes with them]
     You say yes with them. It is very easy. It is the easiest thing you have ever done.

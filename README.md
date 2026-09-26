@@ -11,8 +11,8 @@ npm test
 
 Deployed to Amvera from `main` via the `Dockerfile` and `amvera.yml`; SQLite lives on the persistent `/data` mount.
 
-## Playing the Cycle Zero demo
+## Playing
 
 WASD walk · E talk · F finish someone's sentence (déjà vu) · C chronicle · B Book of Strangers · M mask · R lyre · Esc step back.
 
-The last day runs 06:00–midnight (~18 minutes). What you learn survives the reset; nothing else does. Talk to Aristion before the fourth hour, watch Cleon's speech twice, read the stele under the moss, study the carved scribes in the Hall of Anamnesis (Tab — registry), and find the mark. Endings in the demo: Exception Handled, The Aoidos, Awaiting Curator.
+The last day runs 06:00–midnight (~18 minutes). What you learn survives the reset; nothing else does. Ten people live the last day on fixed schedules; the Book of Strangers records what you have watched. Twelve past Leonts are carved on the spiral in the Hall of Anamnesis (Tab — registry); identifying them frees masks that change how Eferon treats you. If you are stuck, read the line at the bottom of the chronicle at dawn. Main endings: Exception Handled, Revolution, Sisyphus, The Aoidos, The Centre, Promotion (plus Awaiting Curator after the full Night of Anamnesis). The true ending, Diary Without Dates, arrives with the next milestone.

@@ -30,6 +30,8 @@ export interface LoopMemory {
   sprint: number;
   /** Book of Strangers: "resident:entryIndex" for every schedule entry the player has witnessed. */
   seen: string[];
+  /** The most recent ending and the cycle it happened in; the next dawn remembers it. */
+  lastEnding: { id: string; cycle: number } | null;
 }
 
 export interface CycleState {
@@ -65,7 +67,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [],
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null,
   };
 }
 

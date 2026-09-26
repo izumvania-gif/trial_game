@@ -1,6 +1,6 @@
 import type { KnowledgeGraph } from '../core/knowledge.ts';
 
-// The demo ("Cycle Zero") knowledge graph. Fact ids are referenced from ink via learn("id") / knows("id").
+// The knowledge graph of the main game. Fact ids are referenced from ink via learn("id") / knows("id").
 // The four questions Leont must close before the Night of Anamnesis (docs/concept.md §3):
 //   what launches the reset → last_line; who holds the Hall → hall_key;
 //   where the myth has a hole → sea_absent; what was already tried → past_attempts.
@@ -29,6 +29,21 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'reset_by_user', text: 'RESET INITIATED BY USER. The morning comes because someone asks for it.' },
     { id: 'desk_agent_id', text: 'AGENT_ID: CURATOR_P7. BODY: NONE. PERSISTENCE: RESET EACH SPRINT.' },
     { id: 'sea_differs', text: 'The sea is never the same twice. Nothing else here can say that.' },
+    { id: 'lysimachus_pays', text: 'Lysimachus pays Hierocles to keep the ritual on time. Every Silver Age he is the first man to own anything.' },
+    { id: 'hierocles_paid', text: 'Hierocles takes the silver. He would read the formula anyway; that is what frightens him.' },
+    { id: 'glaucus_no_calendar', text: 'Glaucus keeps no calendar and never stands in the same place twice.' },
+    { id: 'masks_explained', text: 'The mask seller says the faces are mine: every Leont who fought the day left one in the stone.' },
+    { id: 'mask_orator', text: 'The face of the Leont who spoke first. With it, the assembly listens to a scribe.' },
+    { id: 'mask_killer', text: 'The face of the Leont who used the knife. Guards step aside from it. Priests remember it.' },
+    { id: 'mask_blank', text: 'A smooth face, like the stranger\'s. The Leont who wore it said yes to him, and is on no later ring.' },
+    { id: 'xenos_offer', text: 'Xenos offers a room where the reset does not reach. He says nobody has ever said no.' },
+    { id: 'talia_boat', text: 'Talia\'s father\'s boat, the Pelagia, always comes back late. Never by the same minutes.' },
+    { id: 'talia_friend', text: 'Talia trusts me: I told her nobody can predict the sea, not even me.' },
+    { id: 'debts_burned', text: 'I burned Lysimachus\' ledgers while he dined. The port owes nobody anything, until midnight at least.' },
+    { id: 'debts_released', text: 'Lysimachus signed a release of every debt in the port, to keep his priest\'s name out of the agora.' },
+    { id: 'debts_reformed', text: 'In the face of the Orator I made the assembly cancel the debts. By law. For one afternoon.' },
+    { id: 'debts_settled', text: 'Kora\'s people owe nothing tonight. If the flood does not come, they will not be slaves tomorrow.' },
+    { id: 'board_played', text: 'We painted the night on the tavern table and played it through.' },
   ],
   sources: [
     { id: 'chronicle_at_dawn', stage: 'town', requires: [], gives: ['other_hand'] },
@@ -40,7 +55,21 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'hall_of_anamnesis', stage: 'spiral', requires: ['hall_key'], gives: ['spiral_repeats'] },
     { id: 'spiral_align', stage: 'spiral', requires: ['spiral_repeats'], gives: ['leont_on_every_ring', 'seam_symbol'] },
     { id: 'registry_first_three', stage: 'spiral', requires: ['spiral_repeats'], gives: ['registry_three', 'mask_extinguisher'] },
-    { id: 'registry_all_six', stage: 'spiral', requires: ['registry_three'], gives: ['past_attempts', 'sea_absent', 'eion_was_leont'] },
+    { id: 'registry_nine', stage: 'spiral', requires: ['registry_three'], gives: ['past_attempts', 'eion_was_leont'] },
+    { id: 'registry_twelve', stage: 'spiral', requires: ['past_attempts'], gives: ['sea_absent'] },
+    { id: 'registry_masks', stage: 'spiral', requires: ['registry_three'], gives: ['mask_orator', 'mask_killer', 'mask_blank'] },
+    { id: 'spiral_after_glaucus', stage: 'spiral', requires: ['glaucus_no_calendar', 'spiral_repeats'], gives: ['sea_absent'] },
+    { id: 'lysimachus_watch', stage: 'town', requires: [], gives: ['lysimachus_pays'] },
+    { id: 'hierocles_masked', stage: 'town', requires: ['mask_killer'], gives: ['hierocles_paid'] },
+    { id: 'glaucus_shore', stage: 'town', requires: [], gives: ['glaucus_no_calendar'] },
+    { id: 'maskseller_stall', stage: 'town', requires: [], gives: ['masks_explained'] },
+    { id: 'xenos_meet', stage: 'town', requires: ['seam_symbol'], gives: ['xenos_offer'] },
+    { id: 'talia_port', stage: 'town', requires: [], gives: ['talia_boat'] },
+    { id: 'talia_truth', stage: 'town', requires: ['talia_boat', 'sea_differs'], gives: ['talia_friend'] },
+    { id: 'burn_ledgers', stage: 'town', requires: ['kora_debts'], gives: ['debts_burned', 'debts_settled'] },
+    { id: 'blackmail', stage: 'town', requires: ['kora_debts', 'hierocles_paid'], gives: ['debts_released', 'debts_settled'] },
+    { id: 'assembly', stage: 'town', requires: ['kora_debts', 'mask_orator'], gives: ['debts_reformed', 'debts_settled'] },
+    { id: 'board', stage: 'board', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'], gives: ['board_played'] },
     { id: 'cleon_twice', stage: 'town', requires: ['rain_at_midnight'], gives: ['cleon_repeats'] },
     { id: 'kora_talk', stage: 'town', requires: [], gives: ['kora_debts'] },
     { id: 'kora_convinced', stage: 'town', requires: ['cleon_repeats'], gives: ['kora_ally'] },
@@ -53,11 +82,15 @@ export const KNOWLEDGE: KnowledgeGraph = {
   ],
   endings: [
     { id: 'exception_handled', title: 'Exception Handled', requires: ['rain_at_midnight'] },
+    { id: 'revolution', title: 'Revolution', requires: ['kora_ally', 'debts_reformed'] },
+    { id: 'sisyphus', title: 'Sisyphus', requires: ['last_line', 'aristion_phyllis', 'past_attempts'] },
+    { id: 'centre', title: 'The Centre', requires: ['sea_absent', 'glaucus_no_calendar'] },
+    { id: 'promotion', title: 'Promotion', requires: ['xenos_offer'] },
     { id: 'aoidos', title: 'The Aoidos', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'] },
     { id: 'curator_missing', title: 'Awaiting Curator', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'] },
     {
       id: 'diary_without_dates', title: 'Diary Without Dates', trueEnding: true,
-      requires: ['last_line', 'past_attempts', 'sea_absent', 'kora_ally', 'aristion_trust', 'desk_agent_id', 'reset_by_user', 'sea_differs'],
+      requires: ['last_line', 'past_attempts', 'sea_absent', 'kora_ally', 'aristion_trust', 'desk_agent_id', 'reset_by_user', 'sea_differs', 'debts_settled', 'board_played'],
     },
   ],
 };

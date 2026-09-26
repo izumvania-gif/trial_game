@@ -18,15 +18,19 @@ EXTERNAL has_mask(id)
 EXTERNAL give_mask(id)
 EXTERNAL stele_word()
 EXTERNAL patched(id)
-EXTERNAL notice(id, wind)
+EXTERNAL notice(id, amount)
 EXTERNAL seen_ending(id)
 EXTERNAL registry_locked()
 EXTERNAL identified(id)
 EXTERNAL night(key)
 EXTERNAL sprint()
+EXTERNAL dawn_hint()
+EXTERNAL wind()
+EXTERNAL ended_last_cycle(id)
 
 INCLUDE town.ink
 INCLUDE people.ink
+INCLUDE people2.ink
 INCLUDE spiral.ink
 INCLUDE desk.ink
 INCLUDE sea.ink
@@ -56,7 +60,7 @@ INCLUDE sea.ink
 ~ return ""
 === function patched(id)
 ~ return false
-=== function notice(id, wind)
+=== function notice(id, amount)
 ~ return true
 === function seen_ending(id)
 ~ return false
@@ -68,3 +72,9 @@ INCLUDE sea.ink
 ~ return false
 === function sprint()
 ~ return 1
+=== function dawn_hint()
+~ return "Don't look at the sky. Look into the stone."
+=== function wind()
+~ return 0
+=== function ended_last_cycle(id)
+~ return false

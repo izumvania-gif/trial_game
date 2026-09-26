@@ -22,7 +22,12 @@ export function compileInkFile(path: string): InkCompileResult {
     if (type === 2) errors.push(message);
     else if (type === 1) warnings.push(message);
   }, fileHandler);
-  const story = new Compiler(readFileSync(path, 'utf8'), options).Compile();
+  let story: ReturnType<Compiler['Compile']> | null = null;
+  try {
+    story = new Compiler(readFileSync(path, 'utf8'), options).Compile();
+  } catch {
+    // inkjs throws a generic "Compilation failed"; the useful messages are in `errors`.
+  }
   if (errors.length > 0 || !story) {
     throw new Error(`ink compile failed for ${path}:\n${errors.join('\n')}`);
   }

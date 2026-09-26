@@ -25,7 +25,15 @@ test('a wrong entry is not revealed and does not lock', () => {
   assert.equal(reg.l3!.locked, false);
 });
 
-test('every past Leont has a distinct attempt and fate', () => {
+test('twelve Leonts, four per ring, spaced apart, each attempt unique', () => {
+  assert.equal(PAST_LEONTS.length, 12);
   assert.equal(new Set(PAST_LEONTS.map((l) => l.attempt)).size, PAST_LEONTS.length);
-  assert.equal(new Set(PAST_LEONTS.map((l) => l.fate)).size, PAST_LEONTS.length);
+  for (let ring = 0; ring < 3; ring++) {
+    const angles = PAST_LEONTS.filter((l) => l.ring === ring).map((l) => l.angle).sort((a, b) => a - b);
+    assert.equal(angles.length, 4);
+    for (let i = 0; i < angles.length; i++) {
+      const next: number = i + 1 < angles.length ? angles[i + 1]! : angles[0]! + Math.PI * 2;
+      assert.ok(next - angles[i]! > 0.9, `ring ${ring}: scribes too close together`);
+    }
+  }
 });

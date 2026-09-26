@@ -24,3 +24,16 @@ test('allies cannot stand on landmarks or enemy starts', () => {
   assert.equal(canPlace([0, 1]), false);
   assert.equal(canPlace([2, 2]), true);
 });
+
+test('counterplan: a loud day adds a third guard, still held by Aristion on the shared corridor', async () => {
+  const { enemiesFor } = await import('../src/core/board.ts');
+  const loud = enemiesFor(0.7);
+  assert.equal(loud.length, 5);
+  assert.equal(simulate({ kora: [1, 1], aristion: [3, 2] }, loud).outcome.hallClear, true);
+  assert.equal(simulate({ kora: [1, 1], aristion: [5, 2] }, loud).outcome.hallClear, false);
+});
+
+test('Talia can stop the merchant but not the priest', () => {
+  assert.equal(simulate({ talia: [2, 3] }).outcome.shoreClear, true);
+  assert.equal(simulate({ talia: [2, 1] }).outcome.citySilent, false);
+});

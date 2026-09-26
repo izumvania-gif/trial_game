@@ -8,6 +8,9 @@
 }
 {hour() >= fever: -> fever_talk}
 Aristion lies on a pallet in his doorway, grey as the stone. His eyes are still clear.
+{ended_last_cycle("sisyphus"):
+    You look tired, boy. Like a man who carried something up a hill in the night, and was glad to. #speaker:Aristion
+}
 {knows("aristion_trust"): -> after_key}
 You will never be at peace. ^Go and look at what they called holy before you. #speaker:Aristion #dejavu:aristion_restless
 {dejavu_ok("aristion_restless"):
@@ -85,8 +88,18 @@ He does not know you.
     ~ learn("kora_debts")
     -> DONE
 }
-{knows("kora_ally"):
+{
+- knows("debts_reformed") and knows("kora_ally"):
+    By law. You did it by law, in a dead man's face. #speaker:Kora
+    Tonight on the mountain I could take the altar from Hierocles myself. Say the word and I will. #speaker:Kora
+    -> DONE
+- knows("debts_settled") and not knows("kora_ally"):
+    The port owes nobody anything tonight. I don't know how you did it and I don't want to. #speaker:Kora
+- knows("kora_ally"):
     The mountain, at midnight. Give me the words and I'll choke their formula in their throats. #speaker:Kora
+    {not knows("debts_settled"):
+        And scribe: if you mean to take the flood away from us, find my people another amnesty first. #speaker:Kora
+    }
     -> DONE
 }
 * {knows("cleon_repeats")} [Tell her Cleon's speech is carved on the oldest stones] -> test
@@ -132,6 +145,10 @@ Go away, scribe. I have real work. #speaker:Kora
 }
 
 = speech_time
+{wearing() == "Orator":
+    Cleon sees your face before he starts, and stops with one foot on the step. #speaker:Cleon
+    Take that off. That is — that's my — no. It's yours. Isn't it. It was always yours. #speaker:Cleon
+}
 The agora is full. Cleon climbs onto the steps and lifts one arm.
 Citizens of Eferon, we have been told that iron rusts. I say: ^let it rust! Let the gold come! #speaker:Cleon #dejavu:cleon_speech
 {dejavu_ok("cleon_speech"):

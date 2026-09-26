@@ -53,6 +53,30 @@ export const TICKETS: Ticket[] = [
     patches: [{ id: 'registry_blur', label: 'Erode the relief faces on ring II' }],
   },
   {
+    id: 'ledgers_burned', anomaly: 'ledgers_burned',
+    title: 'Economic state diverged before reset',
+    body: 'Creditor ledgers of LYSIMACHUS destroyed at 19:40, 4h20m ahead of the purification. Debtors now debt-free for the remainder of the Iron Age. Sentiment in the port: +0.31.',
+    patches: [{ id: 'ledger_copy', label: 'Give Lysimachus a second copy of every ledger' }],
+  },
+  {
+    id: 'assembly', anomaly: 'assembly',
+    title: 'Unscheduled legislation',
+    body: 'Module addressed the ekklesia wearing archive asset MASK_ORATOR and passed a debt reform. Reform has no effect after reset. Module appears to know this.',
+    patches: [{ id: 'assembly_closed', label: 'Close the assembly on the last day' }],
+  },
+  {
+    id: 'mask_worn', anomaly: 'mask_worn',
+    title: 'Archive asset worn in public',
+    body: 'Module is walking around Eferon in the face of a previous instance. Several NPCs recognised the face. None of them can say from where.',
+    patches: [],
+  },
+  {
+    id: 'xenos_contact', anomaly: 'xenos_contact',
+    title: 'Recruitment contact made',
+    body: 'Avatar XENOS approached module LEONT_ASTRO_ASSIST. Offer extended per standard retention procedure. Historical acceptance rate: 100%. Sample size: 1.',
+    patches: [],
+  },
+  {
     id: 'ocean_variance',
     title: 'OCEAN_LAYER variance exceeds model',
     body: 'Fishing boat PELAGIA returned 14 minutes late. Cause not reproducible from seed. Previous 1,471 runs: same boat, different minutes.',

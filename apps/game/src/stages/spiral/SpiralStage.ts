@@ -132,7 +132,10 @@ export class SpiralStage implements Stage {
     this.aligned = this.host.knowledge.knows('leont_on_every_ring');
     if (this.aligned) this.snapAligned();
     this.seam.visible = this.aligned;
-    if (!this.host.knowledge.knows('spiral_repeats')) this.host.interact('spiral_enter');
+    const k = this.host.knowledge;
+    if (!k.knows('spiral_repeats')) this.host.interact('spiral_enter');
+    // After Glaucus: look for the sea on the stone.
+    else if (k.knows('glaucus_no_calendar') && !k.knows('sea_absent')) this.host.interact('spiral_no_sea');
   }
 
   exit(): void {

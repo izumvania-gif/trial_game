@@ -18,6 +18,7 @@ uniform vec3 palette[${MAX_PALETTE}];
 uniform int paletteSize;
 uniform float exposure;
 uniform float contrast;
+uniform float band;
 varying vec2 vUv;
 
 float bayer2(vec2 a) { a = floor(a); return fract(a.x / 2.0 + a.y * a.y * 0.75); }
@@ -38,8 +39,10 @@ void main() {
   float steps = float(paletteSize - 1);
   float scaled = lum * steps;
   float base = floor(scaled);
+  // Dither only across a band around each step; flat areas stay one clean palette color.
+  float frac = smoothstep(0.5 - band * 0.5, 0.5 + band * 0.5, scaled - base);
   float threshold = bayer4(floor(vUv * lowRes)) + 0.5 / 16.0;
-  int idx = int(min(base + step(threshold, scaled - base), steps));
+  int idx = int(min(base + step(threshold, frac), steps));
   vec3 outColor = palette[0];
   for (int i = 1; i < ${MAX_PALETTE}; i++) if (i == idx) outColor = palette[i];
   gl_FragColor = vec4(outColor, 1.0);
@@ -75,6 +78,7 @@ export class DitherRenderer {
         paletteSize: { value: 0 },
         exposure: { value: 1 },
         contrast: { value: 1 },
+        band: { value: 1 },
       },
       depthTest: false,
       depthWrite: false,
@@ -97,6 +101,7 @@ export class DitherRenderer {
     u.paletteSize!.value = colors.length;
     u.exposure!.value = this.palette.exposure;
     u.contrast!.value = this.palette.contrast;
+    u.band!.value = this.palette.band;
   }
 
   get paletteId(): PaletteId {

@@ -23,22 +23,48 @@ LOG: CYCLE RUN — LEONT_ASTRO_ASSIST FAILED TO ALTER RESET TIMING #log
     -> DONE
 
 === registry_confirmed ===
-The three carvings seem to settle into the stone, as if they had been waiting to be read correctly.
+The carvings seem to settle into the stone, as if they had been waiting to be read correctly.
 {identified("l1") and not has_mask("Extinguisher"):
     The face of the scribe with the water jar was chiselled smooth. You touch it, and the smooth face comes away in your hand like a mask.
     ~ give_mask("Extinguisher")
     ~ learn("mask_extinguisher")
-    M — put on the mask, in the city. #hint
+    M — put on a mask, in the city. M again changes it. #hint
+}
+{identified("l2") and not has_mask("Orator"):
+    The inlaid face of the scribe on the council steps loosens under your thumb. It is warm, as if someone had just been speaking through it.
+    ~ give_mask("Orator")
+    ~ learn("mask_orator")
+}
+{identified("l3") and not has_mask("Killer"):
+    The face of the scribe with the knife comes out of the deep carving whole. It is heavier than the others.
+    ~ give_mask("Killer")
+    ~ learn("mask_killer")
+}
+{identified("l12") and not has_mask("Blank"):
+    Where the vanished scribe clasped hands with the stranger there is a smooth oval of marble. It comes away. It is not a face at all.
+    ~ give_mask("Blank")
+    ~ learn("mask_blank")
 }
 {registry_locked() >= 3:
     ~ learn("registry_three")
 }
-{registry_locked() >= 6:
-    Six scribes. Six ways to fight the day. Six floods, fires, stonings, and one old singer.
+{registry_locked() >= 9 and not knows("past_attempts"):
+    Nine scribes. The fire, the date, the priest, the speech, the sacrifice, the tablets, the warning, the flight, the song. Nine ways to fight the day, and the day came back after every one.
+    None of them touched the stone you are standing in front of. It was their memory. It was their weapon.
     ~ learn("past_attempts")
     ~ learn("eion_was_leont")
-    You look over the whole spiral again, ring by ring, for something you have not seen. And there it is, because it is not there:
-    there is no sea on the spiral. Not one wave. Not a boat, not a shore. The city on the stone has no edge.
-    ~ learn("sea_absent")
+}
+{registry_locked() >= 12:
+    -> no_sea
 }
 -> DONE
+
+= no_sea
+You look over the whole spiral again, ring by ring, for something you have not seen. And there it is, because it is not there:
+there is no sea on the spiral. Not one wave. Not a boat, not a shore. The city on the stone has no edge.
+~ learn("sea_absent")
+-> DONE
+
+=== spiral_no_sea ===
+Glaucus said: look for me on your stone wheel. You look. Market, council, plague ships — plague ships without water under them.
+-> registry_confirmed.no_sea

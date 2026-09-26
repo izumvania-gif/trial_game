@@ -7,7 +7,8 @@ export interface Point {
 
 export type Place =
   | 'temple' | 'stele' | 'center' | 'agora' | 'council' | 'westLane' | 'aristion' | 'eastLane'
-  | 'shrine' | 'south' | 'port' | 'tavern' | 'shore' | 'northEast' | 'mountain';
+  | 'shrine' | 'south' | 'port' | 'tavern' | 'shore' | 'northEast' | 'mountain'
+  | 'villa' | 'eastRoad' | 'zeus' | 'stall' | 'shoreWest' | 'shoreEast';
 
 export const PLACES: Record<Place, Point> = {
   temple: { x: 0, z: -12.5 },
@@ -25,6 +26,12 @@ export const PLACES: Record<Place, Point> = {
   shore: { x: 0, z: 19.5 },
   northEast: { x: 9, z: -12 },
   mountain: { x: 10, z: -23 },
+  villa: { x: -17, z: -13.5 },
+  eastRoad: { x: 14, z: 5 },
+  zeus: { x: 19.5, z: 5.5 },
+  stall: { x: 5, z: 5 },
+  shoreWest: { x: -9, z: 19.5 },
+  shoreEast: { x: 9, z: 19.5 },
 };
 
 const EDGES: [Place, Place][] = [
@@ -32,6 +39,8 @@ const EDGES: [Place, Place][] = [
   ['northEast', 'eastLane'], ['stele', 'westLane'], ['center', 'westLane'], ['westLane', 'aristion'],
   ['center', 'agora'], ['agora', 'council'], ['agora', 'eastLane'], ['eastLane', 'shrine'],
   ['center', 'south'], ['south', 'port'], ['port', 'tavern'], ['south', 'shore'],
+  ['stele', 'villa'], ['agora', 'eastRoad'], ['eastRoad', 'zeus'], ['agora', 'stall'],
+  ['shore', 'shoreWest'], ['shore', 'shoreEast'],
 ];
 
 export const STREET_EDGES = EDGES;

@@ -3,7 +3,9 @@
 import { fetchStele, reportReset, scratchLine } from './api.ts';
 import { ENDINGS } from './content/endings.ts';
 import { KNOWLEDGE } from './content/knowledge.ts';
+import { pickHint } from './content/hints.ts';
 import { LEXICON } from './content/lexicon.ts';
+import { MASKS } from './content/masks.ts';
 import { PAST_LEONTS } from './content/leonts.ts';
 import { DayClock, endMinuteForWind } from './core/clock.ts';
 import { Knowledge } from './core/knowledge.ts';
@@ -198,6 +200,9 @@ export class Game {
       },
       seen_ending: (id: string) => this.memory.endingsSeen.includes(id),
       heard: (id: string) => this.memory.heard.includes(id),
+      dawn_hint: () => pickHint((f) => this.knowledge.knows(f)) ?? '',
+      ended_last_cycle: (id: string) => this.memory.lastEnding?.id === id && this.memory.lastEnding.cycle === this.memory.cycle - 1,
+      wind: () => Math.round(this.save.cycle.wind * 100),
       sprint: () => this.memory.sprint,
       registry_locked: () => Object.values(this.memory.registry).filter((e) => e.locked).length,
       identified: (id: string) => this.memory.registry[id]?.locked === true,
@@ -321,10 +326,17 @@ export class Game {
     }
   }
 
+  /** M cycles through the masks freed from the spiral, then back to Leont's own face. */
   private toggleMask(): void {
     const c = this.save.cycle;
-    if (this.lost('masks') || !this.memory.masks.length) return;
-    c.wornMask = c.wornMask ? null : this.memory.masks[0]!;
+    const masks = this.memory.masks;
+    if (this.lost('masks') || !masks.length) return;
+    const i = c.wornMask ? masks.indexOf(c.wornMask) : -1;
+    c.wornMask = i + 1 < masks.length ? masks[i + 1]! : null;
+    if (c.wornMask) {
+      this.notice('mask_worn', 0.03);
+      this.hud.toast(`${c.wornMask}: ${MASKS[c.wornMask]?.effect ?? ''}`);
+    }
   }
 
   loseMechanic(m: Mechanic): void {
@@ -418,6 +430,7 @@ export class Game {
     const card = ENDINGS[id];
     if (!card) return;
     if (!this.memory.endingsSeen.includes(id)) this.memory.endingsSeen.push(id);
+    this.memory.lastEnding = { id, cycle: this.memory.cycle };
     this.phase = 'midnight';
     this.persist();
     this.modal.show('ending', [

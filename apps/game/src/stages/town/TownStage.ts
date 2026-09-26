@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { RESIDENTS, type Resident } from '../../content/residents.ts';
 import { residentAt } from '../../core/schedule.ts';
-import { daySeed, seededRng } from '../../core/rng.ts';
+import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
 import { distanceToStreets, PLACES, STREET_EDGES } from '../../core/streets.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
@@ -43,6 +43,8 @@ const PLACES_TO_TALK: Interactable[] = [
   { x: 10.5, z: 2.4, radius: 1.8, knot: 'agora_crier', label: 'Crier' },
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'Path to the sea' },
   { x: 10, z: -22.5, radius: 2, knot: 'mountain_path', label: 'Path up the mountain' },
+  { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
+  { x: -19, z: -14.2, radius: 1.5, knot: 'villa_door', label: "Lysimachus' door" },
 ];
 
 interface Npc {
@@ -66,6 +68,7 @@ export class TownStage implements Stage {
   private sea = makeSea(220);
   private cloud = new THREE.Group();
   private npcs: Npc[] = [];
+  private glaucusX = 0;
   private mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.08), new THREE.MeshLambertMaterial({ color: '#f2ead6' }));
 
   constructor(host: StageHost, start: { x: number; z: number; facing: number }) {
@@ -78,10 +81,20 @@ export class TownStage implements Stage {
     this.player.add(this.mask);
     this.scene.add(this.player);
     for (const resident of RESIDENTS) {
-      const figure = makeFigure(resident.color, resident.id === 'cleon' ? 1.85 : 1.7);
+      if (resident.appears && !resident.appears((f) => host.knowledge.knows(f))) continue;
+      const figure = makeFigure(resident.color, resident.id === 'cleon' ? 1.85 : resident.id === 'talia' ? 1.45 : 1.7);
+      if (resident.id === 'xenos') {
+        // A smooth white oval where a face should be.
+        const face = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: '#f4efe4' }));
+        face.scale.set(0.8, 1, 0.5);
+        face.position.set(0, 1.47, 0.14);
+        figure.add(face);
+      }
       this.scene.add(figure);
       this.npcs.push({ resident, figure });
     }
+    // Glaucus is of the sea: where he stands along the shore is decided by real chance, not the seed.
+    this.glaucusX = -12 + seaRandom() * 24;
   }
 
   private buildWorld(): void {
@@ -120,7 +133,7 @@ export class TownStage implements Stage {
 
   /** Pale paving along the street graph, so the city reads as a map. */
   private buildStreets(): void {
-    const paving = lambert('#c89a72');
+    const paving = lambert('#e2c9a4');
     for (const [a, b] of STREET_EDGES) {
       const pa = PLACES[a];
       const pb = PLACES[b];
@@ -193,6 +206,26 @@ export class TownStage implements Stage {
     awning.position.set(-12.5, 2.6, 14.2);
     awning.castShadow = true;
     this.scene.add(awning);
+    // Lysimachus' villa, bigger than it needs to be.
+    this.addBox(-20.5, -17.5, 7, 5.5, 3.6, '#f0e8d2');
+    const villaRoof = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.4, 6.1), lambert('#8f4a2a'));
+    villaRoof.position.set(-20.5, 3.8, -17.5);
+    villaRoof.castShadow = true;
+    this.scene.add(villaRoof);
+    // Temple of Zeus, east of the agora: darker stone, heavier columns.
+    this.addBox(23.2, 6.5, 6, 7, 0.9, '#d9ccb0');
+    this.addColumns(23.2, 6.5, [-2.2, 2.2], [-2.8, 0, 2.8], 5);
+    const zeusRoof = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.7, 7.4), lambert('#5c4636'));
+    zeusRoof.position.set(23.2, 6.4, 6.5);
+    zeusRoof.castShadow = true;
+    this.scene.add(zeusRoof);
+    // The mask seller's stall: an awning and a row of pale faces.
+    this.addBox(5, 6.9, 2.6, 1, 0.9, '#6b3a22');
+    for (let i = 0; i < 5; i++) {
+      const face = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.36, 0.06), lambert('#f2ead6'));
+      face.position.set(4 + i * 0.5, 1.25, 6.35);
+      this.scene.add(face);
+    }
     // Stones marking the path up the holy mountain.
     for (let i = 0; i < 6; i++) {
       const stone = new THREE.Mesh(new THREE.IcosahedronGeometry(0.35, 0), lambert('#efe6cf'));
@@ -318,6 +351,10 @@ export class TownStage implements Stage {
     const p = this.player.position;
     for (const { resident, figure } of this.npcs) {
       const state = residentAt(resident, clock.minute, patches);
+      if (resident.seaSpot) {
+        state.x = this.glaucusX;
+        state.z = 22.4;
+      }
       figure.position.set(state.x, 0, state.z);
       // Lying figures: Aristion in his fever, Eion asleep under the table.
       const lying = !state.walking && state.entry.pose === 'lying';

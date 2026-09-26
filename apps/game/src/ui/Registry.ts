@@ -16,7 +16,7 @@ export function registryRow(memory: LoopMemory, leont: PastLeont, onChange: () =
   const entry = (memory.registry[leont.id] ??= { attempt: null, ending: null, locked: false });
   const index = PAST_LEONTS.indexOf(leont) + 1;
   return h('div', { className: `registry-row${entry.locked ? ' locked' : ''}` },
-    h('span', { className: 'registry-name' }, `Leont ${['I', 'II', 'III', 'IV', 'V', 'VI'][index - 1]}`, h('small', {}, ` · ${RING_NAMES[leont.ring]}`)),
+    h('span', { className: 'registry-name' }, `Leont ${['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'][index - 1]}`, h('small', {}, ` · ${RING_NAMES[leont.ring]}`)),
     h('span', {}, 'He ', select(ATTEMPTS, entry.attempt, entry.locked, (v) => {
       entry.attempt = v || null;
       onChange();
