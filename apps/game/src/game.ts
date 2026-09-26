@@ -242,7 +242,7 @@ export class Game {
   /** After a fact: what it made possible, and which question it opened or answered. */
   private announce(factId: string): void {
     const knows = (id: string) => this.knowledge.knows(id);
-    if (UNLOCKS[factId]) this.hud.toast(UNLOCKS[factId]!, 'Now open');
+    if (UNLOCKS[factId]) this.hud.toast(UNLOCKS[factId]!, 'In the margin', true);
     for (const t of THREADS) {
       if (t.closes === factId && isOpen(t, knows)) this.hud.toast(t.question, 'Answered');
       else if (t.opens.includes(factId) && isOpen(t, knows) && !threadView(t, knows).closed) this.hud.toast(t.question, 'New question · C');
@@ -261,7 +261,7 @@ export class Game {
       h('h3', {}, 'Yesterday you learned'),
       learned.length ? list(learned.map((f) => [f.text])) : h('p', { className: 'recap-empty' }, 'Nothing new. It was the same day, and you lived it the same way.'),
     ];
-    if (opened.length) body.push(h('h3', {}, 'Now open'), list(opened.map((u) => [u])));
+    if (opened.length) body.push(h('h3', {}, 'In the margin'), list(opened.map((u) => [u])));
     if (open.length) body.push(h('h3', {}, 'Still unanswered'), list(open.map((v) => [h('strong', {}, v.thread.question), ...(v.next && v.hintKey ? [hintLine(v.next, v.hintKey, m.hintsShown)] : [])])));
     body.push(h('p', { className: 'recap-kept' }, 'Kept: the chronicle, the Book of Strangers, your masks. Gone: everything anyone did yesterday. C opens the chronicle.'));
     this.guides.showCard(`Day ${m.cycle}`, 'The same morning', body, 'Begin the day', undefined, 'recap');
@@ -440,6 +440,7 @@ export class Game {
       [this.memory.seen.length > 0, 'book'],
       [this.save.cycle.wind > 0 && !this.lost('clock'), 'wind'],
       [this.memory.masks.length > 0 && !this.lost('masks'), 'mask'],
+      [this.knowledge.knows('song_of_return'), 'lyre'],
     ];
     for (const [now, id] of due) if (now && this.guides.tip(TIPS[id]!)) return;
   }

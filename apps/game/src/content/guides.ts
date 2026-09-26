@@ -136,6 +136,12 @@ export const TIPS: Record<string, Guide> = {
     title: 'Masks',
     steps: [{ keys: ['M'], text: 'Put on a mask you own, or the next one, or your own face again.' }],
   },
+  lyre: {
+    id: 'tip:lyre',
+    kicker: 'A song',
+    title: 'The lyre',
+    steps: [{ keys: ['R'], text: 'Raise the lyre and play what you remember with the arrow keys. R or Esc lowers it.' }],
+  },
   wind: {
     id: 'tip:wind',
     kicker: 'Noticed',

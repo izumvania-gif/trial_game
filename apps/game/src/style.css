@@ -405,3 +405,6 @@ html.reduced-motion .guide, html.reduced-motion .guide-tip, html.reduced-motion 
 button.hint-button { font-size: 0.72rem; letter-spacing: 0.15em; padding: 0.2rem 0.7rem; border-color: var(--rule); color: var(--muted); font-style: normal; }
 button.hint-button:hover, button.hint-button:focus-visible { color: var(--lacquer); }
 .guide.recap .thread-next { margin-top: 0.25rem; font-size: 0.9rem; color: var(--muted); }
+.hud-toast.quiet { border-left: 1px solid var(--rule); }
+.hud-toast.quiet .toast-kicker { color: var(--faint); }
+.hud-toast.quiet span:last-child { transform: skewX(-8deg); color: var(--muted); }

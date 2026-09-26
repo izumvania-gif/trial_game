@@ -19,7 +19,7 @@ export class Hud {
   private timeEl = h('div', { className: 'hud-time' });
   private toastTimer = 0;
   /** Toasts wait their turn: a fact, then what it opened, then a new question. */
-  private toastQueue: { text: string; kicker?: string }[] = [];
+  private toastQueue: { text: string; kicker?: string; quiet?: boolean }[] = [];
   private openPanelId: string | null = null;
   private windEl = h('div', { className: 'hud-wind' });
   private maskEl = h('div', { className: 'hud-mask' });
@@ -87,8 +87,9 @@ export class Hud {
     this.captionTimer = window.setTimeout(() => this.captionEl.classList.remove('show'), 3000);
   }
 
-  toast(text: string, kicker?: string): void {
-    this.toastQueue.push({ text, kicker });
+  /** `quiet`: a note in the margin — no accent bar, the slanted hand. */
+  toast(text: string, kicker?: string, quiet = false): void {
+    this.toastQueue.push({ text, kicker, quiet });
     // Never a long backlog: keep the one showing and the three newest.
     if (this.toastQueue.length > 4) this.toastQueue.splice(1, this.toastQueue.length - 4);
     if (this.toastQueue.length === 1) this.nextToast();
@@ -104,6 +105,7 @@ export class Hud {
   private nextToast(): void {
     const t = this.toastQueue[0];
     if (!t) return;
+    this.toastEl.classList.toggle('quiet', !!t.quiet);
     this.toastEl.replaceChildren(...(t.kicker ? [h('span', { className: 'toast-kicker' }, t.kicker)] : []), h('span', {}, t.text));
     this.toastEl.classList.add('show');
     window.clearTimeout(this.toastTimer);

@@ -152,18 +152,15 @@ export function isOpen(thread: Thread, knows: (fact: string) => boolean): boolea
   return thread.opens.every(knows);
 }
 
-/** What a newly learned fact makes possible, said plainly. Keyed by the fact that unlocks it. */
+/**
+ * A line in the margin when a fact opens something: Leont noticing, not a manual. Only for the
+ * turns that are easy to miss; keys and mechanics are left to the how-to cards and tips.
+ */
 export const UNLOCKS: Record<string, string> = {
-  hall_key: 'The bronze door of the temple will open for you.',
-  spiral_repeats: 'You can come back to the Hall any day: the door stays yours.',
-  seam_symbol: 'Where you see the mark, you can touch it.',
-  registry_three: 'Name a carved Leont rightly and his face may come away from the stone as a mask.',
-  mask_extinguisher: 'A smooth face came off the stone. M puts on a mask.',
-  masks_explained: 'Masks you free from the registry can be worn: M.',
-  song_of_return: 'R raises the lyre. The song ends the day early, whenever you choose.',
-  kora_debts: 'The port\'s debts can be settled three ways: the ledgers, the priest, the assembly.',
-  last_line: 'Once you know what the others tried and what the stone lacks, Eion will plan the night with you.',
-  sea_absent: 'Eion will paint the night on his table after dark, if you also know the rest.',
-  desk_agent_id: 'Upstairs is open to you now: the mark leads to the Desk.',
-  rain_at_midnight: 'What you learn is kept. Everything else starts over at dawn.',
+  rain_at_midnight: 'Everything went back. Everything but what I wrote down.',
+  hall_key: 'The key is warm in my hand. There is only one door in Eferon it could fit.',
+  seam_symbol: 'I keep seeing that mark. I wonder what it does if I touch it.',
+  registry_three: 'Some of those carved faces sat loose in the stone.',
+  kora_debts: 'A debt can burn, be forgiven, or be voted away. The flood is not the only way.',
+  sea_absent: 'If I know enough before dark, the singer might help me plan the night.',
 };
