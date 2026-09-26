@@ -6,7 +6,11 @@
 // With captions on, meaningful sounds are also written out: "[the wind rises]".
 import { seaRandom } from '../core/rng.ts';
 import type { Settings, SettingsStore } from '../core/settings.ts';
-import { noteAt, PIECES } from './music.ts';
+import { noteAt, PIECES, type Piece } from './music.ts';
+
+/** Seconds for a place's tune to fade out, and for the next to come in. */
+const FADE_OUT = 3;
+const FADE_IN = 2.5;
 
 export interface AudioState {
   stage: string;
@@ -52,8 +56,8 @@ export class AudioEngine {
   private settings: Settings;
   private onCaption: (text: string) => void;
   private plucks = new Map<number, AudioBuffer>();
-  private loopTimer = 0;
-  private loopIndex = 0;
+  /** One playing piece: its own fader, its own clock. Several may sound while one fades into the next. */
+  private voices = new Map<string, { gain: GainNode; timer: number; index: number; fadeOut: number }>();
   private detune = 0;
   private theme: string | null = null;
   /** Where each piece had got to: coming back to a place picks its tune up where it left off. */
@@ -212,16 +216,7 @@ export class AudioEngine {
     const theme = s.raining ? null
       : s.stage === 'town' ? (s.place === 'agora' || s.place === 'port' ? s.place : 'streets')
         : s.stage === 'spiral' || s.stage === 'relief' ? 'hall' : null;
-    if (theme !== this.theme) {
-      if (this.theme) this.positions.set(this.theme, this.loopIndex);
-      this.theme = theme;
-      // Back to the start of a bar, so the tune does not come back in mid-phrase.
-      const piece = theme ? PIECES[theme] : undefined;
-      const saved = theme ? this.positions.get(theme) ?? 0 : 0;
-      this.loopIndex = piece ? saved - (saved % piece.stepsPerBar) : 0;
-      window.clearInterval(this.loopTimer);
-      if (theme) this.loopTimer = window.setInterval(() => this.loopNote(), PIECES[theme]!.step * 1000);
-    }
+    if (theme !== this.theme) this.crossfade(theme);
     this.detune = Math.max(0, s.progress - 0.75) * 1.6; // up to ~0.4 semitone flat
 
     const gusts = Math.min(3, Math.floor(s.wind * 3 + 1e-9));
@@ -234,18 +229,55 @@ export class AudioEngine {
     }
   }
 
-  private loopNote(): void {
-    const piece = this.theme ? PIECES[this.theme] : undefined;
-    if (!piece) return;
-    const note = noteAt(piece, this.loopIndex++);
-    const bus = piece.echo ? this.echo : this.music;
-    if (note.drum) this.drum();
-    if (note.bass !== null) this.pluck(note.bass - this.detune, piece.volume * 0.9, bus);
-    if (note.melody !== null) this.pluck(note.melody - this.detune, piece.volume * (note.accent ? 1.35 : 1), bus);
+  /**
+   * The old piece keeps playing while it fades (a few seconds), the new one comes in from the
+   * start of a bar and swells. Coming straight back to a fading piece just raises it again.
+   */
+  private crossfade(theme: string | null): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    this.theme = theme;
+    for (const [name, v] of this.voices) {
+      if (name === theme || v.fadeOut) continue;
+      v.gain.gain.cancelScheduledValues(t);
+      v.gain.gain.setTargetAtTime(0, t, FADE_OUT / 3);
+      v.fadeOut = window.setTimeout(() => {
+        window.clearInterval(v.timer);
+        v.gain.disconnect();
+        this.positions.set(name, v.index);
+        this.voices.delete(name);
+      }, FADE_OUT * 1000 + 400);
+    }
+    if (!theme) return;
+    const piece = PIECES[theme]!;
+    let voice = this.voices.get(theme);
+    if (voice) {
+      window.clearTimeout(voice.fadeOut);
+      voice.fadeOut = 0;
+    } else {
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0;
+      gain.connect(piece.echo ? this.echo : this.music);
+      const saved = this.positions.get(theme) ?? 0;
+      // Back to the start of a bar, so the tune does not come back in mid-phrase.
+      const v = { gain, timer: 0, index: saved - (saved % piece.stepsPerBar), fadeOut: 0 };
+      v.timer = window.setInterval(() => this.loopNote(piece, v), piece.step * 1000);
+      this.voices.set(theme, v);
+      voice = v;
+    }
+    voice.gain.gain.cancelScheduledValues(t);
+    voice.gain.gain.setTargetAtTime(1, t, FADE_IN / 3);
+  }
+
+  private loopNote(piece: Piece, v: { gain: GainNode; index: number }): void {
+    const note = noteAt(piece, v.index++);
+    if (note.drum) this.drum(v.gain);
+    if (note.bass !== null) this.pluck(note.bass - this.detune, piece.volume * 0.9, v.gain);
+    if (note.melody !== null) this.pluck(note.melody - this.detune, piece.volume * (note.accent ? 1.35 : 1), v.gain);
   }
 
   /** A hand drum: a short thump of filtered noise. */
-  private drum(): void {
+  private drum(bus: AudioNode): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
     const src = this.ctx.createBufferSource();
@@ -256,13 +288,13 @@ export class AudioEngine {
     const g = this.ctx.createGain();
     g.gain.setValueAtTime(0.5, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    src.connect(f).connect(g).connect(this.music);
+    src.connect(f).connect(g).connect(bus);
     src.start(t, Math.random());
     src.stop(t + 0.2);
   }
 
   /** Karplus–Strong pluck, cached per pitch. `semis` above A3 (220 Hz). */
-  pluck(semis: number, volume = 0.6, bus?: GainNode): void {
+  pluck(semis: number, volume = 0.6, bus?: AudioNode): void {
     if (!this.ctx) return;
     const key = Math.round(semis * 100);
     let buf = this.plucks.get(key);
@@ -349,7 +381,10 @@ export class AudioEngine {
   }
 
   stop(): void {
-    window.clearInterval(this.loopTimer);
+    for (const v of this.voices.values()) {
+      window.clearInterval(v.timer);
+      window.clearTimeout(v.fadeOut);
+    }
     window.clearTimeout(this.seaTimer);
     void this.ctx?.close();
   }

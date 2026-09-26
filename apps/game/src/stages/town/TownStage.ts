@@ -432,8 +432,16 @@ export class TownStage implements Stage {
     // From nine the view begins to sway, a little more every hour: the ground is not quite steady.
     const unease = this.host.reducedMotion() ? 0 : THREE.MathUtils.smoothstep(clock.progress, 0.83, 1);
     const sway = Math.sin(this.time * 0.37) * 0.6 * unease;
-    this.camera.position.set(p.x + sway, p.y + THREE.MathUtils.lerp(17, 9.5, u), p.z + THREE.MathUtils.lerp(16, 15, u));
-    this.camera.lookAt(p.x, p.y + THREE.MathUtils.lerp(1, 7, u), p.z - THREE.MathUtils.lerp(1, 16, u));
+    // Lifting its eyes, the camera also comes down behind the scribe and widens a little, so the
+    // storm fills the top of the frame and he still stands in the bottom of it.
+    const lerp = THREE.MathUtils.lerp;
+    const fov = lerp(40, 56, u);
+    if (Math.abs(this.camera.fov - fov) > 0.01) {
+      this.camera.fov = fov;
+      this.camera.updateProjectionMatrix();
+    }
+    this.camera.position.set(p.x + sway, p.y + lerp(17, 5.2, u), p.z + lerp(16, 12.5, u));
+    this.camera.lookAt(p.x, p.y + lerp(1, 1.7, u), p.z - lerp(1, 18, u));
     this.snapCamera();
     this.camera.rotateZ((Math.sin(this.time * 0.51) * 0.03 + Math.sin(this.time * 1.3) * 0.008) * unease);
   }
