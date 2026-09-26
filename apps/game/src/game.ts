@@ -86,6 +86,7 @@ export class Game {
   private guides: Guides;
   readonly audio: AudioEngine;
   private raining = false;
+  private place = 'streets';
 
   constructor(canvas: HTMLCanvasElement, overlay: HTMLElement, storyJson: string, settings: SettingsStore) {
     this.settings = settings;
@@ -374,6 +375,7 @@ export class Game {
       wind: this.save.cycle.wind,
       raining: this.raining,
       sea: this.current.id === 'sea' || this.current.id === 'diary' ? 1 : this.current.id === 'town' && town ? Math.max(0, Math.min(1, (town.z - 4) / 16)) : 0,
+      place: this.musicPlace(town),
     });
 
     updateMeta({
@@ -401,6 +403,16 @@ export class Game {
       [this.memory.masks.length > 0 && !this.lost('masks'), 'mask'],
     ];
     for (const [now, id] of due) if (now && this.guides.tip(TIPS[id]!)) return;
+  }
+
+  /** Where in the town the scribe is, for the music; a little slack at the edges so tunes do not flicker. */
+  private musicPlace(town: { x: number; z: number } | undefined): string {
+    if (!town) return this.place;
+    const agora = Math.hypot(town.x - 8, town.z - 1.5);
+    if (agora < 7) this.place = 'agora';
+    else if (town.z > 11.5) this.place = 'port';
+    else if ((this.place === 'agora' && agora > 9) || (this.place === 'port' && town.z < 9.5)) this.place = 'streets';
+    return this.place;
   }
 
   private handleKeys(): void {

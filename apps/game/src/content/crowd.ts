@@ -15,6 +15,8 @@ interface Step {
   indoors?: boolean;
   /** The night walk: through the gate, up the mountain, then out of sight. */
   procession?: boolean;
+  /** The last hour: come out, stand still, look at the mountain. */
+  watch?: boolean;
 }
 
 export interface Extra {
@@ -34,7 +36,12 @@ export interface ExtraState {
   walking: boolean;
   visible: boolean;
   torch: boolean;
+  /** Standing still, facing the mountain. */
+  watching: boolean;
 }
+
+/** Where the watchers look: the summit of the holy mountain. */
+export const SUMMIT: Point = { x: -6, z: -78 };
 
 /** Game units walked per game minute: a little slower than the named residents. */
 const PACE = 0.42;
@@ -59,6 +66,8 @@ function day(role: Role, home: Place, pick: () => number, speech: number): Step[
   // Everyone sets out for the agora in good time: nobody wants to miss it.
   const listen: Step = { from: speech - 95 + Math.floor(pick() * 15), place: 'agora' };
   const night = (h: number, m = 0) => ({ from: jitter(at(h, m)), place: 'mountain' as Place, procession: true });
+  // Those who stay behind come out of their doors a little before eleven and stand in the street, looking up.
+  const watch = (): Step => ({ from: jitter(at(22, 30)), place: home, watch: true });
   switch (role) {
     case 'merchant':
       return [{ from: 0, place: home }, { from: jitter(at(6, 20)), place: pick() < 0.5 ? 'agora' : 'stall' }, listen,
@@ -68,14 +77,14 @@ function day(role: Role, home: Place, pick: () => number, speech: number): Step[
         { from: speech + 60, place: 'port' }, { from: jitter(at(18, 30)), place: 'tavern' }, night(21, 15)];
     case 'water':
       return [{ from: 0, place: home, indoors: true }, { from: jitter(at(7)), place: 'center' }, { from: jitter(at(9)), place: home }, listen,
-        { from: speech + 50, place: home, indoors: true }, night(20, 50)];
+        { from: speech + 50, place: home, indoors: true }, watch()];
     case 'child':
       return [{ from: 0, place: home, indoors: true }, { from: jitter(at(7, 30)), place: 'center' }, { from: jitter(at(9)), place: 'south' },
         { from: jitter(at(10)), place: 'shore' }, listen, { from: speech + 40, place: 'stall' }, { from: jitter(at(15)), place: 'shoreEast' },
-        { from: jitter(at(17, 30)), place: home, indoors: true }, night(21, 5)];
+        { from: jitter(at(17, 30)), place: home, indoors: true }, watch()];
     case 'elder':
       return [{ from: 0, place: home, indoors: true }, { from: jitter(at(8)), place: 'council' }, listen, { from: speech + 60, place: 'stele' },
-        { from: jitter(at(17)), place: home, indoors: true }, night(20, 40)];
+        { from: jitter(at(17)), place: home, indoors: true }, watch()];
     case 'acolyte':
       return [{ from: 0, place: 'temple' }, { from: jitter(at(10)), place: 'stele' }, { from: jitter(at(13)), place: 'temple' },
         { from: jitter(at(16)), place: 'northEast' }, { from: jitter(at(19)), place: 'temple' }, night(20, 40)];
@@ -126,7 +135,9 @@ export function extraAt(extra: Extra, minute: number): ExtraState {
   const z = pos.z + extra.offset.z * spread;
   let heading = pos.heading;
   if (!walking && step.place === 'agora') heading = Math.atan2(PLACES.council.x - x, PLACES.council.z - z);
+  const watching = !walking && !!step.watch;
+  if (watching) heading = Math.atan2(SUMMIT.x - x, SUMMIT.z - z);
   const arrivedIndoors = !walking && !!step.indoors;
   const gone = !!step.procession && !walking;
-  return { x, z, heading, walking, visible: !arrivedIndoors && !gone, torch: !!step.procession };
+  return { x, z, heading, walking, visible: !arrivedIndoors && !gone, torch: !!step.procession, watching };
 }

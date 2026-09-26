@@ -45,6 +45,8 @@ float viewZ(vec2 uv) {
 bool edge(vec2 uv) {
   vec2 px = 1.0 / lowRes;
   float z = viewZ(uv);
+  // The sky and what hangs in it (stars, the moon) are never outlined: at that distance a line is all there would be.
+  if (z > far * 0.6) return false;
   float zr = viewZ(uv + vec2(px.x, 0.0));
   float zl = viewZ(uv - vec2(px.x, 0.0));
   float zu = viewZ(uv + vec2(0.0, px.y));

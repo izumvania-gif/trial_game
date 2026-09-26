@@ -12,6 +12,10 @@ import { amphora, bob, cypress, gableRoof, lambert, makeFigure, olive, pavingTex
 import type { Stage, StageHost } from '../types.ts';
 import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
+import { SUMMIT } from '../../content/crowd.ts';
+import { StreetLife } from './props.ts';
+import { Sky, TOWN_SKY } from '../sky.ts';
+import { at } from '../../core/clock.ts';
 
 interface Interactable {
   x: number;
@@ -74,6 +78,8 @@ export class TownStage implements Stage {
   private npcs: Npc[] = [];
   private glaucusX = 0;
   private torches!: Torches;
+  private street!: StreetLife;
+  private sky2!: Sky;
   private boats: THREE.Group[] = [];
   /** Windows: some have a lamp behind them at night. Emissive, so the dither turns them to bone. */
   private windowDark = lambert('#24160f');
@@ -143,8 +149,11 @@ export class TownStage implements Stage {
     this.addBox(-4.5, -11, 1.2, 0.5, 3.2, '#f4eedd').rotation.y = 0.15; // the star stele
     this.buildAgora();
     this.buildLandmarks();
+    this.sky2 = new Sky(s, TOWN_SKY, { moonDir: new THREE.Vector3(0.42, 0.26, -0.9), moonColor: '#f4ecd8', starColor: '#f4ecd8', sunset: '#ff7a3a' });
+    this.street = new StreetLife(s, this.boxes);
     this.buildHouses();
     buildWalls(s, this.boxes);
+    this.street.build();
     this.boats = buildHarbour(s);
     this.torches = new Torches(s, this.boxes);
     this.buildMountain();
@@ -306,6 +315,8 @@ export class TownStage implements Stage {
       roof.position.set(x, hgt, z);
       if (alongX) roof.rotation.y = Math.PI / 2;
       this.scene.add(roof);
+      // An oven chimney on some roofs; its smoke says someone is home.
+      if (rand() < 0.35) this.street.chimney(x + (alongX ? w * 0.28 : w * 0.18), hgt + 0.35, z + (alongX ? d * 0.15 : d * 0.28));
       placed++;
     }
     // Cypresses in the gaps, and amphorae by some doors: they do not block anyone.
@@ -415,8 +426,12 @@ export class TownStage implements Stage {
     this.crowd.update(clock.minute, this.time, this.dusk);
     const p = this.player.position;
     const u = this.lookUp;
-    this.camera.position.set(p.x, p.y + THREE.MathUtils.lerp(17, 9.5, u), p.z + THREE.MathUtils.lerp(16, 15, u));
+    // From nine the view begins to sway, a little more every hour: the ground is not quite steady.
+    const unease = this.host.reducedMotion() ? 0 : THREE.MathUtils.smoothstep(clock.progress, 0.83, 1);
+    const sway = Math.sin(this.time * 0.37) * 0.6 * unease;
+    this.camera.position.set(p.x + sway, p.y + THREE.MathUtils.lerp(17, 9.5, u), p.z + THREE.MathUtils.lerp(16, 15, u));
     this.camera.lookAt(p.x, p.y + THREE.MathUtils.lerp(1, 7, u), p.z - THREE.MathUtils.lerp(1, 16, u));
+    this.camera.rotateZ((Math.sin(this.time * 0.51) * 0.03 + Math.sin(this.time * 1.3) * 0.008) * unease);
   }
 
   private nearest(): Interactable | null {
@@ -443,8 +458,11 @@ export class TownStage implements Stage {
     const { clock, memory } = this.host;
     const patches = this.host.patches();
     const p = this.player.position;
+    // The last hour: wherever they are at eleven, they stop there and look at the mountain.
+    const lastHour = clock.minute >= at(23);
     for (const { resident, figure } of this.npcs) {
-      const state = residentAt(resident, clock.minute, patches);
+      const state = residentAt(resident, Math.min(clock.minute, at(23)), patches);
+      if (lastHour) state.walking = false;
       if (resident.seaSpot) {
         state.x = this.glaucusX;
         state.z = 22.4;
@@ -452,10 +470,11 @@ export class TownStage implements Stage {
       figure.position.set(state.x, 0, state.z);
       // Lying figures: Aristion in his fever, Eion asleep under the table.
       const lying = !state.walking && state.entry.pose === 'lying';
-      figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : figure.rotation.y, 0);
+      const toMountain = Math.atan2(SUMMIT.x - state.x, SUMMIT.z - state.z);
+      figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : lastHour && !lying ? toMountain : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
       bob(figure, this.time, state.walking ? 1 : 0);
-      if (!state.walking) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
+      if (!state.walking && !lastHour) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
       // Once the player has watched a resident at a point of their day, the Book of Strangers records it.
       const key = `${resident.id}:${state.entryIndex}`;
       if (!state.walking && Math.hypot(state.x - p.x, state.z - p.z) < SEEN_DISTANCE && !memory.seen.includes(key)) {
@@ -503,9 +522,10 @@ export class TownStage implements Stage {
     this.sun.position.set(Math.cos(angle) * 60, Math.max(4, Math.sin(angle) * 70), 20);
     this.sun.intensity = 2.2 * (1 - night) + 0.25;
     this.sky.intensity = 0.9 * (1 - night) + 0.25;
-    const bg = new THREE.Color('#d9c9a8').lerp(new THREE.Color('#2b211b'), night);
-    (this.scene.background as THREE.Color).copy(bg);
-    this.scene.fog!.color.copy(bg);
+    // The sky dome carries the colors; the fog and what is left of the background follow its horizon.
+    this.sky2.update(progress, this.camera, this.time);
+    (this.scene.background as THREE.Color).copy(this.sky2.horizon);
+    this.scene.fog!.color.copy(this.sky2.horizon);
     // Lamps come on in the windows and the torches are lit as the sun goes.
     const dusk = THREE.MathUtils.smoothstep(progress, 0.68, 0.8);
     this.dusk = dusk;
@@ -514,7 +534,9 @@ export class TownStage implements Stage {
     const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);
     this.torches.update(this.time, dusk, gust);
     this.dust.update(this.time, gust, this.player.position);
-    this.lookUp = THREE.MathUtils.smoothstep(progress, 0.8, 0.95);
+    this.street.update(this.time, gust);
+    // Eased so that it has lifted enough to see the sunset by eight, and is looking at the storm by eleven.
+    this.lookUp = Math.pow(THREE.MathUtils.smoothstep(progress, 0.72, 0.92), 0.65);
     this.mountainLights.update(progress, this.time);
     this.storm.update(progress, this.player.position, this.time);
     for (const [i, boat] of this.boats.entries()) {

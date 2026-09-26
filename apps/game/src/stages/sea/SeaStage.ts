@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { makeSea } from '../../render/sea.ts';
 import { lambert } from '../figures.ts';
 import { disposeScene } from '../dispose.ts';
+import { SEA_SKY, Sky } from '../sky.ts';
 import type { Stage, StageHost } from '../types.ts';
 
 export class SeaStage implements Stage {
@@ -16,6 +17,8 @@ export class SeaStage implements Stage {
   private host: StageHost;
   private sea = makeSea(400);
   private look = 0;
+  private sky: Sky;
+  private time = 0;
 
   constructor(host: StageHost) {
     this.host = host;
@@ -29,6 +32,8 @@ export class SeaStage implements Stage {
     sand.position.set(0, 0.25, 8);
     this.scene.add(sand);
     this.camera.position.set(0, 1.7, 12);
+    // The moon comes up over the water, a little to the right of straight out to sea.
+    this.sky = new Sky(this.scene, SEA_SKY, { moonDir: new THREE.Vector3(0.3, 0.16, -1), moonColor: '#f6f0dc', starColor: '#f2f4f8', sunset: '#ff8a4a' });
   }
 
   enter(entry?: string): void {
@@ -56,10 +61,11 @@ export class SeaStage implements Stage {
     const { input, clock } = this.host;
     this.look += (input.mouse.x * 0.35 - this.look) * Math.min(1, dt * 2);
     this.camera.rotation.set(-0.05, -this.look, 0);
-    // The sea at night is still the sea.
-    const night = this.final ? 1 : THREE.MathUtils.smoothstep(clock.progress, 0.72, 0.9);
-    (this.scene.background as THREE.Color).set('#9fc3cc').lerp(new THREE.Color('#0b1622'), night);
-    this.scene.fog!.color.copy(this.scene.background as THREE.Color);
+    // The sea at night is still the sea: a red sunset over it, then the moon.
+    this.time += dt;
+    this.sky.update(this.final ? 1 : clock.progress, this.camera, this.time);
+    (this.scene.background as THREE.Color).copy(this.sky.horizon);
+    this.scene.fog!.color.copy(this.sky.horizon);
     if (!this.final && (input.wasPressed('Escape') || input.wasPressed('KeyS'))) this.host.switchStage('town', 'shore');
   }
 }

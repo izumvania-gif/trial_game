@@ -16,6 +16,8 @@ export interface AudioState {
   raining: boolean;
   /** 0..1: how close the sea is (town: by the player's position; sea stage: 1). */
   sea: number;
+  /** Which part of the town the scribe is in, for the music: 'agora', 'port' or 'streets'. */
+  place?: string;
 }
 
 const CAPTIONS: Record<string, string> = {
@@ -32,9 +34,31 @@ const CAPTIONS: Record<string, string> = {
   lyre: '[the lyre]',
 };
 
-/** A minor-pentatonic ostinato in the key of the lyre: the town's loop. Semitones above A3. */
-const LOOP = [0, 3, 7, 10, 7, 3, 5, 0];
-const LOOP_STEP = 0.5; // seconds per note
+/**
+ * The same lyre everywhere, a different tune for each place. Notes are semitones above A3
+ * (null is a rest); `accent` is how often a louder note falls.
+ */
+interface Theme {
+  notes: (number | null)[];
+  step: number;
+  volume: number;
+  accent: number;
+  /** A hand drum on the accents (the market). */
+  drum?: boolean;
+  /** Sent through the echo of a stone hall. */
+  echo?: boolean;
+}
+
+const THEMES: Record<string, Theme> = {
+  // The streets: the minor-pentatonic ostinato the town has always had.
+  streets: { notes: [0, 3, 7, 10, 7, 3, 5, 0], step: 0.5, volume: 0.3, accent: 8 },
+  // The agora: quick, bright, a dance in threes over a drum.
+  agora: { notes: [0, 7, 12, 7, 10, 7, 12, 14, 12, 10, 7, 5], step: 0.26, volume: 0.24, accent: 3, drum: true },
+  // The port: low and slow, rising and falling like the swell, with rests for the water.
+  port: { notes: [-12, -5, 0, null, 2, 0, -5, null, -9, -5, -2, null, -5, null, null, null], step: 0.62, volume: 0.34, accent: 4 },
+  // The Hall: a few high notes a long way apart, a half step that does not resolve, and the stone answering.
+  hall: { notes: [12, null, null, 13, null, null, null, 8, null, null, 7, null, null, null, null, null], step: 0.6, volume: 0.26, accent: 16, echo: true },
+};
 
 export class AudioEngine {
   private ctx: AudioContext | null = null;
@@ -54,7 +78,8 @@ export class AudioEngine {
   private loopTimer = 0;
   private loopIndex = 0;
   private detune = 0;
-  private musicOn = false;
+  private theme: string | null = null;
+  private echo!: GainNode;
   private lastGusts = 0;
   private lastStage = '';
   private seaTimer = 0;
@@ -142,6 +167,20 @@ export class AudioEngine {
     fanGain.gain.value = 0.6;
     this.loopNoise().connect(fan).connect(fanGain).connect(this.humGain);
     this.humGain.connect(this.sfx);
+
+    // The Hall's echo: a long delay feeding back through a dark filter.
+    this.echo = ctx.createGain();
+    const delay = ctx.createDelay(2);
+    delay.delayTime.value = 0.42;
+    const feedback = ctx.createGain();
+    feedback.gain.value = 0.42;
+    const dark = ctx.createBiquadFilter();
+    dark.type = 'lowpass';
+    dark.frequency.value = 1600;
+    this.echo.connect(this.music);
+    this.echo.connect(delay);
+    delay.connect(dark).connect(feedback).connect(delay);
+    dark.connect(this.music);
   }
 
   private loopNoise(): AudioBufferSourceNode {
@@ -190,12 +229,15 @@ export class AudioEngine {
     this.rainGain.gain.setTargetAtTime(s.raining ? 0.25 : 0, t, 0.5);
     this.humGain.gain.setTargetAtTime(s.stage === 'desk' ? 0.05 : 0, t, 0.3);
 
-    // Music: the town loop plays in the town; near midnight it drifts out of tune.
-    const wantMusic = s.stage === 'town' && !s.raining;
-    if (wantMusic !== this.musicOn) {
-      this.musicOn = wantMusic;
+    // Music: each place has its tune; near midnight all of them drift out of tune.
+    const theme = s.raining ? null
+      : s.stage === 'town' ? (s.place === 'agora' || s.place === 'port' ? s.place : 'streets')
+        : s.stage === 'spiral' || s.stage === 'relief' ? 'hall' : null;
+    if (theme !== this.theme) {
+      this.theme = theme;
+      this.loopIndex = 0;
       window.clearInterval(this.loopTimer);
-      if (wantMusic) this.loopTimer = window.setInterval(() => this.loopNote(), LOOP_STEP * 1000);
+      if (theme) this.loopTimer = window.setInterval(() => this.loopNote(), THEMES[theme]!.step * 1000);
     }
     this.detune = Math.max(0, s.progress - 0.75) * 1.6; // up to ~0.4 semitone flat
 
@@ -210,10 +252,31 @@ export class AudioEngine {
   }
 
   private loopNote(): void {
-    const semis = LOOP[this.loopIndex % LOOP.length]!;
+    const theme = this.theme ? THEMES[this.theme] : undefined;
+    if (!theme) return;
+    const semis = theme.notes[this.loopIndex % theme.notes.length];
+    const accent = this.loopIndex % theme.accent === 0;
     this.loopIndex++;
-    // Accent every bar; the rest softer.
-    this.pluck(semis - this.detune, this.loopIndex % 8 === 1 ? 0.5 : 0.3, this.music);
+    if (theme.drum && accent) this.drum();
+    if (semis === null || semis === undefined) return;
+    this.pluck(semis - this.detune, theme.volume * (accent ? 1.6 : 1), theme.echo ? this.echo : this.music);
+  }
+
+  /** A hand drum: a short thump of filtered noise. */
+  private drum(): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    const src = this.ctx.createBufferSource();
+    src.buffer = this.noise;
+    const f = this.ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 260;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.5, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    src.connect(f).connect(g).connect(this.music);
+    src.start(t, Math.random());
+    src.stop(t + 0.2);
   }
 
   /** Karplus–Strong pluck, cached per pitch. `semis` above A3 (220 Hz). */
