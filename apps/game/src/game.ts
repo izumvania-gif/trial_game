@@ -3,6 +3,7 @@
 import { fetchStele, reportReset, scratchLine } from './api.ts';
 import { ENDINGS } from './content/endings.ts';
 import { STAGE_CONTROLS, STAGE_GUIDES, TIPS } from './content/guides.ts';
+import { isOpen, threadView, THREADS, UNLOCKS } from './content/threads.ts';
 import { KNOWLEDGE } from './content/knowledge.ts';
 import { pickHint } from './content/hints.ts';
 import { LEXICON } from './content/lexicon.ts';
@@ -86,6 +87,8 @@ export class Game {
   private guides: Guides;
   readonly audio: AudioEngine;
   private raining = false;
+  /** Set at a new dawn: show what yesterday taught once the player is free. */
+  private recapDue = false;
   private place = 'streets';
 
   constructor(canvas: HTMLCanvasElement, overlay: HTMLElement, storyJson: string, settings: SettingsStore) {
@@ -116,8 +119,10 @@ export class Game {
     });
     this.knowledge = new Knowledge(KNOWLEDGE, this.save.memory.facts, (fact) => {
       this.save.memory.facts.push(fact.id);
+      this.memory.learnedOn[fact.id] = this.memory.cycle;
       if (!this.lost('chronicle')) {
         this.hud.factLearned(fact);
+        this.announce(fact.id);
         this.guides.tip(TIPS.chronicle!);
       }
       this.audio.play(fact.id.startsWith('shard_') ? 'shard' : 'fact');
@@ -231,6 +236,35 @@ export class Game {
     this.hud.setCycle(this.cycleRun, this.memory.cycle);
     this.activate(cycle.stage);
     if (atDawn) this.interact('dawn');
+    this.recapDue = atDawn && this.memory.cycle >= 2 && !this.memory.epilogue;
+  }
+
+  /** After a fact: what it made possible, and which question it opened or answered. */
+  private announce(factId: string): void {
+    const knows = (id: string) => this.knowledge.knows(id);
+    if (UNLOCKS[factId]) this.hud.toast(UNLOCKS[factId]!, 'Now open');
+    for (const t of THREADS) {
+      if (t.closes === factId && isOpen(t, knows)) this.hud.toast(t.question, 'Answered');
+      else if (t.opens.includes(factId) && isOpen(t, knows) && !threadView(t, knows).closed) this.hud.toast(t.question, 'New question · C');
+    }
+  }
+
+  /** The morning after: what yesterday taught, what it opened, what is still unanswered. */
+  private showRecap(): void {
+    const m = this.memory;
+    const knows = (id: string) => this.knowledge.knows(id);
+    const learned = KNOWLEDGE.facts.filter((f) => m.learnedOn[f.id] === m.cycle - 1 && knows(f.id));
+    const opened = learned.map((f) => UNLOCKS[f.id]).filter((u): u is string => !!u);
+    const open = THREADS.filter((t) => isOpen(t, knows)).map((t) => threadView(t, knows)).filter((v) => !v.closed).slice(0, 3);
+    const list = (items: (Node | string)[][]) => h('ul', {}, ...items.map((i) => h('li', {}, ...i)));
+    const body: (Node | string)[] = [
+      h('h3', {}, 'Yesterday you learned'),
+      learned.length ? list(learned.map((f) => [f.text])) : h('p', { className: 'recap-empty' }, 'Nothing new. It was the same day, and you lived it the same way.'),
+    ];
+    if (opened.length) body.push(h('h3', {}, 'Now open'), list(opened.map((u) => [u])));
+    if (open.length) body.push(h('h3', {}, 'Still unanswered'), list(open.map((v) => [h('strong', {}, v.thread.question), ...(v.next ? [h('span', { className: 'recap-next' }, v.next)] : [])])));
+    body.push(h('p', { className: 'recap-kept' }, 'Kept: the chronicle, the Book of Strangers, your masks. Gone: everything anyone did yesterday. C opens the chronicle.'));
+    this.guides.showCard(`Day ${m.cycle}`, 'The same morning', body, 'Begin the day', undefined, 'recap');
   }
 
   /** ink EXTERNALs beyond learn/knows/cycle/hour (see story/main.ink). */
@@ -395,10 +429,14 @@ export class Game {
 
   /** The how-to card for this place the first time the player is free to read it; then tips. */
   private offerGuides(): void {
+    if (this.recapDue && this.current.id === 'town') {
+      this.recapDue = false;
+      this.showRecap();
+      return;
+    }
     const guide = STAGE_GUIDES[this.current.id];
     if ((guide && this.guides.first(guide)) || this.guides.tipVisible || this.current.id !== 'town') return;
     const due: [boolean, keyof typeof TIPS][] = [
-      [this.memory.cycle >= 2, 'reset'],
       [this.memory.seen.length > 0, 'book'],
       [this.save.cycle.wind > 0 && !this.lost('clock'), 'wind'],
       [this.memory.masks.length > 0 && !this.lost('masks'), 'mask'],
@@ -669,6 +707,7 @@ export class Game {
     this.phase = 'reset';
     this.overlay.classList.remove('raining');
     this.raining = false;
+    this.hud.clearToasts();
     for (const stage of Object.values(this.stages)) stage.exit();
     // The cycle state dies here; only loop memory survives.
     this.memory.cycle += 1;

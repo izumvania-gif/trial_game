@@ -18,6 +18,8 @@ export class Hud {
   private arcEl: SVGCircleElement;
   private timeEl = h('div', { className: 'hud-time' });
   private toastTimer = 0;
+  /** Toasts wait their turn: a fact, then what it opened, then a new question. */
+  private toastQueue: { text: string; kicker?: string }[] = [];
   private openPanelId: string | null = null;
   private windEl = h('div', { className: 'hud-wind' });
   private maskEl = h('div', { className: 'hud-mask' });
@@ -86,10 +88,34 @@ export class Hud {
   }
 
   toast(text: string, kicker?: string): void {
-    this.toastEl.replaceChildren(...(kicker ? [h('span', { className: 'toast-kicker' }, kicker)] : []), h('span', {}, text));
+    this.toastQueue.push({ text, kicker });
+    // Never a long backlog: keep the one showing and the three newest.
+    if (this.toastQueue.length > 4) this.toastQueue.splice(1, this.toastQueue.length - 4);
+    if (this.toastQueue.length === 1) this.nextToast();
+  }
+
+  /** A new day: yesterday's news is not news. */
+  clearToasts(): void {
+    this.toastQueue = [];
+    window.clearTimeout(this.toastTimer);
+    this.toastEl.classList.remove('show');
+  }
+
+  private nextToast(): void {
+    const t = this.toastQueue[0];
+    if (!t) return;
+    this.toastEl.replaceChildren(...(t.kicker ? [h('span', { className: 'toast-kicker' }, t.kicker)] : []), h('span', {}, t.text));
     this.toastEl.classList.add('show');
     window.clearTimeout(this.toastTimer);
-    this.toastTimer = window.setTimeout(() => this.toastEl.classList.remove('show'), 4500);
+    this.toastTimer = window.setTimeout(() => {
+      this.toastEl.classList.remove('show');
+      // A short gap so two toasts read as two.
+      window.setTimeout(() => {
+        if (!this.toastQueue.length) return;
+        this.toastQueue.shift();
+        this.nextToast();
+      }, 450);
+    }, 4500);
   }
 
   /** Side panels: the chronicle (C), the Book of Strangers (B). One at a time. */

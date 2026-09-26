@@ -50,15 +50,23 @@ export class Guides {
 
   /** Always: the H key. */
   show(guide: Guide, onClose?: () => void): void {
-    this.hideTip();
-    this.onClose = onClose ?? null;
-    const ok = h('button', { type: 'button' }, 'Understood');
-    ok.addEventListener('click', () => this.close());
-    this.card.replaceChildren(
-      h('p', { className: 'guide-kicker' }, guide.kicker),
-      h('h2', {}, guide.title),
+    this.showCard(guide.kicker, guide.title, [
       h('ol', { className: 'guide-steps' }, ...guide.steps.map((s) =>
         h('li', {}, h('span', { className: 'guide-keys' }, ...keycaps(s.keys)), h('span', {}, s.text)))),
+    ], 'Understood', onClose);
+  }
+
+  /** A card with any content (the morning recap uses it). */
+  showCard(kicker: string, title: string, body: (Node | string)[], button = 'Understood', onClose?: () => void, className = ''): void {
+    this.hideTip();
+    this.onClose = onClose ?? null;
+    const ok = h('button', { type: 'button' }, button);
+    ok.addEventListener('click', () => this.close());
+    this.card.className = `guide ${className}`.trim();
+    this.card.replaceChildren(
+      h('p', { className: 'guide-kicker' }, kicker),
+      h('h2', {}, title),
+      ...body,
       h('div', { className: 'guide-foot' }, ok, h('span', { className: 'guide-note' }, h('kbd', {}, 'Enter'), ' to continue')),
     );
     this.card.hidden = false;

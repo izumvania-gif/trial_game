@@ -40,6 +40,8 @@ export interface LoopMemory {
   damaged: boolean;
   /** How-to cards and tips already shown (content/guides.ts). */
   guides: string[];
+  /** The loop cycle each fact was learned in: the morning recap tells what yesterday taught. */
+  learnedOn: Record<string, number>;
 }
 
 export interface CycleState {
@@ -75,7 +77,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [],
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {},
   };
 }
 

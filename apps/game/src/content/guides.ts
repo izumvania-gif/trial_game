@@ -142,12 +142,6 @@ export const TIPS: Record<string, Guide> = {
     title: 'The wind',
     steps: [{ keys: [], text: 'The wind rises when something strange is done. Every gust brings midnight an hour closer.' }],
   },
-  reset: {
-    id: 'tip:reset',
-    kicker: 'Again',
-    title: 'The same morning',
-    steps: [{ keys: [], text: 'Everyone has forgotten yesterday. You have not: your chronicle and the book are as you left them.' }],
-  },
 };
 
 /** Keys for the place you are in, shown along the bottom-left edge. */
