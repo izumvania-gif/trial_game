@@ -83,3 +83,42 @@ test('every action tag in the story is one the game handles', () => {
     for (const m of src.matchAll(/#action:(\S+)/g)) assert.match(m[1]!, known, `${file}: #action:${m[1]}`);
   }
 });
+
+test('no knot runs out of content, however often it is entered in one day', () => {
+  // Once-only choices (*) vanish after they are taken; a knot the player can come back to must
+  // always keep something to choose or end in DONE, or ink throws and the dialogue hangs.
+  const { json } = compileInkFile(resolve(storyDir, 'main.ink'));
+  const allFacts = KNOWLEDGE.facts.map((f) => f.id);
+  const functions = new Set<string>();
+  for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
+    for (const m of readFileSync(resolve(storyDir, file), 'utf8').matchAll(/^===\s*function\s+(\w+)/gm)) functions.add(m[1]!);
+  }
+  const knots = [...new Story(json).mainContentContainer.namedContent.keys()].filter((k) => !k.startsWith('global ') && !functions.has(k));
+  const problems = new Set<string>();
+  for (const facts of [[] as string[], allFacts]) {
+    for (const hour of [6, 8, 12, 15, 19, 23]) {
+      const story = new Story(json);
+      story.allowExternalFunctionFallbacks = true;
+      const known = new Set(facts);
+      story.BindExternalFunction('knows', (id: string) => known.has(id), true);
+      story.BindExternalFunction('learn', (id: string) => { known.add(id); }, false);
+      story.BindExternalFunction('hour', () => hour, true);
+      let error = '';
+      story.onError = (m: string) => { error = m; };
+      for (const knot of knots) {
+        for (let visit = 0; visit < 5; visit++) {
+          error = '';
+          story.ChoosePathString(knot, true, knot === 'still' ? ['Kora'] : []);
+          for (let steps = 0; steps < 200 && !error; steps++) {
+            while (story.canContinue && !error) story.Continue();
+            const choices = story.currentChoices;
+            if (!choices.length || error) break;
+            story.ChooseChoiceIndex((visit + steps) % choices.length);
+          }
+          if (error && ![...problems].some((p) => p.startsWith(`${knot} `))) problems.add(`${knot} (visit ${visit + 1}, ${hour}:00, ${facts.length ? 'all facts' : 'no facts'}): ${error.slice(0, 60)}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual([...problems], []);
+});

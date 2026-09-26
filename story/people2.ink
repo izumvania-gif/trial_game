@@ -104,10 +104,10 @@ You know there's no sea on their stone. Good. #speaker:Glaucus #mood:joy
 It's dangerous to go on alone. Take this. #speaker:Glaucus
 He puts a knife in your hand, handle first.
 But the stone in the hall still remembers everything, astronomer. Whatever you do here, it will carve it. #speaker:Glaucus #mood:sorrow
-* [Cut your palm anyway]
++ [Cut your palm anyway]
     The blood goes into the water. Glaucus watches it go. #action:ending:centre
     -> DONE
-* [Give him back the knife]
++ [Give him back the knife]
     Not tonight, then. The sea will be here. Somewhere. #speaker:Glaucus
     -> DONE
 
@@ -165,15 +165,15 @@ His face is a smooth white oval. When he speaks, it is from somewhere slightly b
 }
 There is a room where the reset doesn't reach. A desk, a window, a chronicle to keep. You'd write the slanted lines. The young ones need them. #speaker:Xenos
 Nobody has ever said no. I would know. #speaker:Xenos
-* [Accept]
++ [Accept]
     He holds out a hand. It is warm. That surprises you more than anything else today. #action:ending:promotion
     -> DONE
-* [Ask who he is]
++ [Ask who he is]
     Someone who reads your day as a report. Someone who reads it every day. #speaker:Xenos
     And who reads yours? #speaker:Leont #mood:wonder
     He doesn't answer. For a moment the oval of his face looks like it is listening to something very far above.
     -> DONE
-* [Refuse]
++ [Refuse]
     Nobody refuses. Well. Then you are the first. Or the first I'll remember, which isn't the same thing. #speaker:Xenos
     -> DONE
 

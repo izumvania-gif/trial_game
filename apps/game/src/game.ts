@@ -395,7 +395,18 @@ export class Game {
     else if (action.startsWith('ending:')) this.ending(action.slice('ending:'.length));
   }
 
+  /** One frame. Whatever goes wrong inside it, the next frame still comes: the game never freezes. */
   private frame = (t: number): void => {
+    try {
+      this.tick(t);
+    } catch (e) {
+      console.error(e);
+      this.input.endFrame();
+    }
+    requestAnimationFrame(this.frame);
+  };
+
+  private tick(t: number): void {
     const dt = Math.min(0.1, (t - this.lastTime) / 1000);
     this.lastTime = t;
     const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.guides.open || this.phase !== 'playing';
@@ -435,8 +446,7 @@ export class Game {
     this.sinceSave += dt;
     if (this.sinceSave > AUTOSAVE_SECONDS && this.phase === 'playing') this.persist();
     this.input.endFrame();
-    requestAnimationFrame(this.frame);
-  };
+  }
 
   /** The how-to card for this place the first time the player is free to read it; then tips. */
   private offerGuides(): void {

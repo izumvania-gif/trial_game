@@ -46,6 +46,12 @@ export class StoryEngine {
     this.story = new Story(json);
     // Unbound EXTERNALs fall back to the ink definitions in main.ink (tests, older hosts).
     this.story.allowExternalFunctionFallbacks = true;
+    // A mistake in the script (a knot that runs out of content, say) must end the conversation,
+    // never throw out of the game loop and freeze the game.
+    this.story.onError = (message: string) => {
+      this.errors.push(message);
+      console.error(`[ink] ${message}`);
+    };
     this.story.BindExternalFunction('learn', (id: string) => {
       host.knowledge.learn(id);
       return true;
@@ -69,14 +75,19 @@ export class StoryEngine {
     return this.story.KnotContainerWithName(knot) !== null;
   }
 
+  /** Script errors since the last knot was entered: the dialogue ends quietly when there are any. */
+  errors: string[] = [];
+
   enter(knot: string, args: string[] = []): void {
+    this.errors = [];
     this.story.ChoosePathString(knot, true, args);
   }
 
   /** Next line, or null when the story waits for a choice or has ended. */
   next(): StoryLine | null {
-    while (this.story.canContinue) {
+    while (this.story.canContinue && !this.errors.length) {
       const raw = (this.story.Continue() ?? '').trim();
+      if (this.errors.length) break;
       const line = parseLine(raw, this.story.currentTags ?? []);
       if (line.text) return line;
       // A tag-only line still carries effects (e.g. #stage) that must not be lost.
@@ -90,6 +101,7 @@ export class StoryEngine {
   }
 
   choices(): StoryChoice[] {
+    if (this.errors.length) return [];
     return this.story.currentChoices.map((c) => ({ index: c.index, text: c.text }));
   }
 

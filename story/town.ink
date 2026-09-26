@@ -58,15 +58,15 @@ The star stele of the temple of Apollo. Tables of eclipses, the five ages, the n
     In the crack beneath the moss, in your own hand: {stele_word()}.
 }
 {not knows("name_in_stone"):
-    * [Scrape the moss from the corner] -> scrape
+    + [Scrape the moss from the corner] -> scrape
 }
-* {hour() < 7} [Carve a word while nobody is watching]
++ {hour() < 7} [Carve a word while nobody is watching]
     You take out the little chisel you have never admitted to owning. #action:carve_now
     -> DONE
-* [Run your fingers along the cracks]
++ [Run your fingers along the cracks]
     Other letters, scratched, not carved. Different hands. #action:stele_lines
     -> DONE
-* [Leave it] -> DONE
++ [Leave it] -> DONE
 
 = scrape
 You scrape with your thumbnail. The moss comes away in one wet piece. #spend:10
@@ -91,11 +91,11 @@ There are many Leonts in Eferon. You tell yourself that twice.
     -> DONE
 }
 The door to the Hall of Anamnesis. Aristion's key is warm from your hand.
-* [Go in]
++ [Go in]
     ~ notice("hall_access", 0.1)
     The hall is cold. Something in the middle of it is very large and very white. #stage:spiral
     -> DONE
-* [Not yet] -> DONE
++ [Not yet] -> DONE
 
 === agora_crier ===
 {hour() < 20:
@@ -111,9 +111,9 @@ The door to the Hall of Anamnesis. Aristion's key is warm from your hand.
 === to_shore ===
 The path goes down between the rocks to the water.
 {knows("rain_at_midnight"):
-    * [Go down to the sea] #stage:sea
+    + [Go down to the sea] #stage:sea
         -> DONE
-    * [Stay in the city] -> DONE
+    + [Stay in the city] -> DONE
 - else:
     Fishermen are hauling their boats up. Nobody sails on the last day.
     -> DONE
@@ -132,24 +132,24 @@ The path goes down between the rocks to the water.
 }
 The procession is already on the mountain. Torches, ten thousand faces turned up. The priest of Zeus raises his arms over the sacred fire.
 Let the world return to its beginning, as the sun returns to its rising. #speaker:Priest of Zeus
-* [Put out the sacred fire]
++ [Put out the sacred fire]
     ~ notice("quenched_fire", 0.34)
     You tip the water jar over the tripod. The fire hisses out. Ten thousand people look at you instead of the sky. #action:ending:exception_handled
     -> DONE
-* {knows("cleon_repeats")} [Shout the priest's next words before he can]
++ {knows("cleon_repeats")} [Shout the priest's next words before he can]
     ~ notice("spoke_first", 0.34)
     You shout it first. The crowd turns. Somewhere a woman makes the sign against the evil eye. #action:ending:exception_handled
     -> DONE
-* {knows("kora_ally") and knows("debts_reformed")} [Let Kora take the altar from Hierocles]
++ {knows("kora_ally") and knows("debts_reformed")} [Let Kora take the altar from Hierocles]
     Kora climbs onto the altar steps. The dockworkers climb with her. Hierocles looks round for the archons, and the archons are already running. #action:ending:revolution
     -> DONE
-* {knows("last_line") and knows("aristion_phyllis")} [Write the last line yourself, cleanly, for Aristion]
++ {knows("last_line") and knows("aristion_phyllis")} [Write the last line yourself, cleanly, for Aristion]
     You take out your tablet. You know exactly what the last line is. You write it in your best hand, and give it to Hierocles, and step back into the crowd. #action:ending:sisyphus
     -> DONE
-* [Say Yes with them]
++ [Say Yes with them]
     You say yes with them. It is very easy. It is the easiest thing you have ever done.
     -> DONE
-* [Go back down] -> DONE
++ [Go back down] -> DONE
 
 === midnight ===
 The wind rises. It always rises first.

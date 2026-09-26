@@ -109,16 +109,16 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
     }
     -> DONE
 }
-* {knows("cleon_repeats")} [Tell her Cleon's speech is carved on the oldest stones] -> test
-* [Leave her to it] -> DONE
++ {knows("cleon_repeats")} [Tell her Cleon's speech is carved on the oldest stones] -> test
++ [Leave her to it] -> DONE
 
 = test
 Carved. On the stones. #speaker:Kora #mood:wonder
 She laughs, then stops.
 Then tell me what he says after "Citizens of Eferon, we have been told that iron rusts." #speaker:Kora
-* ["I say: let it rust! Let the gold come!"] -> right
-* ["I say: let us polish it, brothers!"] -> wrong
-* ["I say: iron is the metal of free men!"] -> wrong
++ ["I say: let it rust! Let the gold come!"] -> right
++ ["I say: let us polish it, brothers!"] -> wrong
++ ["I say: iron is the metal of free men!"] -> wrong
 
 = right
 She is quiet for a while. #spend:15
@@ -224,9 +224,9 @@ Nobody in the tavern notices that he sang it looking straight at you.
 Eion puts the lyre down.
 You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion #mood:wonder
 Then it is tonight. Sit. Let's paint it on the table. #speaker:Eion #mood:joy
-* [Plan the night] #action:board
++ [Plan the night] #action:board
     -> DONE
-* [Not tonight] -> DONE
++ [Not tonight] -> DONE
 
 = shore_talk
 Eion stands in the sea up to his ankles, his lyre held high and dry.

@@ -17,9 +17,9 @@ In the crack between the rings there is a mark. A small circle with a line throu
 === spiral_seam ===
 You touch the mark. The marble goes smooth and cold, like no stone you know.
 LOG: CYCLE RUN — LEONT_ASTRO_ASSIST FAILED TO ALTER RESET TIMING #log
-* [Hold on to it] #stage:desk
++ [Hold on to it] #stage:desk
     -> DONE
-* [Let go] The hall comes back. Your heart is going like a hare's.
++ [Let go] The hall comes back. Your heart is going like a hare's.
     -> DONE
 
 === registry_confirmed ===
