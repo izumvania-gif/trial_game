@@ -7,14 +7,19 @@
     <link rel="stylesheet" href="/src/style.css" />
   </head>
   <body>
-    <canvas id="spiral" aria-hidden="true"></canvas>
-    <main>
-      <h1>EFERON</h1>
-      <p class="subtitle">The Other Hand</p>
-      <p class="log" id="cycle">CYCLE RUN #····</p>
-      <button id="wake" type="button">Wake</button>
-      <p class="hand">Don't look at the sky. Look into the stone.</p>
-    </main>
+    <canvas id="view" hidden></canvas>
+    <div id="overlay"></div>
+    <section id="title">
+      <canvas id="spiral" aria-hidden="true"></canvas>
+      <main>
+        <h1>EFERON</h1>
+        <p class="subtitle">The Other Hand</p>
+        <p class="log" id="cycle">CYCLE RUN #····</p>
+        <button id="wake" type="button">Wake</button>
+        <p class="hand">Don't look at the sky. Look into the stone.</p>
+        <p class="controls">WASD walk · E interact · C chronicle · Esc step back</p>
+      </main>
+    </section>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

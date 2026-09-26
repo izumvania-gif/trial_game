@@ -6,6 +6,7 @@ COPY apps/game/package.json apps/game/
 COPY server/package.json server/
 RUN npm ci
 COPY apps/game apps/game
+COPY story story
 COPY server server
 RUN npm run build
 

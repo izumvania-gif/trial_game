@@ -6,10 +6,17 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test test/*.test.ts"
   },
   "devDependencies": {
+    "@types/node": "^26.6.3",
+    "@types/three": "^0.186.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1"
+  },
+  "dependencies": {
+    "inkjs": "^2.4.0",
+    "three": "^0.186.1"
   }
 }
