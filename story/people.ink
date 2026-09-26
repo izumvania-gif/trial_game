@@ -9,14 +9,14 @@
 {hour() >= fever: -> fever_talk}
 Aristion lies on a pallet in his doorway, grey as the stone. His eyes are still clear.
 {ended_last_cycle("sisyphus"):
-    You look tired, boy. Like a man who carried something up a hill in the night, and was glad to. #speaker:Aristion
+    You look tired, boy. Like a man who carried something up a hill in the night, and was glad to. #speaker:Aristion #mood:joy
 }
 {knows("aristion_trust"): -> after_key}
-You will never be at peace. ^Go and look at what they called holy before you. #speaker:Aristion #dejavu:aristion_restless
+You will never be at peace. ^Go and look at what they called holy before you. #speaker:Aristion #dejavu:aristion_restless #mood:sorrow
 {dejavu_ok("aristion_restless"):
     ~ notice("dejavu_aristion", 0.2)
     His mouth stays open on the words you took out of it. #spend:5
-    So you know already. Good. Then I don't have to explain, and I haven't the breath for it. #speaker:Aristion
+    So you know already. Good. Then I don't have to explain, and I haven't the breath for it. #speaker:Aristion #mood:sorrow
     ~ learn("aristion_trust")
     {knows("hall_key"): -> after_key}
     -> give_key
@@ -31,7 +31,7 @@ He coughs. The fever is climbing his neck; by the fourth hour it will have him.
 The key. #speaker:Aristion
 {knows("name_in_stone"):
     He looks at you for a long time. #spend:30
-    You found your name under the moss, didn't you. I found mine, when I was your age. I put the moss back. #speaker:Aristion
+    You found your name under the moss, didn't you. I found mine, when I was your age. I put the moss back. #speaker:Aristion #mood:sorrow
     -> give_key
 - else:
     Go and read the stele properly first, scribe. The corner. Under the moss. Then come back and ask me again. #speaker:Aristion
@@ -39,9 +39,9 @@ The key. #speaker:Aristion
 }
 
 = ask_why
-Because every Golden Age my Phyllis is at the well again. Twenty years dead, and every Golden Age she is at the well. #speaker:Aristion
+Because every Golden Age my Phyllis is at the well again. Twenty years dead, and every Golden Age she is at the well. #speaker:Aristion #mood:sorrow
 {stele_word() == "PHYLLIS":
-    Someone has carved her name into the stele. Who did that? Who knows her name? #speaker:Aristion
+    Someone has carved her name into the stele. Who did that? Who knows her name? #speaker:Aristion #mood:fear
     He grips your wrist. He is afraid of you. For a man like Aristion that is the same as trusting you.
     ~ learn("aristion_trust")
 }
@@ -53,19 +53,19 @@ Go into the Hall and you will want to break the circle. Break the circle and she
 He fumbles the key off his belt and puts it in your hand. It is warm.
 ~ learn("hall_key")
 ~ learn("aristion_phyllis")
-Look at it. Look at all of it. And then, I beg you, leave it as it is. My wife is at the well. #speaker:Aristion
+Look at it. Look at all of it. And then, I beg you, leave it as it is. My wife is at the well. #speaker:Aristion #mood:sorrow
 -> DONE
 
 = after_key
-You have the key. What more do you want from a sick old man? #speaker:Aristion
+You have the key. What more do you want from a sick old man? #speaker:Aristion #mood:anger
 {knows("aristion_trust"):
-    ...If it is tonight, I will get up. I can still hold a door against two boys with spears. #speaker:Aristion
+    ...If it is tonight, I will get up. I can still hold a door against two boys with spears. #speaker:Aristion #mood:anger
 }
 -> DONE
 
 = fever_talk
 Aristion is burning. He talks to the doorpost.
-Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Phyllis. #speaker:Aristion
+Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Phyllis. #speaker:Aristion #mood:sorrow
 ~ learn("aristion_phyllis")
 {knows("aristion_trust") and not knows("shard_aristion"):
     His right fist is clenched on something. When you take his hand, he knows you for a moment, and opens it.
@@ -78,8 +78,8 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
 
 === kora ===
 {wearing() == "Extinguisher":
-    Take that off. #speaker:Kora
-    I've seen that face. On the old stones, pouring water on the fire. It didn't work, you know. It never works. #speaker:Kora
+    Take that off. #speaker:Kora #mood:anger
+    I've seen that face. On the old stones, pouring water on the fire. It didn't work, you know. It never works. #speaker:Kora #mood:anger
 }
 {
 - hour() >= 18: At the tavern Kora is buying a round for the dockworkers. Nobody drinks more than one. Nobody pays.
@@ -89,20 +89,20 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
 }
 {not knows("kora_debts"):
     Tomorrow is gold, they say. Do you know what else tomorrow is? #speaker:Kora
-    Tomorrow every ledger Lysimachus keeps is ash. His, and the ledger of every docker who owes him. The flood is the only amnesty the poor ever get. #speaker:Kora
-    So I hate it, and I need it. Don't look at me like that. #speaker:Kora
+    Tomorrow every ledger Lysimachus keeps is ash. His, and the ledger of every docker who owes him. The flood is the only amnesty the poor ever get. #speaker:Kora #mood:anger
+    So I hate it, and I need it. Don't look at me like that. #speaker:Kora #mood:anger
     ~ learn("kora_debts")
     -> DONE
 }
 {
 - knows("debts_reformed") and knows("kora_ally"):
-    By law. You did it by law, in a dead man's face. #speaker:Kora
-    Tonight on the mountain I could take the altar from Hierocles myself. Say the word and I will. #speaker:Kora
+    By law. You did it by law, in a dead man's face. #speaker:Kora #mood:wonder
+    Tonight on the mountain I could take the altar from Hierocles myself. Say the word and I will. #speaker:Kora #mood:joy
     -> DONE
 - knows("debts_settled") and not knows("kora_ally"):
-    The port owes nobody anything tonight. I don't know how you did it and I don't want to. #speaker:Kora
+    The port owes nobody anything tonight. I don't know how you did it and I don't want to. #speaker:Kora #mood:wonder
 - knows("kora_ally"):
-    The mountain, at midnight. Give me the words and I'll choke their formula in their throats. #speaker:Kora
+    The mountain, at midnight. Give me the words and I'll choke their formula in their throats. #speaker:Kora #mood:anger
     {not knows("debts_settled"):
         And scribe: if you mean to take the flood away from us, find my people another amnesty first. #speaker:Kora
     }
@@ -112,7 +112,7 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
 * [Leave her to it] -> DONE
 
 = test
-Carved. On the stones. #speaker:Kora
+Carved. On the stones. #speaker:Kora #mood:wonder
 She laughs, then stops.
 Then tell me what he says after "Citizens of Eferon, we have been told that iron rusts." #speaker:Kora
 * ["I say: let it rust! Let the gold come!"] -> right
@@ -121,13 +121,13 @@ Then tell me what he says after "Citizens of Eferon, we have been told that iron
 
 = right
 She is quiet for a while. #spend:15
-He said that to me at noon, word for word. You weren't there. You were at the temple, I saw you. #speaker:Kora
-All right, scribe. If the circle is a machine, machines can be jammed. I'll be on the mountain tonight. #speaker:Kora
+He said that to me at noon, word for word. You weren't there. You were at the temple, I saw you. #speaker:Kora #mood:fear
+All right, scribe. If the circle is a machine, machines can be jammed. I'll be on the mountain tonight. #speaker:Kora #mood:joy
 ~ learn("kora_ally")
 -> DONE
 
 = wrong
-Go away, scribe. I have real work. #speaker:Kora
+Go away, scribe. I have real work. #speaker:Kora #mood:anger
 -> DONE
 
 === cleon ===
@@ -138,7 +138,7 @@ Go away, scribe. I have real work. #speaker:Kora
 {
 - hour() < speech:
     Cleon is walking up and down the council steps, moving his lips.
-    Not now, scribe. At the {speech == 11: sixth| seventh} hour everyone will hear it. Everyone. #speaker:Cleon
+    Not now, scribe. At the {speech == 11: sixth| seventh} hour everyone will hear it. Everyone. #speaker:Cleon #mood:joy
     -> DONE
 - hour() == speech: -> speech_time
 - hour() >= 20:
@@ -146,17 +146,17 @@ Go away, scribe. I have real work. #speaker:Kora
     -> DONE
 - else:
     Cleon is shaking hands in the square.
-    Did you hear it? They will remember it forever. Well. Until tomorrow. #speaker:Cleon
+    Did you hear it? They will remember it forever. Well. Until tomorrow. #speaker:Cleon #mood:joy
     -> DONE
 }
 
 = speech_time
 {wearing() == "Orator":
-    Cleon sees your face before he starts, and stops with one foot on the step. #speaker:Cleon
-    Take that off. That is — that's my — no. It's yours. Isn't it. It was always yours. #speaker:Cleon
+    Cleon sees your face before he starts, and stops with one foot on the step. #speaker:Cleon #mood:fear
+    Take that off. That is — that's my — no. It's yours. Isn't it. It was always yours. #speaker:Cleon #mood:fear
 }
 The agora is full. Cleon climbs onto the steps and lifts one arm.
-Citizens of Eferon, we have been told that iron rusts. I say: ^let it rust! Let the gold come! #speaker:Cleon #dejavu:cleon_speech
+Citizens of Eferon, we have been told that iron rusts. I say: ^let it rust! Let the gold come! #speaker:Cleon #dejavu:cleon_speech #mood:anger
 {dejavu_ok("cleon_speech"):
     ~ notice("dejavu_cleon", 0.34)
     The crowd turns from him to you. Cleon's arm is still up, his mouth still closed. #spend:10
@@ -201,10 +201,10 @@ The same verses as every night. You could sing them with him. You nearly do.
 
 = masked
 The song stops in the middle of a word. Eion turns his blind face to you.
-I know that face. I wore it, once. Or the one before me did. #speaker:Eion
-You want to know how to fold the day shut. Everybody does, around the third time. #speaker:Eion
+I know that face. I wore it, once. Or the one before me did. #speaker:Eion #mood:wonder
+You want to know how to fold the day shut. Everybody does, around the third time. #speaker:Eion #mood:joy
 He takes your hands and puts them on the strings. Down, left, up. Down, left, up. #speaker:Eion
-The Song of Return. Play it and the morning comes early. Don't ask whose morning. #speaker:Eion
+The Song of Return. Play it and the morning comes early. Don't ask whose morning. #speaker:Eion #mood:sorrow
 R — raise the lyre. Arrow keys pluck the strings. #hint
 ~ learn("song_of_return")
 ~ learn("eion_was_leont")
@@ -214,21 +214,21 @@ R — raise the lyre. Arrow keys pluck the strings. #hint
 Eion stops. He has heard something no one else in the tavern heard: a name, cut into a stone across the city.
 Then he sings a verse you have never heard.
 Phyllis at the well, and the scribe with the stylus. The scribe writes the last line, and the city says yes. #speaker:Eion
-The scribe writes the last line. The priest only reads it. And the city says yes. #speaker:Eion
+The scribe writes the last line. The priest only reads it. And the city says yes. #speaker:Eion #mood:sorrow
 ~ learn("last_line")
 Nobody in the tavern notices that he sang it looking straight at you.
 -> DONE
 
 = plan
 Eion puts the lyre down.
-You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion
-Then it is tonight. Sit. Let's paint it on the table. #speaker:Eion
+You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion #mood:wonder
+Then it is tonight. Sit. Let's paint it on the table. #speaker:Eion #mood:joy
 * [Plan the night] #action:board
     -> DONE
 * [Not tonight] -> DONE
 
 = shore_talk
 Eion stands in the sea up to his ankles, his lyre held high and dry.
-It is never the same, the sea. Have you noticed? Nothing else here can say that. #speaker:Eion
+It is never the same, the sea. Have you noticed? Nothing else here can say that. #speaker:Eion #mood:wonder
 ~ learn("sea_differs")
 -> DONE

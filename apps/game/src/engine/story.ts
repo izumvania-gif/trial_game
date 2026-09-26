@@ -3,12 +3,15 @@
 import { Story } from 'inkjs';
 import type { Knowledge } from '../core/knowledge.ts';
 import type { StageId } from '../core/types.ts';
+import { guessMood, isMood, type Mood } from '../content/moods.ts';
 
 export type LineStyle = 'narration' | 'hand' | 'log' | 'hint' | 'voice';
 
 export interface StoryLine {
   text: string;
   speaker: string | null;
+  /** How it is said: #mood:<mood>, or a guess from the words. Drives the portrait's face. */
+  mood: Mood;
   style: LineStyle;
   /** Stage to switch to once this line has been shown. */
   stage: StageId | null;
@@ -104,16 +107,20 @@ function parseLine(text: string, tags: string[]): StoryLine {
   const cue = words.findIndex((w) => w.startsWith('^'));
   if (cue >= 0) text = text.replace('^', '');
   const line: StoryLine = {
-    text, speaker: null, style: 'narration', stage: null, spendMinutes: 0, dejavu: null, cue, action: null,
+    text, speaker: null, mood: 'neutral', style: 'narration', stage: null, spendMinutes: 0, dejavu: null, cue, action: null,
   };
+  let moodTag: Mood | null = null;
   for (const tag of tags) {
     const [key = '', value = ''] = tag.split(':').map((s) => s.trim());
     if (key === 'speaker') line.speaker = value;
+    else if (key === 'mood' && isMood(value)) moodTag = value;
     else if (key === 'hand' || key === 'log' || key === 'hint' || key === 'voice') line.style = key;
     else if (key === 'stage' && (STAGES as string[]).includes(value)) line.stage = value as StageId;
     else if (key === 'spend') line.spendMinutes = Number(value) || 0;
     else if (key === 'dejavu') line.dejavu = value;
     else if (key === 'action') line.action = tag.slice(tag.indexOf(':') + 1).trim();
   }
+  // Tagged lines say how; untagged speech gets a guess; narration has no face to show it on.
+  line.mood = moodTag ?? (line.speaker ? guessMood(text) : 'neutral');
   return line;
 }

@@ -3,6 +3,7 @@
 // showing the clay, women's skin is added white, wreaths and hems are added red.
 // Each portrait is drawn with paths at 4× and reduced by majority vote to a 72-pixel grid, then
 // mapped to the palette of the stage it is shown in — nothing here is an image file.
+import type { Mood } from '../content/moods.ts';
 import { RESIDENTS } from '../content/residents.ts';
 
 export const PORTRAIT_SIZE = 72;
@@ -13,9 +14,35 @@ const UNIT = (PORTRAIT_SIZE * SUPER) / 100;
 const BG = 1, FIG = 2, CUT = 3, WHITE = 4, RED = 5, INK = 6;
 type Tone = typeof BG | typeof FIG | typeof CUT | typeof WHITE | typeof RED | typeof INK;
 type Pt = [number, number];
-type Paint = string | [string, string];
+/** One color, a 50% dither of two, or a sparse (1 in 4) dither of the second over the first. */
+type Paint = string | [string, string] | [string, string, 'sparse'];
 
 export type PortraitTheme = 'vase' | 'marble';
+
+/**
+ * Light comes from in front of the face and above (upper right). What the light does to each tone:
+ * `shade` on the side away from it, `cast` where the bust's own shadow falls on the ground of the
+ * cup, `rim` along the lit edge of the profile. A tone missing here is not changed by the light —
+ * black gloss stays black in shadow, which is how the painters did it too.
+ */
+interface Lighting {
+  shade: Partial<Record<Tone, Paint>>;
+  cast: Partial<Record<Tone, Paint>>;
+  rim: Partial<Record<Tone, Paint>>;
+}
+
+const LIGHTING: Record<PortraitTheme, Lighting> = {
+  vase: {
+    shade: { [BG]: ['#b5532a', '#6e2a1c', 'sparse'], [WHITE]: ['#e8e2d0', '#c8683a', 'sparse'], [RED]: ['#6e2a1c', '#0d0b09'] },
+    cast: { [BG]: ['#b5532a', '#6e2a1c'] },
+    rim: { [FIG]: ['#0d0b09', '#c8683a', 'sparse'] },
+  },
+  marble: {
+    shade: { [FIG]: ['#e8e2d0', '#0d0b09', 'sparse'], [WHITE]: ['#e8e2d0', '#0d0b09', 'sparse'], [RED]: ['#e8e2d0', '#0d0b09'] },
+    cast: {},
+    rim: {},
+  },
+};
 
 const THEMES: Record<PortraitTheme, Record<Tone, Paint>> = {
   vase: { [BG]: '#b5532a', [FIG]: '#0d0b09', [CUT]: '#c8683a', [WHITE]: '#e8e2d0', [RED]: '#6e2a1c', [INK]: '#0d0b09' },
@@ -48,6 +75,8 @@ interface Spec {
   garment?: 'chiton' | 'himation' | 'armour';
   prop?: 'lyre' | 'trident' | 'mask' | 'kerykeion' | 'stylus' | 'wheat' | 'net' | 'coins' | 'knife' | 'spear';
   crowd?: boolean;
+  /** Set per line, not per person. */
+  mood?: Mood;
 }
 
 const SPECS: Record<string, Spec> = {
@@ -118,12 +147,12 @@ export function cloneCanvas(src: HTMLCanvasElement): HTMLCanvasElement {
   return c;
 }
 
-/** A 72×72 canvas; `open` draws the mouth open (the talking frame). Cached. */
-export function portrait(id: string, theme: PortraitTheme, open = false): HTMLCanvasElement {
-  const key = `${id}/${theme}/${open}`;
+/** A 72×72 canvas; `open` draws the mouth open (the talking frame), `mood` sets the face. Cached. */
+export function portrait(id: string, theme: PortraitTheme, open = false, mood: Mood = 'neutral'): HTMLCanvasElement {
+  const key = `${id}/${theme}/${open}/${mood}`;
   let canvas = cache.get(key);
   if (!canvas) {
-    canvas = render(SPECS[id] ?? SPECS.crowd!, theme, open);
+    canvas = render({ ...(SPECS[id] ?? SPECS.crowd!), mood }, theme, open);
     cache.set(key, canvas);
   }
   return canvas;
@@ -146,7 +175,7 @@ function render(spec: Spec, theme: PortraitTheme, open: boolean): HTMLCanvasElem
   else drawBust(d, spec, open);
   ctx.restore();
   drawFrame(d);
-  return reduce(big, THEMES[theme]);
+  return reduce(big, spec.crowd ? null : lightMask(spec, open), THEMES[theme], LIGHTING[theme]);
 }
 
 class Draw {
@@ -225,8 +254,56 @@ function spline(c: CanvasRenderingContext2D, pts: Pt[], closed: boolean): void {
 /** Thin incisions and added colors must survive the vote against the large fills around them. */
 const WEIGHT: Record<number, number> = { [CUT]: 3, [INK]: 3, [RED]: 2, [WHITE]: 1.6 };
 
-/** Majority vote per 4×4 block, ignoring antialiased edge pixels; then tones to palette colors. */
-function reduce(big: HTMLCanvasElement, paints: Record<Tone, Paint>): HTMLCanvasElement {
+/**
+ * Where the light falls, drawn on its own canvas: red = in shade, green = the cast shadow,
+ * blue = the lit rim. Channels add up, so a pixel can be in shade and in the cast shadow.
+ */
+function lightMask(s: Spec, open: boolean): HTMLCanvasElement {
+  const f: Face = { nose: 0.4, hook: 0, chin: 0, jaw: 0, ...s.face };
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = PORTRAIT_SIZE * SUPER;
+  const c = canvas.getContext('2d')!;
+  c.scale(UNIT, UNIT);
+  c.globalCompositeOperation = 'lighter';
+  c.beginPath();
+  c.arc(50, 50, 41.5, 0, Math.PI * 2);
+  c.clip();
+  // Everything outside a wide circle around the light is in shade; so is the throat under the jaw.
+  c.fillStyle = '#ff0000';
+  c.beginPath();
+  c.rect(0, 0, 100, 100);
+  c.arc(92, 4, 74, 0, Math.PI * 2, true);
+  c.fill('evenodd');
+  c.beginPath();
+  spline(c, [[56, 71], [63, 71.5], [60, 78], [57, 82], [52, 79], [50, 73]], true);
+  c.fill();
+  // The bust's shadow on the ground of the cup, thrown down and back, away from the light.
+  c.fillStyle = '#00ff00';
+  c.save();
+  c.translate(-4.2, 3.2);
+  c.beginPath();
+  spline(c, bustOutline(f, open), true);
+  c.fill();
+  c.restore();
+  // The lit edge: the top of the head and the whole profile, forehead to chin.
+  c.strokeStyle = '#0000ff';
+  c.lineWidth = 2.4;
+  c.lineJoin = 'round';
+  c.beginPath();
+  spline(c, [[42, 19], [52, 16.5], ...faceProfile(f, open).slice(0, 13)], false);
+  c.stroke();
+  return canvas;
+}
+
+function paintAt(paint: Paint, x: number, y: number): string {
+  if (typeof paint === 'string') return paint;
+  if (paint.length === 3) return (x & 1) === 0 && (y & 1) === 0 ? paint[1] : paint[0];
+  return paint[(x + y) & 1]!;
+}
+
+/** Majority vote per 4×4 block, ignoring antialiased edge pixels; then tones to palette colors, lit. */
+function reduce(big: HTMLCanvasElement, light: HTMLCanvasElement | null, paints: Record<Tone, Paint>, lighting: Lighting): HTMLCanvasElement {
+  const lit = light?.getContext('2d')!.getImageData(0, 0, light.width, light.height).data ?? null;
   const src = big.getContext('2d')!.getImageData(0, 0, big.width, big.height).data;
   const out = document.createElement('canvas');
   out.width = out.height = PORTRAIT_SIZE;
@@ -258,8 +335,15 @@ function reduce(big: HTMLCanvasElement, paints: Record<Tone, Paint>): HTMLCanvas
         }
       }
       if (best === 0) continue;
-      const paint = paints[best as Tone];
-      const hex = typeof paint === 'string' ? paint : paint[(x + y) & 1]!;
+      const tone = best as Tone;
+      let paint = paints[tone];
+      if (lit) {
+        const li = ((y * SUPER + 2) * big.width + x * SUPER + 2) * 4;
+        if (lit[li]! > 128) paint = lighting.shade[tone] ?? paint;
+        if (lit[li + 1]! > 128) paint = lighting.cast[tone] ?? paint;
+        if (lit[li + 2]! > 128) paint = lighting.rim[tone] ?? paint;
+      }
+      const hex = paintAt(paint, x, y);
       const [r, g, b] = rgb(hex);
       const o = (y * PORTRAIT_SIZE + x) * 4;
       img.data[o] = r!;
@@ -305,6 +389,11 @@ function faceProfile(f: Face, open: boolean): Pt[] {
   ];
 }
 
+/** Head, neck and shoulders as one outline. */
+function bustOutline(f: Face, open: boolean): Pt[] {
+  return [[2, 104], [8, 88], [19, 79], [33, 73.5], [35, 64], [29, 54], [27, 41], [32, 27], [42, 19], [52, 16.5], ...faceProfile(f, open), [59.5, 76], [61, 81], [71, 85], [85, 90], [98, 104]];
+}
+
 function drawBust(d: Draw, s: Spec, open: boolean): void {
   const f: Face = { nose: 0.4, hook: 0, chin: 0, jaw: 0, ...s.face };
   const talking = open || !!s.speaking;
@@ -316,7 +405,7 @@ function drawBust(d: Draw, s: Spec, open: boolean): void {
   if (s.cover === 'hood') d.shape(FIG, [[68, 26], [62, 12], [46, 5], [28, 11], [17, 28], [13, 52], [11, 76], [6, 104], [36, 104], [37, 84], [41, 66], [46, 50], [52, 38], [62, 32]]);
 
   // Garment and shoulders, then the head and neck in one silhouette.
-  const body: Pt[] = [[2, 104], [8, 88], [19, 79], [33, 73.5], [35, 64], [29, 54], [27, 41], [32, 27], [42, 19], [52, 16.5], ...faceProfile(f, open), [59.5, 76], [61, 81], [71, 85], [85, 90], [98, 104]];
+  const body = bustOutline(f, open);
   if (s.smooth) {
     // Xenos: a smooth white oval where a face should be.
     d.shape(FIG, body);
@@ -359,21 +448,29 @@ function drawBust(d: Draw, s: Spec, open: boolean): void {
 }
 
 function drawFace(d: Draw, s: Spec, f: Face, skin: Tone, cut: Tone, talking: boolean): void {
+  const mood = s.mood ?? 'neutral';
   // The archaic eye: frontal, almond-shaped, in a face seen from the side.
   if (s.eye === 'closed') {
     d.line(cut, 1, [[57, 39.5], [61, 41], [65, 39.6]]);
     d.line(cut, 0.6, [[58, 42.5], [61, 43.4], [63.5, 42.6]]);
   } else if (s.cover !== 'helmet') {
+    const e = EYES[mood];
     d.fill(skin === WHITE ? WHITE : CUT, (c) => {
       c.moveTo(56.8, 39.3);
-      c.quadraticCurveTo(61, 35.6, 65.4, 38.6);
-      c.quadraticCurveTo(61, 42.4, 56.8, 39.3);
+      c.quadraticCurveTo(61, e.upper - 0.8, 65.4, 38.6);
+      c.quadraticCurveTo(61, e.lower + 0.8, 56.8, 39.3);
     });
-    d.line(cut, 0.7, [[56.8, 39.3], [61, 36.4], [65.4, 38.6]]);
-    d.line(cut, 0.7, [[56.8, 39.3], [61, 41.6], [65.4, 38.6]]);
-    d.disc(62, 38.8, 1.35, skin === WHITE ? INK : FIG);
+    d.line(cut, 0.7, [[56.8, 39.3], [61, e.upper], [65.4, 38.6]]);
+    d.line(cut, 0.7, [[56.8, 39.3], [61, e.lower], [65.4, 38.6]]);
+    d.disc(62, e.pupilY, e.pupil, skin === WHITE ? INK : FIG);
+    if (mood === 'sorrow') {
+      // A tear, painted the way the vase painters did hair and beards: a few strokes, no gloss.
+      d.fill(skin === WHITE ? INK : WHITE, (c) => c.ellipse(61.2, 44.4, 0.9, 1.4, 0, 0, Math.PI * 2));
+    }
   }
-  d.line(cut, 0.8, [[56.5, 34.6], [61, 33.2], [65.6, 34.8]]);
+  d.line(cut, 1.05, BROWS[mood]);
+  if (mood === 'anger') d.line(cut, 0.6, [[66.4, 36.6], [65, 38.2]]);
+  if (mood === 'joy') d.line(cut, 0.55, [[63.8, 54.4], [64.6, 56.8]]);
   // Ear.
   if (!s.cover && s.hair !== 'long' && s.hair !== 'wild') {
     d.line(cut, 0.9, [[49, 41], [46, 42.5], [45.4, 47], [47.4, 51], [49.6, 51]]);
@@ -393,15 +490,50 @@ function drawFace(d: Draw, s: Spec, f: Face, skin: Tone, cut: Tone, talking: boo
   if (!s.beard) drawMouth(d, cut, talking, s);
 }
 
+/** Brows: the front end (by the nose) is what tells the mood in a profile. */
+const BROWS: Record<Mood, Pt[]> = {
+  neutral: [[56.5, 34.6], [61, 33.2], [65.6, 34.8]],
+  joy: [[56.5, 34.2], [61, 32.6], [65.6, 34]],
+  anger: [[56.5, 33.2], [61, 33.8], [65.8, 36.6]],
+  sorrow: [[56.5, 35.8], [61, 34.4], [65.6, 32.4]],
+  fear: [[56.5, 33], [61, 31], [65.6, 32.6]],
+  wonder: [[56.5, 33.8], [61, 31.8], [65.6, 33.2]],
+};
+
+/** Eyelids (the curves' control heights) and the pupil. */
+const EYES: Record<Mood, { upper: number; lower: number; pupil: number; pupilY: number }> = {
+  neutral: { upper: 36.4, lower: 41.6, pupil: 1.35, pupilY: 38.8 },
+  joy: { upper: 36.8, lower: 39.6, pupil: 1.2, pupilY: 38.6 },
+  anger: { upper: 37.8, lower: 41, pupil: 1.3, pupilY: 39.2 },
+  sorrow: { upper: 37.8, lower: 41.8, pupil: 1.3, pupilY: 39.8 },
+  fear: { upper: 34.8, lower: 43, pupil: 1, pupilY: 38.6 },
+  wonder: { upper: 35.4, lower: 42, pupil: 1.2, pupilY: 38.6 },
+};
+
 function drawMouth(d: Draw, cut: Tone, open: boolean, s: Spec): void {
+  const mood = s.mood ?? 'neutral';
+  const hole: Tone = s.skin === 'white' ? INK : CUT;
   if (open) {
-    d.fill(s.skin === 'white' ? INK : CUT, (c) => {
-      c.moveTo(69.6, 57.8);
-      c.lineTo(65.2, 58.8);
-      c.lineTo(69.2, 60.8);
+    // Wider for a shout, rounder for fear, corners up for a laugh.
+    const shape: Pt[] = mood === 'anger' ? [[70, 57.4], [64.8, 58.6], [69.6, 61.8]]
+      : mood === 'fear' || mood === 'wonder' ? [[69.8, 57.6], [66.6, 58.2], [66.4, 60.6], [69.4, 61.2]]
+        : mood === 'joy' ? [[69.8, 57.8], [64.6, 57.4], [69.2, 60.8]]
+          : [[69.6, 57.8], [65.2, 58.8], [69.2, 60.8]];
+    d.fill(hole, (c) => {
+      c.moveTo(...shape[0]!);
+      for (const p of shape.slice(1)) c.lineTo(...p);
       c.closePath();
     });
-  } else d.line(cut, 0.8, [[69.4, 58.3], [65.6, 58.8]]);
+    return;
+  }
+  switch (mood) {
+    case 'joy': d.line(cut, 0.8, [[69.4, 58.2], [67, 58.9], [65, 57.4]]); break;
+    case 'anger': d.line(cut, 0.9, [[69.4, 58.4], [66.8, 58.6], [65.2, 60]]); break;
+    case 'sorrow': d.line(cut, 0.8, [[69.4, 58.4], [67.2, 58.9], [65.4, 60.2]]); break;
+    case 'fear': d.fill(hole, (c) => c.ellipse(68.4, 59.2, 1.3, 1.2, 0, 0, Math.PI * 2)); break;
+    case 'wonder': d.fill(hole, (c) => c.ellipse(68.8, 59, 1, 0.8, 0, 0, Math.PI * 2)); break;
+    default: d.line(cut, 0.8, [[69.4, 58.3], [65.6, 58.8]]);
+  }
 }
 
 function drawHairCap(d: Draw, s: Spec, skin: Tone): void {

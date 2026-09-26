@@ -1,6 +1,7 @@
 // Inside a carving: a frozen moment of a past cycle you can walk around (Obra Dinn's memento).
 // First person, 1-bit. Walk close to a figure to hear the words that were in the air that second.
 import * as THREE from 'three';
+import { guessMood } from '../../content/moods.ts';
 import { h } from '../../ui/dom.ts';
 import { cloneCanvas, portrait, portraitFor } from '../../ui/portraits.ts';
 import { disposeScene } from '../dispose.ts';
@@ -164,7 +165,7 @@ export class ReliefStage implements Stage {
       this.heard = near ?? null;
       if (near) {
         const info = portraitFor(near.speaker);
-        const face = info ? portrait(info.id, 'marble') : null;
+        const face = info ? portrait(info.id, 'marble', false, guessMood(near.text)) : null;
         this.caption.replaceChildren(
           ...(face ? [h('span', { className: 'relief-face' }, cloneCanvas(face))] : []),
           h('span', {}, h('span', { className: 'speaker' }, near.speaker), near.text),

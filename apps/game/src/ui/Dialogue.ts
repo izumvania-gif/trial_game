@@ -4,6 +4,7 @@
 // number keys pick choices.
 // Déjà vu: a line the player has heard before shows its ghost. Press F just before the
 // speaker reaches the cue word and Leont finishes the sentence for them.
+import type { Mood } from '../content/moods.ts';
 import type { StoryChoice, StoryLine } from '../engine/story.ts';
 import { h } from './dom.ts';
 import { portrait, portraitFor, type PortraitTheme } from './portraits.ts';
@@ -62,6 +63,7 @@ export class Dialogue {
   /** A line is being written out; the next press completes it. */
   private writing: { complete: () => void } | null = null;
   private speakerId: string | null = null;
+  private mood: Mood = 'neutral';
   private mouthTimer = 0;
   private mouthOpen = false;
 
@@ -172,6 +174,8 @@ export class Dialogue {
       this.portraitBox.replaceChildren();
       return;
     }
+    const moodChanged = line.mood !== this.mood;
+    this.mood = line.mood;
     if (info.id !== this.speakerId) {
       this.speakerId = info.id;
       this.mouthOpen = false;
@@ -179,12 +183,12 @@ export class Dialogue {
       this.portraitBox.classList.remove('enter');
       void this.portraitBox.offsetWidth;
       this.portraitBox.classList.add('enter');
-    }
+    } else if (moodChanged) this.drawPortrait();
   }
 
   private drawPortrait(): void {
     if (!this.speakerId) return;
-    const canvas = portrait(this.speakerId, this.opts.theme ?? 'vase', this.mouthOpen);
+    const canvas = portrait(this.speakerId, this.opts.theme ?? 'vase', this.mouthOpen, this.mood);
     const img = this.portraitBox.querySelector('canvas') ?? h('canvas', { width: canvas.width, height: canvas.height });
     img.getContext('2d')!.drawImage(canvas, 0, 0);
     if (!img.isConnected) this.portraitBox.replaceChildren(img);
@@ -294,6 +298,7 @@ export class Dialogue {
     this.writing = null;
     this.talk(false);
     this.speakerId = null;
+    this.mood = 'neutral';
     this.root.hidden = true;
     this.root.classList.remove('has-portrait');
     this.body.replaceChildren();

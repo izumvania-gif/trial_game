@@ -16,7 +16,7 @@ It's dangerous to go on alone. Take this. #speaker:Glaucus
 He puts a knife in your hand, handle first.
 * [Cut your palm]
     The blood goes into the water, and the water does not care. That is the point.
-    You won't return to the beginning, scribe. Yes? #speaker:Glaucus
+    You won't return to the beginning, scribe. Yes? #speaker:Glaucus #mood:wonder
     ** [Yes]
         {night("citySilent"):
             Up on the mountain the city is silent. Kora is standing in front of the priest of Zeus, and nobody is answering anybody.

@@ -7,6 +7,7 @@ import { Game } from './game.ts';
 import { drawSpiral } from './spiral.ts';
 import { mountDebugPanel } from './ui/DebugPanel.ts';
 import { PORTRAIT_IDS, portrait } from './ui/portraits.ts';
+import { MOODS } from './content/moods.ts';
 
 const title = document.querySelector<HTMLElement>('#title')!;
 const titleCanvas = document.querySelector<HTMLCanvasElement>('#spiral')!;
@@ -30,16 +31,17 @@ document.querySelector('#settings')!.addEventListener('click', () => titleSettin
 if (new URLSearchParams(location.search).has('portraits')) {
   // Development sheet: every portrait, in both palettes, closed and talking.
   const sheet = document.createElement('div');
-  sheet.style.cssText = 'position:fixed;inset:0;z-index:99;overflow:auto;background:#1d1611;display:flex;flex-wrap:wrap;gap:12px;padding:12px';
-  for (const theme of ['vase', 'marble'] as const) {
-    for (const id of PORTRAIT_IDS) {
-      for (const open of [false, true]) {
-        const c = portrait(id, theme, open);
-        c.style.cssText = 'width:216px;height:216px;image-rendering:pixelated';
-        c.title = id;
-        sheet.append(c);
-      }
-    }
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:99;overflow:auto;background:#1d1611;display:grid;grid-template-columns:repeat(8,144px);gap:8px;padding:12px';
+  const add = (c: HTMLCanvasElement, title: string) => {
+    c.style.cssText = 'width:144px;height:144px;image-rendering:pixelated';
+    c.title = title;
+    sheet.append(c);
+  };
+  // One row per person: every mood, then talking, then the marble version.
+  for (const id of PORTRAIT_IDS) {
+    for (const mood of MOODS) add(portrait(id, 'vase', false, mood), `${id} ${mood}`);
+    add(portrait(id, 'vase', true, 'joy'), `${id} talking`);
+    add(portrait(id, 'marble', false, 'sorrow'), `${id} marble`);
   }
   document.body.append(sheet);
 }

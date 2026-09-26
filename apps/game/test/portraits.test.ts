@@ -32,3 +32,15 @@ test('guides have steps and unique ids', () => {
   for (const g of Object.values(STAGE_GUIDES)) assert.ok(g!.steps.length >= 2, g!.id);
   for (const line of Object.values(STAGE_CONTROLS)) for (const part of line!.split(' · ')) assert.match(part, / — /);
 });
+
+test('every #mood in the script is a known mood; untagged speech gets a guess', async () => {
+  const { MOODS, guessMood } = await import('../src/content/moods.ts');
+  for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
+    const text = readFileSync(new URL(file, storyDir), 'utf8');
+    for (const m of text.matchAll(/#mood:([a-z]+)/g)) assert.ok((MOODS as readonly string[]).includes(m[1]!), `${file}: #mood:${m[1]}`);
+  }
+  assert.equal(guessMood('Go away, scribe.'), 'anger');
+  assert.equal(guessMood('Twenty years dead.'), 'sorrow');
+  assert.equal(guessMood('Is it gold already?'), 'wonder');
+  assert.equal(guessMood('The key.'), 'neutral');
+});

@@ -2,7 +2,7 @@
 // Conventions (see apps/game/src/engine/story.ts):
 //   - The engine jumps straight to a knot with ChoosePathString; every knot ends in -> DONE.
 //   - Facts come from the knowledge graph: ~ learn(<fact>) and {knows(<fact>)}.
-//   - Line tags: #speaker:Name, #hand (Leont's slanted past hand), #log (service layer),
+//   - Line tags: #speaker:Name, #mood:<neutral|joy|anger|sorrow|fear|wonder> (the portrait's face), #hand (Leont's slanted past hand), #log (service layer),
 //     #hint, #voice (a past Leont talking), #stage:<id> (switch stage after the dialogue), #spend:<minutes>,
 //     #dejavu:<id> (the player can finish this line the second time; mark the cue word with ^),
 //     #action: carve, stele_lines, board or ending:<id> (UI to open after the dialogue).

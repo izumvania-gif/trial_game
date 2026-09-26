@@ -8,7 +8,7 @@
     -> DONE
 - hour() == 15:
     Hierocles, the priest of Zeus, is leaving Lysimachus' porch. His purse is heavier than when he came in. Lysimachus sees you seeing it and smiles.
-    Every Silver Age, scribe, somebody has to be the first to own something. I make sure it's me. And I make sure the gods are punctual. #speaker:Lysimachus
+    Every Silver Age, scribe, somebody has to be the first to own something. I make sure it's me. And I make sure the gods are punctual. #speaker:Lysimachus #mood:joy
     ~ learn("lysimachus_pays")
     -> DONE
 - hour() >= 17:
@@ -24,17 +24,17 @@
 {knows("hierocles_paid") and knows("kora_debts") and not knows("debts_settled"):
     * [Tell him what Hierocles told you]
         You tell him, quietly, what the priest of Zeus confessed. He stops counting. #spend:20
-        What do you want. #speaker:Lysimachus
+        What do you want. #speaker:Lysimachus #mood:anger
         ** [A release of every debt in the port, signed today]
             He writes it himself, in a beautiful hand, and seals it, and hands it to you as if it were a gift. #spend:20
-            It doesn't matter, you know. After midnight it won't matter. #speaker:Lysimachus
+            It doesn't matter, you know. After midnight it won't matter. #speaker:Lysimachus #mood:sorrow
             Then it costs you nothing. #speaker:Leont
             ~ learn("debts_released")
             ~ learn("debts_settled")
             -> DONE
     * [Leave him to his counting] -> DONE
 - else:
-    Tomorrow is gold, scribe. Gold is a kind of forgetting. #speaker:Lysimachus
+    Tomorrow is gold, scribe. Gold is a kind of forgetting. #speaker:Lysimachus #mood:joy
     -> DONE
 }
 
@@ -60,9 +60,9 @@ The slave by the door has gone in to serve the dinner. Through the courtyard, a 
 
 === hierocles ===
 {wearing() == "Killer":
-    Hierocles sees your face and the knife falls out of his hand onto the flagstones. #speaker:Hierocles
-    You. I know you. You held the — on the mountain, you held the — #speaker:Hierocles
-    I only read what I am paid to read. Lysimachus pays so it is on time. It would be on time anyway. It is always on time. #speaker:Hierocles
+    Hierocles sees your face and the knife falls out of his hand onto the flagstones. #speaker:Hierocles #mood:fear
+    You. I know you. You held the — on the mountain, you held the — #speaker:Hierocles #mood:fear
+    I only read what I am paid to read. Lysimachus pays so it is on time. It would be on time anyway. It is always on time. #speaker:Hierocles #mood:sorrow
     He is weeping. He does not know why. His hands do.
     ~ learn("hierocles_paid")
     ~ learn("lysimachus_pays")
@@ -80,30 +80,30 @@ The slave by the door has gone in to serve the dinner. Through the courtyard, a 
 - else:
     Hierocles sharpens the sacrificial knife in the temple of Zeus. He tests the edge on a hair from his own head.
 }
-Go home, scribe. Write down what the stars say. That is all anyone needs from you tonight. #speaker:Hierocles
+Go home, scribe. Write down what the stars say. That is all anyone needs from you tonight. #speaker:Hierocles #mood:anger
 -> DONE
 
 === glaucus ===
 {hour() >= 23 and knows("sea_absent"): -> knife}
 Glaucus, the priest of Poseidon, stands up to his knees in the water. Today he is here. Tomorrow he will be somewhere else along the shore; he has never told anyone where.
 {not knows("glaucus_no_calendar"):
-    Calendar? The sea hasn't got one. Why should I? #speaker:Glaucus
+    Calendar? The sea hasn't got one. Why should I? #speaker:Glaucus #mood:joy
     ~ learn("glaucus_no_calendar")
 }
 {knows("spiral_repeats") and not knows("sea_absent"):
-    You've been in the white hall, haven't you. You've got the look. #speaker:Glaucus
-    Go and look for me on your stone wheel, astronomer. You won't find me. Nor the water. #speaker:Glaucus
+    You've been in the white hall, haven't you. You've got the look. #speaker:Glaucus #mood:wonder
+    Go and look for me on your stone wheel, astronomer. You won't find me. Nor the water. #speaker:Glaucus #mood:joy
 - else:
-    Come back when it's dark, if you want. The sea is the same in the dark. I mean it isn't. You know what I mean. #speaker:Glaucus
+    Come back when it's dark, if you want. The sea is the same in the dark. I mean it isn't. You know what I mean. #speaker:Glaucus #mood:joy
 }
 -> DONE
 
 = knife
 Glaucus is waiting in the black water, as if he knew exactly where you would come down to the shore.
-You know there's no sea on their stone. Good. #speaker:Glaucus
+You know there's no sea on their stone. Good. #speaker:Glaucus #mood:joy
 It's dangerous to go on alone. Take this. #speaker:Glaucus
 He puts a knife in your hand, handle first.
-But the stone in the hall still remembers everything, astronomer. Whatever you do here, it will carve it. #speaker:Glaucus
+But the stone in the hall still remembers everything, astronomer. Whatever you do here, it will carve it. #speaker:Glaucus #mood:sorrow
 * [Cut your palm anyway]
     The blood goes into the water. Glaucus watches it go. #action:ending:centre
     -> DONE
@@ -117,23 +117,23 @@ But the stone in the hall still remembers everything, astronomer. Whatever you d
 - else:
     A stall of pale masks by the agora. The seller has a wide smile and a pack on his back taller than he is.
 }
-You've met with a terrible fate, haven't you? #speaker:The mask seller
+You've met with a terrible fate, haven't you? #speaker:The mask seller #mood:wonder
 {not knows("masks_explained"):
-    These? Faces. Nobody in Eferon has them. Every one of them is yours, scribe. #speaker:The mask seller
+    These? Faces. Nobody in Eferon has them. Every one of them is yours, scribe. #speaker:The mask seller #mood:joy
     Every time one of you fights the day, the stone keeps his face. Read the stone right, and the face comes away in your hand. #speaker:The mask seller
     ~ learn("masks_explained")
 }
 {
 - has_mask("Blank"):
-    You have the smooth one. Careful. The man in the smooth mask will think you work for him. #speaker:The mask seller
+    You have the smooth one. Careful. The man in the smooth mask will think you work for him. #speaker:The mask seller #mood:fear
 - has_mask("Killer"):
     You have the heavy one. Priests remember it. Guards' hands remember it. #speaker:The mask seller
 - has_mask("Orator"):
     You have the one that speaks. The assembly meets at the eleventh hour, on the council steps. #speaker:The mask seller
 - has_mask("Extinguisher"):
-    You have the smooth-cheeked one, the one with the water jar. A blind man in this city would know it by touch. #speaker:The mask seller
+    You have the smooth-cheeked one, the one with the water jar. A blind man in this city would know it by touch. #speaker:The mask seller #mood:joy
 - else:
-    Four faces can still be taken off the stone. The rest are carved too deep. #speaker:The mask seller
+    Four faces can still be taken off the stone. The rest are carved too deep. #speaker:The mask seller #mood:sorrow
 }
 -> DONE
 
@@ -170,7 +170,7 @@ Nobody has ever said no. I would know. #speaker:Xenos
     -> DONE
 * [Ask who he is]
     Someone who reads your day as a report. Someone who reads it every day. #speaker:Xenos
-    And who reads yours? #speaker:Leont
+    And who reads yours? #speaker:Leont #mood:wonder
     He doesn't answer. For a moment the oval of his face looks like it is listening to something very far above.
     -> DONE
 * [Refuse]
@@ -184,25 +184,25 @@ Nobody has ever said no. I would know. #speaker:Xenos
 - else: Talia mends a net on the beach, with her back to the city.
 }
 {not knows("talia_boat"):
-    My father went out anyway. On the last day. He always goes out. And he always comes back late. #speaker:Talia
+    My father went out anyway. On the last day. He always goes out. And he always comes back late. #speaker:Talia #mood:sorrow
     Never the same lateness, though. Sometimes it's a little, sometimes a lot. I've been counting for years. #speaker:Talia
     ~ learn("talia_boat")
     -> DONE
 }
 {
 - knows("talia_friend"):
-    If you need someone to stand in front of a fat man tonight, I'm small, but I'm rude. #speaker:Talia
-    Tell me the five ages again, scribe. I always forget which one comes third. #speaker:Talia
+    If you need someone to stand in front of a fat man tonight, I'm small, but I'm rude. #speaker:Talia #mood:joy
+    Tell me the five ages again, scribe. I always forget which one comes third. #speaker:Talia #mood:joy
     -> DONE
 - knows("sea_differs"):
     * [Tell her nobody can know when the boat will come. Not even you.]
         She looks at you for a long time. #spend:10
-        Everybody else says it's the will of Poseidon, or a current, or a bad oarsman. You're the first one who just said you don't know. #speaker:Talia
+        Everybody else says it's the will of Poseidon, or a current, or a bad oarsman. You're the first one who just said you don't know. #speaker:Talia #mood:wonder
         ~ learn("talia_friend")
         -> DONE
     * [Leave her to her waiting] -> DONE
 - else:
-    Do you know when it'll come, scribe? You read the stars. #speaker:Talia
+    Do you know when it'll come, scribe? You read the stars. #speaker:Talia #mood:wonder
     You don't. You realise that you don't, and that it is the only thing all day you haven't known.
     -> DONE
 }
