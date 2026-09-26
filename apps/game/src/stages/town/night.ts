@@ -98,63 +98,173 @@ export class MountainLights {
 
 /**
  * The storm that ends the age. It gathers high over the mountain in the morning and sinks all
- * day; in the afternoon its eyes begin to open, and near midnight it grins. The eyes follow
- * the scribe. The Curator can patch the face out (`cloud_smooth`), not the storm.
+ * day; in the afternoon its eyes begin to open under heavy brows, and near midnight it grins —
+ * a mouth full of teeth, wider every minute, lit from inside by lightning. The eyes follow the
+ * scribe. The Curator can patch the face out (`cloud_smooth`), not the storm.
  */
 export class StormFace {
   readonly group = new THREE.Group();
-  private eyes: { white: THREE.Mesh; pupil: THREE.Mesh }[] = [];
-  private mouth: THREE.Mesh | null = null;
+  private eyes: { white: THREE.Mesh; pupil: THREE.Mesh; lid: THREE.Mesh }[] = [];
+  private brows: THREE.Mesh[] = [];
+  private mouth: THREE.Group | null = null;
+  private flash = new THREE.PointLight('#fff2d0', 0, 90, 1);
+  /** A low glow that reaches the billows and the face, not the city. */
+  private glow = new THREE.PointLight('#ffd9a8', 0, 26, 1);
 
   constructor(scene: THREE.Scene, smoothFace: boolean) {
-    const dark = lambert('#2a2320');
-    const rand = seededRng(daySeed('eferon/cloud'));
-    for (let i = 0; i < 16; i++) {
-      const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(4 + rand() * 5, 0), dark);
-      puff.position.set((rand() - 0.5) * 34, (rand() - 0.5) * 7, (rand() - 0.5) * 9);
-      this.group.add(puff);
-    }
+    this.buildCloud();
+    this.flash.position.set(0, -2, 18);
+    this.glow.position.set(0, 0, 20);
+    this.group.add(this.flash, this.glow);
     scene.add(this.group);
-    if (smoothFace) return;
+    if (!smoothFace) this.buildFace();
+  }
+
+  /** Three layers of billows: a dark core, lighter rolls along the rims, torn wisps trailing under it. */
+  private buildCloud(): void {
+    const rand = seededRng(daySeed('eferon/cloud/v2'));
+    const core = lambert('#261e1a');
+    const mid = lambert('#3b2a22');
+    const rim = lambert('#6b4a38');
+    const puff = (r: number, mat: THREE.Material, x: number, y: number, z: number, sx = 1, sy = 1) => {
+      const m = new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1), mat);
+      m.position.set(x, y, z);
+      m.scale.set(sx, sy, 1);
+      m.rotation.set(rand() * 3, rand() * 3, rand() * 3);
+      this.group.add(m);
+    };
+    for (let i = 0; i < 14; i++) puff(5 + rand() * 4, core, (rand() - 0.5) * 36, (rand() - 0.5) * 8, -2 + rand() * 4);
+    for (let i = 0; i < 16; i++) puff(3 + rand() * 2.5, mid, (rand() - 0.5) * 40, (rand() - 0.5) * 12, 2 + rand() * 3);
+    // Rolls along the top and bottom edges catch what light there is.
+    for (let i = 0; i < 12; i++) {
+      const x = -19 + i * 3.4 + (rand() - 0.5) * 2;
+      const top = 6 + Math.cos((x / 22) * Math.PI) * 3;
+      puff(1.8 + rand() * 1.4, rim, x, top + rand() * 1.5, 4 + rand() * 2);
+      puff(1.6 + rand() * 1.2, rim, x + 1.5, -6.5 - rand() * 1.5, 4 + rand() * 2.5);
+    }
+    // Wisps torn off underneath, hanging towards the city.
+    for (let i = 0; i < 7; i++) puff(1.4, mid, (rand() - 0.5) * 30, -9 - rand() * 3, 3 + rand() * 2, 3 + rand() * 2, 0.45);
+  }
+
+  private buildFace(): void {
     const bone = new THREE.MeshBasicMaterial({ color: '#f5e9c8' });
     const black = new THREE.MeshBasicMaterial({ color: '#0d0b09' });
-    for (const x of [-4.2, 4.2]) {
-      const white = new THREE.Mesh(new THREE.SphereGeometry(1.7, 10, 8), bone);
-      white.position.set(x, 1.4, 13.5);
-      white.scale.set(1.3, 0.05, 0.6);
-      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.55, 8, 6), black);
-      pupil.position.set(x, 1.4, 14.4);
-      this.group.add(white, pupil);
-      this.eyes.push({ white, pupil });
+    const fold = lambert('#7a5440');
+    for (const side of [-1, 1]) {
+      const x = side * 4.6;
+      const white = new THREE.Mesh(new THREE.SphereGeometry(1.9, 14, 10), bone);
+      white.position.set(x, 1.6, 13.5);
+      white.scale.set(1.25, 0.05, 0.6);
+      const pupil = new THREE.Mesh(new THREE.SphereGeometry(0.62, 10, 8), black);
+      pupil.position.set(x, 1.6, 14.5);
+      // A heavy lid and a bag under each eye: folds of the cloud itself.
+      const lid = new THREE.Mesh(new THREE.TorusGeometry(2.4, 0.45, 5, 14, Math.PI), fold);
+      lid.position.set(x, 1.6, 13.9);
+      lid.scale.set(1.05, 0.5, 0.6);
+      const bag = new THREE.Mesh(new THREE.TorusGeometry(2.1, 0.35, 5, 12, Math.PI * 0.8), fold);
+      bag.position.set(x, 0.7, 13.7);
+      bag.rotation.z = Math.PI * 1.1;
+      bag.scale.set(1, 0.45, 0.6);
+      const brow = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.9, 1.2), fold);
+      brow.position.set(x - side * 0.2, 4.1, 13.6);
+      this.group.add(white, pupil, lid, bag, brow);
+      this.eyes.push({ white, pupil, lid });
+      this.brows.push(brow);
     }
-    // A thin grin of light under the eyes.
-    this.mouth = new THREE.Mesh(new THREE.TorusGeometry(4.2, 0.32, 5, 18, Math.PI * 0.8), bone);
-    this.mouth.rotation.z = Math.PI * 1.1;
-    this.mouth.position.set(0, -1.4, 13.8);
+    // A blunt nose between them.
+    const nose = new THREE.Mesh(new THREE.IcosahedronGeometry(1.3, 1), lambert('#4a3428'));
+    nose.position.set(0, -0.2, 14.2);
+    nose.scale.set(0.8, 1.2, 0.8);
+    this.group.add(nose);
+    this.mouth = grin();
+    this.mouth.position.set(0, -2.6, 14);
     this.mouth.visible = false;
     this.group.add(this.mouth);
   }
 
-  update(progress: number, player: THREE.Vector3): void {
+  update(progress: number, player: THREE.Vector3, time = 0): void {
     // Over the mountain by day; in the last hours it drifts to hang over wherever the scribe is.
     const follow = smooth(progress, P(20), P(23));
     this.group.position.set(lerp(-6, player.x, follow * 0.85), lerp(60, 14.5, Math.pow(progress, 1.3)), lerp(-72, -46, progress * progress));
     const open = smooth(progress, P(15), P(23));
-    for (const { white, pupil } of this.eyes) {
-      white.scale.y = lerp(0.05, 0.75, open);
+    const anger = smooth(progress, P(20), P(23.5));
+    this.eyes.forEach(({ white, pupil, lid }, i) => {
+      white.scale.y = lerp(0.05, 0.78, open);
+      lid.scale.y = lerp(0.2, 0.55, open);
       pupil.visible = open > 0.2;
       // Look at the scribe: the pupils slide across the whites towards him.
       const dx = THREE.MathUtils.clamp((player.x - (this.group.position.x + white.position.x)) * 0.04, -0.8, 0.8);
       pupil.position.x = white.position.x + dx;
-      pupil.position.y = white.position.y - 0.25 * open;
-      pupil.scale.setScalar(Math.min(1, open * 1.3));
-    }
+      pupil.position.y = white.position.y - 0.3 * open;
+      pupil.scale.setScalar(Math.min(1, open * 1.3) * lerp(1, 0.7, anger));
+      // The brows come down and in.
+      const side = i === 0 ? -1 : 1;
+      this.brows[i]!.rotation.z = side * lerp(0.05, 0.42, anger);
+      this.brows[i]!.position.y = lerp(4.3, 3.5, anger);
+    });
     if (this.mouth) {
-      const grin = smooth(progress, P(21.5), P(23.5));
-      this.mouth.visible = grin > 0.02;
-      this.mouth.scale.set(0.4 + 0.6 * grin, 0.4 + 0.6 * grin, 1);
+      const grinning = smooth(progress, P(21.5), P(23.5));
+      this.mouth.visible = grinning > 0.02;
+      // Wider, then open: the jaw drops in the last half hour.
+      this.mouth.scale.set(lerp(0.45, 1, grinning), lerp(0.35, 1, grinning) * lerp(1, 1.35, smooth(progress, P(23.3), 1)), 1);
     }
+    // Lightning inside it in the last hours: rare, fixed by the clock, never random.
+    const storm = smooth(progress, P(22), P(23.7));
+    const bolt = Math.max(0, Math.sin(time * 1.7) * Math.sin(time * 4.3 + 1.2) - 0.72) * 3.6;
+    // Between the bolts a low glow stays in it, so the billows and the brows never quite go out.
+    this.glow.intensity = lerp(0, 160, smooth(progress, P(19), P(22)));
+    this.flash.intensity = storm * bolt * 650;
   }
+}
+
+/** The grin: a dark crescent of mouth between pale lips, with a row of teeth above and below. */
+function grin(): THREE.Group {
+  const g = new THREE.Group();
+  const W = 7.2;
+  const upper = (t: number) => 0.95 * t * t - 0.5; // corners pulled up, like the moon's
+  const lower = (t: number) => 0.45 - 4.1 * (1 - t * t);
+  const curve = (f: (t: number) => number, from: number, to: number, n = 24) =>
+    Array.from({ length: n + 1 }, (_, i) => {
+      const t = from + ((to - from) * i) / n;
+      return new THREE.Vector2(W * t, f(t));
+    });
+  const shape = (pts: THREE.Vector2[]) => new THREE.ShapeGeometry(new THREE.Shape(pts));
+  const flat = (color: string) => new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide });
+
+  // Lips first (slightly bigger), then the cavity inside them.
+  const lipsPts = [...curve((t) => upper(t) + 0.35, -1.04, 1.04), ...curve((t) => lower(t) - 0.35, 1.04, -1.04)];
+  g.add(new THREE.Mesh(shape(lipsPts), flat('#c9a27c')));
+  const mouth = new THREE.Mesh(shape([...curve(upper, -1, 1), ...curve(lower, 1, -1)]), flat('#0d0b09'));
+  mouth.position.z = 0.02;
+  g.add(mouth);
+
+  const bone = flat('#f5e9c8');
+  const tooth = (t: number, width: number, top: number, length: number, down: boolean) => {
+    const x = W * t;
+    const d = down ? -1 : 1;
+    const pts = [
+      new THREE.Vector2(x - width / 2, top + d * -0.05),
+      new THREE.Vector2(x + width / 2, top + d * -0.05),
+      new THREE.Vector2(x + width * 0.34, top + d * length * 0.8),
+      new THREE.Vector2(x, top + d * length),
+      new THREE.Vector2(x - width * 0.34, top + d * length * 0.8),
+    ];
+    const m = new THREE.Mesh(shape(pts), bone);
+    m.position.z = 0.04;
+    g.add(m);
+  };
+  // Big square teeth in the middle, smaller towards the corners.
+  for (let i = 0; i < 11; i++) {
+    const t = -0.86 + (i / 10) * 1.72;
+    const size = 1 - 0.55 * t * t;
+    tooth(t, 1.05 * size, upper(t), 1.25 * size, true);
+  }
+  for (let i = 0; i < 10; i++) {
+    const t = -0.8 + (i / 9) * 1.6;
+    const size = 1 - 0.6 * t * t;
+    tooth(t, 1 * size, lower(t), 1.05 * size, false);
+  }
+  return g;
 }
 
 /** Streaks of dust blown down the streets from the mountain. */

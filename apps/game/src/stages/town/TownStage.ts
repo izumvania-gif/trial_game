@@ -516,7 +516,7 @@ export class TownStage implements Stage {
     this.dust.update(this.time, gust, this.player.position);
     this.lookUp = THREE.MathUtils.smoothstep(progress, 0.8, 0.95);
     this.mountainLights.update(progress, this.time);
-    this.storm.update(progress, this.player.position);
+    this.storm.update(progress, this.player.position, this.time);
     for (const [i, boat] of this.boats.entries()) {
       boat.position.y = (boat.userData.baseY as number) + Math.sin(this.time * 1.3 + i * 2) * 0.06;
       boat.rotation.z = Math.sin(this.time * 0.9 + i) * 0.03;
