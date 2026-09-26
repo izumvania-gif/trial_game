@@ -258,6 +258,12 @@ export class DitherRenderer {
       const background = scene.background;
       scene.background = null;
       scene.overrideMaterial = this.normalMaterial;
+      // Motes, sparks and other specks opt out (userData.noOutline): an outline is all that would be left of them.
+      const hidden: THREE.Object3D[] = [];
+      scene.traverseVisible((o) => {
+        if (o.userData.noOutline) hidden.push(o);
+      });
+      for (const o of hidden) o.visible = false;
       // The shadow maps are already up to date for this frame.
       const shadows = this.gl.shadowMap.autoUpdate;
       this.gl.shadowMap.autoUpdate = false;
@@ -266,6 +272,7 @@ export class DitherRenderer {
       this.gl.clear();
       this.gl.render(scene, camera);
       this.gl.shadowMap.autoUpdate = shadows;
+      for (const o of hidden) o.visible = true;
       scene.overrideMaterial = null;
       scene.background = background;
       this.gl.setClearColor(0x000000, 1);

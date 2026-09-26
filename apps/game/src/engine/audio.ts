@@ -37,6 +37,7 @@ const CAPTIONS: Record<string, string> = {
   desk: '[fans humming]',
   rain: '[rain]',
   lyre: '[the lyre]',
+  align: '[the rings lock, and the hall rings with it]',
 };
 
 // The same lyre everywhere, a different piece for each place: see engine/music.ts.
@@ -66,6 +67,8 @@ export class AudioEngine {
   private lastGusts = 0;
   private lastStage = '';
   private seaTimer = 0;
+  /** Water dripping somewhere in the Hall, through its echo. */
+  private dripTimer = 0;
 
   constructor(settings: SettingsStore, onCaption: (text: string) => void) {
     this.settings = settings.value;
@@ -217,6 +220,12 @@ export class AudioEngine {
       : s.stage === 'town' ? (s.place === 'agora' || s.place === 'port' ? s.place : 'streets')
         : s.stage === 'spiral' || s.stage === 'relief' ? 'hall' : null;
     if (theme !== this.theme) this.crossfade(theme);
+    const inHall = s.stage === 'spiral' || s.stage === 'relief';
+    if (inHall && !this.dripTimer) this.scheduleDrip();
+    if (!inHall && this.dripTimer) {
+      window.clearTimeout(this.dripTimer);
+      this.dripTimer = 0;
+    }
     this.detune = Math.max(0, s.progress - 0.75) * 1.6; // up to ~0.4 semitone flat
 
     const gusts = Math.min(3, Math.floor(s.wind * 3 + 1e-9));
@@ -274,6 +283,26 @@ export class AudioEngine {
     if (note.drum) this.drum(v.gain);
     if (note.bass !== null) this.pluck(note.bass - this.detune, piece.volume * 0.9, v.gain);
     if (note.melody !== null) this.pluck(note.melody - this.detune, piece.volume * (note.accent ? 1.35 : 1), v.gain);
+  }
+
+  /** A drop into a pool somewhere in the dark: a short falling blip, through the stone echo. */
+  private scheduleDrip(): void {
+    this.dripTimer = window.setTimeout(() => {
+      if (!this.ctx) return;
+      const t = this.ctx.currentTime;
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      const f = 1400 + Math.random() * 900;
+      o.frequency.setValueAtTime(f, t);
+      o.frequency.exponentialRampToValueAtTime(f * 0.45, t + 0.09);
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.09, t + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+      o.connect(g).connect(this.echo);
+      o.start(t);
+      o.stop(t + 0.15);
+      this.scheduleDrip();
+    }, 1800 + Math.random() * 4200);
   }
 
   /** A hand drum: a short thump of filtered noise. */
@@ -358,6 +387,27 @@ export class AudioEngine {
         src.stop(t + 4);
         break;
       }
+      case 'grind': {
+        // Marble turning on marble: low, rough, short.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 180 + Math.random() * 60;
+        f.Q.value = 3;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.5, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+        src.connect(f).connect(g).connect(this.echo);
+        src.start(t, Math.random());
+        src.stop(t + 0.4);
+        break;
+      }
+      case 'align':
+        // A struck chord that the hall holds.
+        [0, 7, 12, 15, 19].forEach((n, i) => window.setTimeout(() => this.pluck(n - 12, 0.5, this.echo), i * 60));
+        break;
       case 'seam': {
         const o = ctx.createOscillator();
         const g = ctx.createGain();
@@ -386,6 +436,7 @@ export class AudioEngine {
       window.clearTimeout(v.fadeOut);
     }
     window.clearTimeout(this.seaTimer);
+    window.clearTimeout(this.dripTimer);
     void this.ctx?.close();
   }
 }

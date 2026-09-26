@@ -10,6 +10,7 @@ import { registryOverview, registryRow } from '../../ui/Registry.ts';
 import { disposeScene } from '../dispose.ts';
 import { lambert, makeFigure } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
+import { HallDecor } from './hall.ts';
 
 const RINGS = 4;
 const OUTER = 4.6;
@@ -46,6 +47,12 @@ export class SpiralStage implements Stage {
   private diskPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
   private aligned = false;
   private card: HTMLElement;
+  private decor: HallDecor;
+  private spot: THREE.SpotLight;
+  /** 0..1: the flare of light across the stone when the rings line up. */
+  private pulse = 0;
+  private time = 0;
+  private grindAt = 0;
   private cardOpen = false;
 
   constructor(host: StageHost) {
@@ -53,6 +60,7 @@ export class SpiralStage implements Stage {
     this.scene.background = new THREE.Color('#050404');
     this.scene.add(new THREE.AmbientLight('#ffffff', 0.25));
     const spot = new THREE.SpotLight('#ffffff', 220, 30, 0.6, 0.5, 1.4);
+    this.spot = spot;
     spot.position.set(-3, 7, 8);
     spot.castShadow = true;
     spot.shadow.mapSize.set(1024, 1024);
@@ -64,6 +72,7 @@ export class SpiralStage implements Stage {
     floor.receiveShadow = true;
     this.scene.add(floor);
 
+    this.decor = new HallDecor(this.scene);
     this.buildDisk();
     this.seam = this.buildSeam();
     this.scene.add(this.disk);
@@ -161,6 +170,10 @@ export class SpiralStage implements Stage {
 
   update(dt: number): void {
     const { input } = this.host;
+    this.time += dt;
+    this.decor.update(this.time);
+    this.pulse = Math.max(0, this.pulse - dt * 0.6);
+    this.spot.intensity = 220 * (1 + this.pulse * 2.2);
     // Leont can look around a little; he cannot walk away from it.
     const tx = input.mouse.x * 0.12;
     const ty = input.mouse.y * 0.08;
@@ -190,6 +203,7 @@ export class SpiralStage implements Stage {
     if (input.wasClicked()) {
       this.press = { scribe, overSeam };
       this.dragDistance = 0;
+      this.grindAt = 0;
       const r = hit?.length() ?? -1;
       this.dragging = this.aligned || overSeam ? null : this.rings.find((ring) => r >= ring.inner && r <= ring.outer) ?? null;
     }
@@ -197,6 +211,11 @@ export class SpiralStage implements Stage {
     if (this.dragging && input.mouse.buttons & 1) {
       this.dragging.group.rotation.z -= input.mouse.dx * 0.006;
       this.dragDistance += Math.abs(input.mouse.dx) + Math.abs(input.mouse.dy);
+      // Stone on stone, every so often while the ring turns.
+      if (this.dragDistance - this.grindAt > 120) {
+        this.grindAt = this.dragDistance;
+        this.host.sound('grind');
+      }
       this.checkAlignment();
     }
     if (this.press && !(input.mouse.buttons & 1)) {
@@ -238,6 +257,9 @@ export class SpiralStage implements Stage {
     if (Math.abs(diff) > ALIGN_TOLERANCE || this.aligned) return;
     this.aligned = true;
     this.dragging = null;
+    // The light runs across the stone once, and the hall answers with a chord.
+    this.pulse = 1;
+    this.host.sound('align');
     this.snapAligned();
     this.seam.visible = true;
     this.host.interact('spiral_aligned');
