@@ -38,6 +38,7 @@ const CAPTIONS: Record<string, string> = {
   rain: '[rain]',
   lyre: '[the lyre]',
   align: '[the rings lock, and the hall rings with it]',
+  freeze: '[the day sets into stone]',
 };
 
 // The same lyre everywhere, a different piece for each place: see engine/music.ts.
@@ -402,6 +403,27 @@ export class AudioEngine {
         src.connect(f).connect(g).connect(this.echo);
         src.start(t, Math.random());
         src.stop(t + 0.4);
+        break;
+      }
+      case 'freeze': {
+        // The whole day turning into stone: a long grind that sinks, and the spiral taking it.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        src.loop = true;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.Q.value = 2.5;
+        f.frequency.setValueAtTime(420, t);
+        f.frequency.exponentialRampToValueAtTime(90, t + 2.6);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.45, t + 0.3);
+        g.gain.setValueAtTime(0.45, t + 1.8);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 3);
+        src.connect(f).connect(g).connect(this.echo);
+        src.start(t);
+        src.stop(t + 3.1);
+        window.setTimeout(() => this.pluck(-24, 0.6, this.echo), 2700);
         break;
       }
       case 'align':

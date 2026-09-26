@@ -705,6 +705,10 @@ export class Game {
   }
 
   private async resetCycle(reason: 'midnight' | 'song' | 'ending'): Promise<void> {
+    // The last frame of the day, before anything is torn down: it becomes the relief.
+    const scene = this.current.scene;
+    const camera = this.current.camera;
+    const frame = scene && camera ? this.renderer.snapshot(scene, camera) : null;
     this.phase = 'reset';
     this.overlay.classList.remove('raining');
     this.raining = false;
@@ -715,8 +719,10 @@ export class Game {
     this.save.cycle = freshCycle();
     this.persist(false);
     const quiet = reason === 'song' ? 'You play the song. The world folds along a crease it already had.' : undefined;
+    const reported = reportReset();
+    await this.resetScreen.freeze(frame, this.settings.value.reducedMotion, () => this.audio.play('freeze'));
     this.resetScreen.show(null, undefined, quiet);
-    const run = await reportReset();
+    const run = await reported;
     if (run !== null) {
       this.cycleRun = run;
       this.memory.lastCycleRun = run;

@@ -32,7 +32,8 @@ void main() {
   vec3 foam = vec3(0.85, 0.92, 0.90);
   float t = clamp(vHeight * 1.2 + 0.5, 0.0, 1.0);
   vec3 c = mix(deep, shallow, t);
-  float glint = pow(max(0.0, sin(vWorld.x * 1.7 + vWorld.z * 0.6 + time * 1.5 + swell.w)), 24.0);
+  // Glints broken into flecks, not lines: two waves of light that only meet here and there.
+  float glint = pow(max(0.0, sin(vWorld.x * 1.7 + vWorld.z * 0.6 + time * 1.5 + swell.w) * sin(vWorld.x * 0.9 - vWorld.z * 2.3 - time * 1.1)), 10.0);
   c = mix(c, foam, glint * 0.6 + smoothstep(0.45, 0.62, vHeight) * 0.5);
   // alpha 0 = "do not dither me"
   gl_FragColor = vec4(c, 0.0);
@@ -56,8 +57,8 @@ export function makeSeaMaterial(): THREE.ShaderMaterial & { tick(dt: number): vo
   return material;
 }
 
-export function makeSea(size = 200): THREE.Mesh<THREE.PlaneGeometry, ReturnType<typeof makeSeaMaterial>> {
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size, 120, 120), makeSeaMaterial());
+export function makeSea(size = 200, segments = 120): THREE.Mesh<THREE.PlaneGeometry, ReturnType<typeof makeSeaMaterial>> {
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size, segments, segments), makeSeaMaterial());
   mesh.rotation.x = -Math.PI / 2;
   return mesh;
 }

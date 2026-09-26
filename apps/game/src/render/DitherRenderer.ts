@@ -229,6 +229,21 @@ export class DitherRenderer {
     return Math.max(1, Math.floor(window.innerHeight / this.pixelScale));
   }
 
+  /**
+   * This frame, as a small canvas at the dithered resolution. Drawn right after rendering, in
+   * the same task, so the drawing buffer is still there to copy.
+   */
+  snapshot(scene: THREE.Scene, camera: THREE.Camera): HTMLCanvasElement {
+    this.render(scene, camera);
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(window.innerWidth / this.pixelScale));
+    canvas.height = this.lowResHeight;
+    const ctx = canvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this.gl.domElement, 0, 0, canvas.width, canvas.height);
+    return canvas;
+  }
+
   get aspect(): number {
     return window.innerWidth / window.innerHeight;
   }
