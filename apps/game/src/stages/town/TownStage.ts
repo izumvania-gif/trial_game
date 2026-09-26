@@ -27,6 +27,8 @@ interface Interactable {
 
 
 const SPEED = 5.5;
+const SNAP_RIGHT = new THREE.Vector3();
+const SNAP_UP = new THREE.Vector3();
 const PLAYER_RADIUS = 0.4;
 /** How far the player can see a resident well enough for the Book of Strangers. */
 const SEEN_DISTANCE = 11;
@@ -162,16 +164,17 @@ export class TownStage implements Stage {
   /** Pale paving along the street graph, so the city reads as a map. */
   private buildStreets(): void {
     const paving = textured(pavingTexture(), '#f0e2c6');
-    for (const [a, b] of STREET_EDGES) {
+    for (const [i, [a, b]] of STREET_EDGES.entries()) {
       const pa = PLACES[a];
       const pb = PLACES[b];
       const len = Math.hypot(pb.x - pa.x, pb.z - pa.z);
       const geo = new THREE.PlaneGeometry(2.2, len + 2.2);
-      worldUV(geo, 2.2, len + 2.2, 3.2);
+      worldUV(geo, 2.2, len + 2.2, 5.5);
       const strip = new THREE.Mesh(geo, paving);
       strip.rotation.x = -Math.PI / 2;
       strip.rotation.z = -Math.atan2(pb.x - pa.x, pb.z - pa.z);
-      strip.position.set((pa.x + pb.x) / 2, 0.005, (pa.z + pb.z) / 2);
+      // Each strip a hair higher than the last: where two cross, one is always on top, so the crossing never flickers.
+      strip.position.set((pa.x + pb.x) / 2, 0.006 + i * 0.002, (pa.z + pb.z) / 2);
       strip.receiveShadow = true;
       this.scene.add(strip);
     }
@@ -431,7 +434,23 @@ export class TownStage implements Stage {
     const sway = Math.sin(this.time * 0.37) * 0.6 * unease;
     this.camera.position.set(p.x + sway, p.y + THREE.MathUtils.lerp(17, 9.5, u), p.z + THREE.MathUtils.lerp(16, 15, u));
     this.camera.lookAt(p.x, p.y + THREE.MathUtils.lerp(1, 7, u), p.z - THREE.MathUtils.lerp(1, 16, u));
+    this.snapCamera();
     this.camera.rotateZ((Math.sin(this.time * 0.51) * 0.03 + Math.sin(this.time * 1.3) * 0.008) * unease);
+  }
+
+  /**
+   * Moves the camera only in whole steps of the dithered image, measured at the player's distance:
+   * the city then slides by full pixels instead of swimming through the dither pattern.
+   */
+  private snapCamera(): void {
+    const cam = this.camera;
+    const dist = cam.position.distanceTo(this.player.position);
+    const unit = (2 * dist * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2))) / this.host.lowResHeight();
+    const right = SNAP_RIGHT.set(1, 0, 0).applyQuaternion(cam.quaternion);
+    const up = SNAP_UP.set(0, 1, 0).applyQuaternion(cam.quaternion);
+    const r = cam.position.dot(right);
+    const u = cam.position.dot(up);
+    cam.position.addScaledVector(right, Math.round(r / unit) * unit - r).addScaledVector(up, Math.round(u / unit) * unit - u);
   }
 
   private nearest(): Interactable | null {

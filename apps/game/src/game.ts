@@ -181,6 +181,7 @@ export class Game {
       cycle: this.save.cycle,
       overlay: this.overlay,
       aspect: () => this.renderer.aspect,
+      lowResHeight: () => this.renderer.lowResHeight,
       interact: (knot) => this.interact(knot),
       switchStage: (id, entry) => this.switchStage(id, entry),
       prompt: (label) => this.hud.prompt(this.dialogue.open ? null : label),

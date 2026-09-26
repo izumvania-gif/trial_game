@@ -12,6 +12,8 @@ export interface StageHost {
   clock: DayClock;
   knowledge: Knowledge;
   aspect(): number;
+  /** Height of the low-resolution image in pixels: stages snap their cameras to it to stop the dither swimming. */
+  lowResHeight(): number;
   /** Run an ink knot in the dialogue box. */
   interact(knot: string): void;
   switchStage(id: StageId, entry?: string): void;

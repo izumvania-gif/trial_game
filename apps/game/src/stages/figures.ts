@@ -74,15 +74,16 @@ export function pavingTexture(): THREE.CanvasTexture {
   return canvasTexture('paving', 128, (c, s) => {
     c.fillStyle = '#ead6b2';
     c.fillRect(0, 0, s, s);
-    c.fillStyle = '#9c7a58';
+    // Joints wide enough to survive the low resolution as lines rather than breaking into specks.
+    c.fillStyle = '#a3825f';
     let seed = 7;
     const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-    for (let y = 0; y < s; y += 16) {
-      c.fillRect(0, y, s, 2);
-      let x = Math.floor(rnd() * 16);
+    for (let y = 0; y < s; y += 32) {
+      c.fillRect(0, y, s, 4);
+      let x = Math.floor(rnd() * 24);
       while (x < s) {
-        c.fillRect(x, y, 2, 16);
-        x += 14 + Math.floor(rnd() * 22);
+        c.fillRect(x, y, 4, 32);
+        x += 30 + Math.floor(rnd() * 34);
       }
     }
   });
@@ -115,7 +116,7 @@ export function gableRoof(w: number, d: number, h: number, color: string, gableC
   let mat = roofMaterials.get(color);
   if (!mat) {
     const tiles = tileTexture();
-    tiles.repeat.set(0.5, 0.5);
+    tiles.repeat.set(0.34, 0.34);
     mat = textured(tiles, color);
     roofMaterials.set(color, mat);
   }

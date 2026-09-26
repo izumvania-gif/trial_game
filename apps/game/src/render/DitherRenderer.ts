@@ -224,6 +224,11 @@ export class DitherRenderer {
     } else this.slowSince = null;
   }
 
+  /** Rows of the dithered image: one of them is one 'pixel' of the look. */
+  get lowResHeight(): number {
+    return Math.max(1, Math.floor(window.innerHeight / this.pixelScale));
+  }
+
   get aspect(): number {
     return window.innerWidth / window.innerHeight;
   }
