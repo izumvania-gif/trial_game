@@ -98,6 +98,7 @@ export class TownStage implements Stage {
     // A worn mask shows on the figure: a pale face on a black silhouette.
     this.mask.position.set(0, 1.47, 0.2);
     this.player.add(this.mask);
+    this.addXray();
     this.scene.add(this.player);
     this.marker.scale.set(1, 1.6, 1);
     this.marker.visible = false;
@@ -337,6 +338,31 @@ export class TownStage implements Stage {
       const a = amphora();
       a.position.set(x, 0, z);
       this.scene.add(a);
+    }
+  }
+
+  /**
+   * When a roof or a wall stands between the camera and the scribe, his silhouette shows through
+   * it in pale bone: a copy of the figure drawn only where something nearer already covers it.
+   */
+  private addXray(): void {
+    // Pulled a little towards the camera before the depth test, so the figure never shows through itself.
+    const ghost = new THREE.ShaderMaterial({
+      uniforms: { color: { value: new THREE.Color('#e8e2d0') } },
+      vertexShader: 'void main() { vec4 mv = modelViewMatrix * vec4(position, 1.0); mv.z += 0.7; gl_Position = projectionMatrix * mv; }',
+      fragmentShader: 'uniform vec3 color; void main() { gl_FragColor = vec4(color, 1.0); }',
+      depthFunc: THREE.GreaterDepth,
+      depthWrite: false,
+    });
+    for (const part of [...this.player.children]) {
+      if (!(part instanceof THREE.Mesh) || part === this.mask) continue;
+      const copy = new THREE.Mesh(part.geometry, ghost);
+      copy.position.copy(part.position);
+      copy.rotation.copy(part.rotation);
+      copy.scale.copy(part.scale);
+      // After everything else, so the depth it compares against is the finished city.
+      copy.renderOrder = 10;
+      this.player.add(copy);
     }
   }
 
