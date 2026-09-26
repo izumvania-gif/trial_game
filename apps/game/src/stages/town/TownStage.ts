@@ -11,6 +11,7 @@ import { disposeScene } from '../dispose.ts';
 import { amphora, bob, cypress, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import type { Stage, StageHost } from '../types.ts';
 import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
+import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 
 interface Interactable {
   x: number;
@@ -63,7 +64,13 @@ export class TownStage implements Stage {
   private sun = new THREE.DirectionalLight('#fff4dc', 2.2);
   private sky = new THREE.HemisphereLight('#f4ead0', '#5a3520', 0.9);
   private sea = makeSea(220);
-  private cloud = new THREE.Group();
+  private storm!: StormFace;
+  private mountainLights!: MountainLights;
+  private crowd!: Crowd;
+  private dust!: Dust;
+  /** 0..1: late at night the camera lifts its eyes to the mountain and the thing over it. */
+  private lookUp = 0;
+  private dusk = 0;
   private npcs: Npc[] = [];
   private glaucusX = 0;
   private torches!: Torches;
@@ -100,6 +107,8 @@ export class TownStage implements Stage {
       this.scene.add(figure);
       this.npcs.push({ resident, figure });
     }
+    this.crowd = new Crowd(this.scene, host.patches());
+    this.dust = new Dust(this.scene);
     // Glaucus is of the sea: where he stands along the shore is decided by real chance, not the seed.
     this.glaucusX = -12 + seaRandom() * 24;
   }
@@ -353,26 +362,9 @@ export class TownStage implements Stage {
     const mountain = new THREE.Mesh(new THREE.ConeGeometry(30, 34, 7), lambert('#8a5a3c'));
     mountain.position.set(-6, 17, -78);
     this.scene.add(mountain);
-    // The storm that ends the age gathers over the holy mountain and sinks as midnight nears.
-    const dark = lambert('#2a2320');
-    const rand = seededRng(daySeed('eferon/cloud'));
-    for (let i = 0; i < 9; i++) {
-      const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(4 + rand() * 4, 0), dark);
-      puff.position.set((rand() - 0.5) * 26, (rand() - 0.5) * 5, (rand() - 0.5) * 8);
-      this.cloud.add(puff);
-    }
-    // It has a face. Nobody in Eferon mentions it. (Unless the Curator patched the eyes out.)
-    if (this.host.patches().includes('cloud_smooth')) {
-      this.scene.add(this.cloud);
-      return;
-    }
-    const eyeMat = new THREE.MeshBasicMaterial({ color: '#f5e9c8' });
-    for (const x of [-3.2, 3.2]) {
-      const eye = new THREE.Mesh(new THREE.IcosahedronGeometry(1.1, 0), eyeMat);
-      eye.position.set(x, 1, 7.5);
-      this.cloud.add(eye);
-    }
-    this.scene.add(this.cloud);
+    this.mountainLights = new MountainLights(this.scene, { x: -6, z: -78, radius: 30, height: 34 });
+    // The storm that ends the age has a face. Nobody in Eferon mentions it. (Unless the Curator patched the eyes out.)
+    this.storm = new StormFace(this.scene, this.host.patches().includes('cloud_smooth'));
   }
 
   enter(entry?: string): void {
@@ -420,9 +412,11 @@ export class TownStage implements Stage {
     }
     if (near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) this.host.interact(near.knot);
 
+    this.crowd.update(clock.minute, this.time, this.dusk);
     const p = this.player.position;
-    this.camera.position.set(p.x, p.y + 17, p.z + 16);
-    this.camera.lookAt(p.x, p.y + 1, p.z - 1);
+    const u = this.lookUp;
+    this.camera.position.set(p.x, p.y + THREE.MathUtils.lerp(17, 9.5, u), p.z + THREE.MathUtils.lerp(16, 15, u));
+    this.camera.lookAt(p.x, p.y + THREE.MathUtils.lerp(1, 7, u), p.z - THREE.MathUtils.lerp(1, 16, u));
   }
 
   private nearest(): Interactable | null {
@@ -514,12 +508,18 @@ export class TownStage implements Stage {
     this.scene.fog!.color.copy(bg);
     // Lamps come on in the windows and the torches are lit as the sun goes.
     const dusk = THREE.MathUtils.smoothstep(progress, 0.68, 0.8);
+    this.dusk = dusk;
     this.windowLit.emissiveIntensity = dusk * 1.6;
-    this.torches.update(this.time, dusk);
+    // The last hours: gusts off the mountain (sooner if the player has raised the wind), and eyes up.
+    const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);
+    this.torches.update(this.time, dusk, gust);
+    this.dust.update(this.time, gust, this.player.position);
+    this.lookUp = THREE.MathUtils.smoothstep(progress, 0.8, 0.95);
+    this.mountainLights.update(progress, this.time);
+    this.storm.update(progress, this.player.position);
     for (const [i, boat] of this.boats.entries()) {
       boat.position.y = (boat.userData.baseY as number) + Math.sin(this.time * 1.3 + i * 2) * 0.06;
       boat.rotation.z = Math.sin(this.time * 0.9 + i) * 0.03;
     }
-    this.cloud.position.set(-6, THREE.MathUtils.lerp(58, 22, progress), THREE.MathUtils.lerp(-70, -40, progress * progress));
   }
 }

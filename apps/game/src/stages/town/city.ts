@@ -160,10 +160,12 @@ export class Torches {
     });
   }
 
-  /** `lit` 0..1: dusk to night. The flicker is a fixed function of time, not chance. */
-  update(time: number, lit: number): void {
+  /** `lit` 0..1: dusk to night; `gust` makes them gutter. The flicker is a fixed function of time, not chance. */
+  update(time: number, lit: number, gust = 0): void {
     this.flames.forEach((flame, i) => {
-      const flicker = 0.82 + 0.18 * Math.sin(time * 11 + i * 1.7) * Math.sin(time * 6.3 + i * 2.9);
+      const amp = 0.18 + 0.35 * gust;
+      const flicker = 1 - amp + amp * Math.sin(time * (11 + 8 * gust) + i * 1.7) * Math.sin(time * 6.3 + i * 2.9);
+      flame.rotation.z = gust * 0.5 * Math.sin(time * 7 + i);
       flame.visible = lit > 0.02;
       flame.scale.set(1, 0.85 + 0.3 * flicker, 1);
       this.lights[i]!.intensity = lit * 22 * flicker;
