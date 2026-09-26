@@ -1,0 +1,12 @@
+# Amvera deploy config: build from the Dockerfile, keep the SQLite database on the persistent /data mount.
+meta:
+  environment: docker
+  toolchain:
+    name: docker
+    version: latest
+build:
+  dockerfile: Dockerfile
+  skip: false
+run:
+  persistenceMount: /data
+  containerPort: 3000
