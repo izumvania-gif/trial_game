@@ -6,6 +6,7 @@
 // With captions on, meaningful sounds are also written out: "[the wind rises]".
 import { seaRandom } from '../core/rng.ts';
 import type { Settings, SettingsStore } from '../core/settings.ts';
+import { Ambient } from './ambient.ts';
 import { noteAt, PIECES, type Piece } from './music.ts';
 
 /** Seconds for a place's tune to fade out, and for the next to come in. */
@@ -39,6 +40,11 @@ const CAPTIONS: Record<string, string> = {
   lyre: '[the lyre]',
   align: '[the rings lock, and the hall rings with it]',
   freeze: '[the day sets into stone]',
+  rooster: '[a rooster, far off]',
+  dog: '[a dog barks across the roofs]',
+  ticket: '[a soft chime: a new ticket]',
+  descend: '[steps going down into the cold]',
+  ascend: '[steps, and the city again]',
 };
 
 // The same lyre everywhere, a different piece for each place: see engine/music.ts.
@@ -70,6 +76,7 @@ export class AudioEngine {
   private seaTimer = 0;
   /** Water dripping somewhere in the Hall, through its echo. */
   private dripTimer = 0;
+  private ambient: Ambient | null = null;
 
   constructor(settings: SettingsStore, onCaption: (text: string) => void) {
     this.settings = settings.value;
@@ -168,6 +175,8 @@ export class AudioEngine {
     this.echo.connect(delay);
     delay.connect(dark).connect(feedback).connect(delay);
     dark.connect(this.music);
+
+    this.ambient = new Ambient(ctx, this.noise, this.sfx, (id) => this.caption(id));
   }
 
   private loopNoise(): AudioBufferSourceNode {
@@ -206,7 +215,7 @@ export class AudioEngine {
   update(s: AudioState): void {
     if (!this.ctx) return;
     const t = this.ctx.currentTime;
-    const inWorld = s.stage === 'town' || s.stage === 'spiral' || s.stage === 'strikes' || s.stage === 'relief';
+    const inWorld = s.stage === 'town' || s.stage === 'spiral' || s.stage === 'strikes' || s.stage === 'relief' || s.stage === 'board';
     const outside = s.stage === 'town' || s.stage === 'sea';
     // Wind: calm at dawn, rising towards midnight, stronger with every gust of attention.
     const windLevel = outside ? 0.05 + s.progress * 0.25 + s.wind * 0.35 : inWorld ? 0.04 : 0;
@@ -221,6 +230,7 @@ export class AudioEngine {
       : s.stage === 'town' ? (s.place === 'agora' || s.place === 'port' ? s.place : 'streets')
         : s.stage === 'spiral' || s.stage === 'relief' ? 'hall' : null;
     if (theme !== this.theme) this.crossfade(theme);
+    this.ambient?.update({ active: s.stage === 'town' && !s.raining, progress: s.progress, place: s.place, sea: s.sea });
     const inHall = s.stage === 'spiral' || s.stage === 'relief';
     if (inHall && !this.dripTimer) this.scheduleDrip();
     if (!inHall && this.dripTimer) {
@@ -383,9 +393,81 @@ export class AudioEngine {
         const g = ctx.createGain();
         g.gain.setValueAtTime(id === 'strike' ? 0.9 : 0.7, t);
         g.gain.exponentialRampToValueAtTime(0.001, t + (id === 'strike' ? 0.8 : 3.5));
-        src.connect(f).connect(g).connect(this.sfx);
+        // The blow goes straight out; everything else drops away after it and comes back slowly.
+        src.connect(f).connect(g).connect(id === 'strike' ? this.master : this.sfx);
         src.start(t, Math.random());
         src.stop(t + 4);
+        if (id === 'strike') this.hush(2.4);
+        break;
+      }
+      case 'crack': {
+        // Something small breaking: a dry snap and a trickle of grit.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'highpass';
+        f.frequency.value = 1800;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.4, t);
+        g.gain.exponentialRampToValueAtTime(0.02, t + 0.05);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+        src.connect(f).connect(g).connect(this.master);
+        src.start(t, Math.random());
+        src.stop(t + 0.8);
+        break;
+      }
+      case 'descend':
+      case 'ascend':
+        // Footsteps on stone stairs: going down, each one has more echo and less of the street.
+        for (let i = 0; i < 6; i++) {
+          const at = t + i * 0.27;
+          const k = id === 'descend' ? i / 5 : 1 - i / 5;
+          const src = ctx.createBufferSource();
+          src.buffer = this.noise;
+          const f = ctx.createBiquadFilter();
+          f.type = 'lowpass';
+          f.frequency.value = 380 - k * 120;
+          const dry = ctx.createGain();
+          dry.gain.setValueAtTime(0.35 * (1 - k * 0.6), at);
+          dry.gain.exponentialRampToValueAtTime(0.0001, at + 0.09);
+          const wet = ctx.createGain();
+          wet.gain.setValueAtTime(0.3 * k, at);
+          wet.gain.exponentialRampToValueAtTime(0.0001, at + 0.09);
+          src.connect(f);
+          f.connect(dry).connect(this.sfx);
+          f.connect(wet).connect(this.echo);
+          src.start(at, Math.random());
+          src.stop(at + 0.1);
+        }
+        break;
+      case 'ticket':
+        // The office chime: two soft sine notes, a little too clean.
+        [880, 1320].forEach((fr, i) => {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          const at = t + i * 0.12;
+          o.frequency.value = fr;
+          g.gain.setValueAtTime(0.0001, at);
+          g.gain.exponentialRampToValueAtTime(0.06, at + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, at + 0.5);
+          o.connect(g).connect(this.sfx);
+          o.start(at);
+          o.stop(at + 0.55);
+        });
+        break;
+      case 'key': {
+        // A keystroke somewhere in the office.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 2500 + Math.random() * 1500;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.06, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03);
+        src.connect(f).connect(g).connect(this.sfx);
+        src.start(t, Math.random());
+        src.stop(t + 0.04);
         break;
       }
       case 'grind': {
@@ -448,6 +530,17 @@ export class AudioEngine {
     this.caption(id);
   }
 
+  /** The world goes quiet for a moment (music and sounds), then comes back. */
+  private hush(seconds: number): void {
+    if (!this.ctx) return;
+    const t = this.ctx.currentTime;
+    for (const [bus, level] of [[this.music, this.settings.music * 0.5], [this.sfx, this.settings.sfx]] as const) {
+      bus.gain.cancelScheduledValues(t);
+      bus.gain.setTargetAtTime(0, t + 0.15, 0.08);
+      bus.gain.setTargetAtTime(level, t + seconds, seconds / 3);
+    }
+  }
+
   caption(id: string): void {
     if (this.settings.subtitles && CAPTIONS[id]) this.onCaption(CAPTIONS[id]!);
   }
@@ -459,6 +552,7 @@ export class AudioEngine {
     }
     window.clearTimeout(this.seaTimer);
     window.clearTimeout(this.dripTimer);
+    this.ambient?.stop();
     void this.ctx?.close();
   }
 }

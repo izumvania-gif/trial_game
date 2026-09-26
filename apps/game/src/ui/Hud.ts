@@ -4,6 +4,7 @@ import { sundialHour, type DayClock } from '../core/clock.ts';
 import type { Fact } from '../core/knowledge.ts';
 import { h } from './dom.ts';
 import { keyLine } from './keys.ts';
+import type { Mechanic } from '../core/types.ts';
 
 const RING_R = 34;
 const RING_LEN = 2 * Math.PI * RING_R;
@@ -150,8 +151,52 @@ export class Hud {
     this.maskEl.hidden = !mask;
   }
 
+  /**
+   * A tool the strikes took, breaking in front of the player: the clock itself cracks in two
+   * and falls; the others appear as their key, and break.
+   */
+  shatter(m: Mechanic): void {
+    const parent = this.root.parentElement;
+    if (!parent) return;
+    const box = h('div', { className: 'shatter' });
+    let source: HTMLElement;
+    if (m === 'clock' && !this.root.hidden && !this.clockEl.hidden) {
+      source = this.clockEl.cloneNode(true) as HTMLElement;
+      const r = this.clockEl.getBoundingClientRect();
+      Object.assign(box.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    } else {
+      source = h('div', { className: 'shatter-chip' }, ...keyLine(LOST_LABEL[m]));
+      box.classList.add('center');
+      // An invisible copy gives the box its size; the halves lie over it.
+      const sizer = source.cloneNode(true) as HTMLElement;
+      sizer.style.visibility = 'hidden';
+      box.append(sizer);
+    }
+    for (const side of ['left', 'right']) {
+      const half = h('div', { className: `shatter-half ${side}` });
+      half.append(source.cloneNode(true));
+      box.append(half);
+    }
+    for (let i = 0; i < 8; i++) {
+      const grit = h('span', { className: 'grit' });
+      grit.style.setProperty('--gx', `${Math.round((i - 3.5) * 9)}px`);
+      grit.style.animationDelay = `${0.55 + i * 0.03}s`;
+      box.append(grit);
+    }
+    parent.append(box);
+    window.setTimeout(() => box.remove(), 2400);
+  }
+
   /** The strikes take the clock away. */
   setClockVisible(visible: boolean): void {
     this.clockEl.hidden = !visible;
   }
 }
+
+const LOST_LABEL: Record<Mechanic, string> = {
+  schedules: 'B — the Book of Strangers',
+  clock: 'the clock',
+  dejavu: 'F — déjà vu',
+  masks: 'M — masks',
+  chronicle: 'C — the chronicle',
+};

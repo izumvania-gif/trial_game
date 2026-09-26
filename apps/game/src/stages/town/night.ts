@@ -43,10 +43,23 @@ export class Crowd {
     for (const l of this.lights) scene.add(l);
   }
 
-  update(minute: number, time: number, lit: number): void {
+  /** `stutter`: the visible person nearest (x, z) is shown at `minute` instead: the same steps, again. */
+  update(minute: number, time: number, lit: number, stutter?: { x: number; z: number; minute: number }): void {
     let lightIndex = 0;
+    let stuck: Extra | null = null;
+    if (stutter) {
+      let best = 30;
+      for (const { extra } of this.people) {
+        const s = extraAt(extra, minute);
+        const d = Math.hypot(s.x - stutter.x, s.z - stutter.z);
+        if (s.visible && d < best) {
+          best = d;
+          stuck = extra;
+        }
+      }
+    }
     for (const { extra, figure, torch } of this.people) {
-      const s = extraAt(extra, minute);
+      const s = extraAt(extra, extra === stuck && stutter ? stutter.minute : minute);
       figure.visible = s.visible;
       if (!s.visible) continue;
       figure.position.set(s.x, 0, s.z);

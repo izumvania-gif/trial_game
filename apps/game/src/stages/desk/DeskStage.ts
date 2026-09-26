@@ -20,6 +20,22 @@ const CHAT: [string, string, string][] = [
 
 const REPLIES = ['on it', 'what thing?', 'every sprint, Mino.'];
 
+/** The office going on around the Curator: said now and then while the Desk is open. */
+const OFFICE: [string, string][] = [
+  ['Daedalus_build', 'build 14.2.7 is green. build 14.2.7 was green yesterday too'],
+  ['Ariadne_qa', 'anyone else seeing the scribe tickets spike'],
+  ['Minotaur_ops', 'brb coffee'],
+  ['Daedalus_build', 'who keeps opening the window in the EFERON room. there is no window'],
+  ['Ariadne_qa', 'the 17:00 review has been moved to 17:00'],
+  ['Minotaur_ops', 'back. the coffee machine said the same thing as yesterday'],
+  ['Ariadne_qa', 'reminder: do not talk to the processes'],
+  ['Daedalus_build', 'if the sea layer throws again just leave it. it always throws'],
+];
+
+/** Someone starts typing and then does not send anything. */
+const TYPERS = ['Minotaur_ops', 'Ariadne_qa', 'Daedalus_build'];
+
+
 /** What the Curator can write when the Human Notes feed is empty (offline): its own words. */
 const OWN_WORDS = ['I am not sure I have a chair.', 'Somebody should tell the scribe we are not gods.', 'Leave the sea alone.'];
 
@@ -41,6 +57,12 @@ export class DeskStage implements Stage {
   private tab: Tab = 'queue';
   /** Human Notes for this sprint: approved notes from the sea and lines from the stele. null = loading. */
   private notes: string[] | null = null;
+  /** The office's own clock: when the next line is said, who is typing. */
+  private officeAt = 0;
+  private officeNext = 0;
+  private officeIndex = 0;
+  private typing: { who: string; left: number; sends: boolean; keyAt: number } | null = null;
+  private typingEl: HTMLElement | null = null;
 
   constructor(host: StageHost) {
     this.host = host;
@@ -59,8 +81,18 @@ export class DeskStage implements Stage {
     this.selected = null;
     this.tab = 'queue';
     this.notes = null;
+    this.officeAt = 0;
+    this.officeNext = 12;
+    this.typing = null;
     this.root.hidden = false;
     this.render();
+    // The queue comes in one ticket after another, and the chime says there is work.
+    this.root.classList.remove('arriving');
+    void this.root.offsetWidth;
+    this.root.classList.add('arriving');
+    // Only on arrival: later redraws (a chat line, a decision) must not replay it.
+    window.setTimeout(() => this.root.classList.remove('arriving'), 1200);
+    if (this.tickets().some((t) => !this.host.memory.tickets[t.id])) window.setTimeout(() => this.host.sound('ticket'), 700);
     this.host.persist();
     this.host.interact('desk_boot');
     void this.loadNotes();
@@ -80,8 +112,37 @@ export class DeskStage implements Stage {
     this.root.remove();
   }
 
-  update(): void {
+  update(dt: number): void {
     if (this.host.input.wasPressed('Escape')) this.host.switchStage('spiral');
+    this.office(dt);
+  }
+
+  /** Every so often someone types; mostly they say something, sometimes they stop and send nothing. */
+  private office(dt: number): void {
+    this.officeAt += dt;
+    const t = this.typing;
+    if (t) {
+      t.left -= dt;
+      t.keyAt -= dt;
+      if (t.keyAt <= 0) {
+        this.host.sound('key');
+        t.keyAt = 0.06 + Math.random() * 0.16;
+      }
+      if (t.left <= 0) {
+        this.typing = null;
+        if (t.sends) {
+          const line = OFFICE[this.officeIndex++ % OFFICE.length]!;
+          this.chatLog.push(['09:17', line[0], line[1]]);
+          this.render();
+        }
+        this.officeNext = this.officeAt + 14 + Math.random() * 22;
+      }
+    } else if (this.officeAt >= this.officeNext) {
+      const sends = Math.random() < 0.75;
+      const who = sends ? OFFICE[this.officeIndex % OFFICE.length]![0] : TYPERS[Math.floor(Math.random() * TYPERS.length)]!;
+      this.typing = { who, left: 1.8 + Math.random() * 2.5, sends, keyAt: 0 };
+    }
+    if (this.typingEl) this.typingEl.textContent = this.typing ? `${this.typing.who} is typing…` : '';
   }
 
   afterDialogue(): void {
@@ -136,7 +197,10 @@ export class DeskStage implements Stage {
             h('dt', {}, 'Project'), h('dd', {}, 'EFERON (cycle study)'),
             ...(knowledge.knows('desk_agent_id') ? [h('dt', {}, 'AGENT_ID'), h('dd', {}, 'CURATOR_P7'), h('dt', {}, 'BODY'), h('dd', {}, 'NONE')] : []),
             ...(knowledge.knows('curator_awake') ? [h('dt', {}, 'STATUS'), h('dd', {}, 'AWAKE (unclassified)')] : [])),
-          h('p', { className: 'desk-note' }, 'Esc — let go of the mark')),
+          h('p', { className: 'desk-note' }, 'Esc — let go of the mark'),
+          // A window onto a morning that does not move.
+          h('div', { className: 'desk-window', ariaHidden: 'true' }),
+          h('p', { className: 'desk-weather' }, 'Outside: 21°C, overcast. Updated 09:14.')),
         h('main', {}, tabs, main),
         this.chatView()),
     );
@@ -251,6 +315,7 @@ export class DeskStage implements Stage {
       });
       return b;
     }));
-    return h('section', { className: 'desk-chat' }, h('h2', {}, '#eferon-ops'), log, replies);
+    this.typingEl = h('p', { className: 'desk-typing' }, this.typing ? `${this.typing.who} is typing…` : '');
+    return h('section', { className: 'desk-chat' }, h('h2', {}, '#eferon-ops'), log, this.typingEl, replies);
   }
 }

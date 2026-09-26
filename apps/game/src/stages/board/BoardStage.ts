@@ -16,6 +16,8 @@ const STEP_SECONDS = 0.7;
 /** The Curator's half of the night always lasts this many turns, however quickly Eferon's half ends. */
 const NIGHT_TURNS = 7;
 
+const BOARD_BACK = new THREE.Color('#1c1511');
+
 const tileToWorld = ([c, r]: Tile) => new THREE.Vector3((c - (COLS - 1) / 2) * TILE, 0, (r - (ROWS - 1) / 2) * TILE);
 
 
@@ -46,6 +48,15 @@ export class BoardStage implements Stage {
   /** Night turn waiting for the Curator's move (playback pauses on it). */
   private awaitingCurator = false;
   private turn = 0;
+  /** The painted board, darkening as the night is played. */
+  private boardMat!: THREE.MeshBasicMaterial;
+  private dark = 0;
+  private time = 0;
+  private torches: THREE.Mesh[] = [];
+  private candle!: THREE.Group;
+  private candleWax!: THREE.Mesh;
+  private candleFlame!: THREE.Mesh;
+  private candleLight = new THREE.PointLight('#ffd08a', 0, 12, 1.2);
 
   constructor(host: StageHost) {
     this.host = host;
@@ -103,7 +114,8 @@ export class BoardStage implements Stage {
     const tex = new THREE.CanvasTexture(canvas);
     tex.magFilter = THREE.NearestFilter;
     // Unlit, so the painted colors land exactly on the palette and the labels stay crisp.
-    const board = new THREE.Mesh(new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE), new THREE.MeshBasicMaterial({ map: tex }));
+    this.boardMat = new THREE.MeshBasicMaterial({ map: tex });
+    const board = new THREE.Mesh(new THREE.PlaneGeometry(COLS * TILE, ROWS * TILE), this.boardMat);
     board.rotation.x = -Math.PI / 2;
     s.add(board);
     this.buildLandmarks();
@@ -129,9 +141,26 @@ export class BoardStage implements Stage {
       route.add(head);
       const fig = makeFigure(enemy.id.startsWith('guard') ? '#3a2414' : '#0d0b09', 1.3);
       fig.position.copy(tileToWorld(enemy.path[0]!));
+      // Each of them carries a torch through the night.
+      const torch = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.45, 5), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+      torch.position.set(0.32, 1.35, 0);
+      torch.visible = false;
+      fig.add(torch);
+      this.torches.push(torch);
       s.add(fig);
       this.enemyFigures.set(enemy.id, fig);
     }
+    // A candle at the corner of the board burns down while the night is played.
+    this.candle = new THREE.Group();
+    this.candleWax = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 1.6, 8), lambert('#efe6cf'));
+    this.candleWax.geometry.translate(0, 0.8, 0);
+    const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.5, 0.12, 10), lambert('#3a2414'));
+    this.candleFlame = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.42, 6), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
+    this.candle.add(dish, this.candleWax, this.candleFlame, this.candleLight);
+    this.candle.position.set((COLS / 2) * TILE - 1.2, 0, (ROWS / 2) * TILE + 1.1);
+    this.candle.traverse((o) => (o.castShadow = true));
+    s.add(this.candle);
+
     for (const id of ['kora', 'aristion', 'eion', 'talia'] as AllyId[]) {
       const fig = makeFigure('#f2ead6', 1.4);
       fig.visible = false;
@@ -226,6 +255,7 @@ export class BoardStage implements Stage {
   update(dt: number): void {
     const { input } = this.host;
     this.sea?.material.tick(dt);
+    this.night(dt);
     if (this.playback) return this.play(dt);
     if (this.result) return;
     const tile = this.tileUnderMouse();
@@ -240,6 +270,30 @@ export class BoardStage implements Stage {
         this.renderPanel();
       }
     }
+  }
+
+  /** While the night plays, the map darkens, the torches are lit and the candle burns down. */
+  private night(dt: number): void {
+    this.time += dt;
+    const playing = this.playback !== null;
+    const target = playing ? 1 : this.result ? 0.6 : 0;
+    this.dark += (target - this.dark) * Math.min(1, dt * 1.5);
+    this.boardMat.color.setScalar(1 - this.dark * 0.3);
+    (this.scene.background as THREE.Color).copy(BOARD_BACK).multiplyScalar(1 - this.dark * 0.6);
+    const flicker = 0.8 + 0.2 * Math.sin(this.time * 11) * Math.sin(this.time * 7.3);
+    for (const t of this.torches) {
+      t.visible = this.dark > 0.3;
+      t.scale.y = flicker + 0.15 * Math.sin(this.time * 13 + t.id);
+    }
+    // How much of the night is gone: the candle's wax.
+    const pb = this.playback;
+    const burnt = pb ? Math.min(1, pb.t / Math.max(1, pb.turns.length)) : this.result ? 1 : 0;
+    const height = 1 - burnt * 0.8;
+    this.candleWax.scale.y = height;
+    this.candleFlame.position.y = 1.6 * height + 0.25;
+    this.candleFlame.scale.set(1, flicker * 1.1, 1);
+    this.candleLight.position.y = 1.6 * height + 0.5;
+    this.candleLight.intensity = (3 + this.dark * 9) * flicker;
   }
 
   private tileUnderMouse(): Tile | null {

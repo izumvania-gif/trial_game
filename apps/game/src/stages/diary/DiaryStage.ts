@@ -16,6 +16,9 @@ export class DiaryStage implements Stage {
   private host: StageHost;
   private root = h('section', { className: 'diary', hidden: true });
   private washedUp: string | null = null;
+  private lightCheck = 0;
+  /** The entry just written: its ink is still settling. */
+  private fresh = -1;
 
   constructor(host: StageHost) {
     this.host = host;
@@ -24,6 +27,7 @@ export class DiaryStage implements Stage {
 
   enter(): void {
     this.root.hidden = false;
+    this.light();
     this.render();
     void fetchNotes().then((notes) => {
       // The sea brings one line, sometimes. Which one is up to the sea.
@@ -40,7 +44,21 @@ export class DiaryStage implements Stage {
     this.root.remove();
   }
 
-  update(): void {}
+  update(dt: number): void {
+    // The page is lit by the reader's own day: checked once a minute.
+    this.lightCheck += dt;
+    if (this.lightCheck > 60) {
+      this.lightCheck = 0;
+      this.light();
+    }
+  }
+
+  /** Morning, day, evening or night, by this computer's clock. */
+  private light(): void {
+    const hour = new Date().getHours();
+    const time = hour >= 5 && hour < 9 ? 'dawn' : hour >= 9 && hour < 17 ? 'day' : hour >= 17 && hour < 21 ? 'dusk' : 'night';
+    this.root.dataset.light = time;
+  }
 
   private render(): void {
     const ep = this.host.memory.epilogue;
@@ -58,7 +76,8 @@ export class DiaryStage implements Stage {
 
     const stamp = (day: number) => (prophet ? h('span', { className: 'diary-date' }, `the ${ordinal(day + 1)} day after the night`) : '');
     const entries = h('ol', { className: 'diary-entries' },
-      ...ep.entries.map((e) => h('li', {}, stamp(e.day), e.text)));
+      ...ep.entries.map((e, i) => h('li', { className: i === this.fresh ? 'fresh' : '' }, stamp(e.day), e.text)));
+    this.fresh = -1;
 
     const children: (Node | string)[] = [
       h('p', { className: 'diary-event' }, dayEvent(today, today * 7 + ep.entries.length)),
@@ -79,6 +98,7 @@ export class DiaryStage implements Stage {
           return;
         }
         ep.entries.push({ day: today, text });
+        this.fresh = ep.entries.length - 1;
         this.host.persist();
         if (toSea.checked) await postNote(text);
         this.render();

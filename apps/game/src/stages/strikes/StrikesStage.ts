@@ -33,6 +33,9 @@ export class StrikesStage implements Stage {
   private caption = h('div', { className: 'strike-caption' });
   private carry: { left: number; button: HTMLButtonElement } | null = null;
   private fire = new THREE.PointLight('#ffffff', 0, 20);
+  /** Marble chips knocked off by the blows. */
+  private chips: { mesh: THREE.Mesh; v: THREE.Vector3; spin: THREE.Vector3; life: number }[] = [];
+  private crackMat = lambert('#0d0b09');
 
   constructor(host: StageHost) {
     this.host = host;
@@ -45,7 +48,8 @@ export class StrikesStage implements Stage {
     this.scene.add(spot, spot.target);
     this.fire.position.set(0, -3, 3);
     this.scene.add(this.fire);
-    const marble = lambert('#efe9dc');
+    // The spiral's turns cut into the stone, so the ages read as one carving before they break.
+    const marble = new THREE.MeshLambertMaterial({ color: '#efe9dc', map: spiralGrooves(), flatShading: true });
     for (let i = 0; i < AGES.length; i++) {
       const wedge = new THREE.Mesh(new THREE.CircleGeometry(4.6, 16, (i / 5) * Math.PI * 2 + 0.02, (Math.PI * 2) / 5 - 0.04), marble.clone());
       wedge.userData.age = i;
@@ -53,6 +57,47 @@ export class StrikesStage implements Stage {
       this.sectors.push(wedge);
     }
     this.camera.position.set(0, 0, 12);
+    const chipGeo = new THREE.TetrahedronGeometry(0.12, 0);
+    for (let i = 0; i < 48; i++) {
+      const mesh = new THREE.Mesh(chipGeo, marble);
+      mesh.visible = false;
+      this.scene.add(mesh);
+      this.chips.push({ mesh, v: new THREE.Vector3(), spin: new THREE.Vector3(), life: 0 });
+    }
+  }
+
+  /** A crack from where the staff landed: a few jagged runs of dark line, part of the wedge now. */
+  private crack(wedge: THREE.Mesh, at: THREE.Vector3, blow: number): void {
+    const local = wedge.worldToLocal(at.clone());
+    const runs = 3 + blow;
+    for (let r = 0; r < runs; r++) {
+      let a = (r / runs) * Math.PI * 2 + Math.random() * 0.8;
+      const p = new THREE.Vector2(local.x, local.y);
+      for (let k = 0; k < 4; k++) {
+        const len = 0.25 + Math.random() * 0.45;
+        a += (Math.random() - 0.5) * 1.1;
+        const q = p.clone().add(new THREE.Vector2(Math.cos(a), Math.sin(a)).multiplyScalar(len));
+        const seg = new THREE.Mesh(new THREE.BoxGeometry(len, 0.045, 0.02), this.crackMat);
+        seg.position.set((p.x + q.x) / 2, (p.y + q.y) / 2, 0.02);
+        seg.rotation.z = a;
+        wedge.add(seg);
+        p.copy(q);
+      }
+    }
+  }
+
+  /** Chips fly out of the blow and fall. */
+  private burst(at: THREE.Vector3, count: number): void {
+    let n = 0;
+    for (const c of this.chips) {
+      if (c.life > 0) continue;
+      c.mesh.position.copy(at).setZ(0.3);
+      c.v.set((Math.random() - 0.5) * 7, Math.random() * 5 + 1, Math.random() * 4 + 1);
+      c.spin.set(Math.random() * 12, Math.random() * 12, Math.random() * 12);
+      c.life = 1.6;
+      c.mesh.visible = true;
+      if (++n >= count) break;
+    }
   }
 
   private strikesNeeded(): number {
@@ -65,8 +110,13 @@ export class StrikesStage implements Stage {
     this.hits = AGES.map(() => 0);
     for (const s of this.sectors) {
       s.visible = true;
+      s.userData.falling = false;
       s.position.set(0, 0, 0);
       s.rotation.set(0, 0, 0);
+      for (const c of [...s.children]) {
+        s.remove(c);
+        (c as THREE.Mesh).geometry.dispose();
+      }
     }
     this.say(this.strikesNeeded() > 1
       ? 'The guards are already here. Every crack you make, they fill. Strike each age twice.'
@@ -99,6 +149,15 @@ export class StrikesStage implements Stage {
     this.shake = Math.max(0, this.shake - dt * 3);
     this.camera.position.x = (Math.random() - 0.5) * this.shake * 0.3;
     this.camera.position.y = (Math.random() - 0.5) * this.shake * 0.3;
+    for (const c of this.chips) {
+      if (c.life <= 0) continue;
+      c.life -= dt;
+      c.v.y -= 14 * dt;
+      c.mesh.position.addScaledVector(c.v, dt);
+      c.mesh.rotation.x += c.spin.x * dt;
+      c.mesh.rotation.y += c.spin.y * dt;
+      c.mesh.visible = c.life > 0;
+    }
     for (const s of this.sectors) {
       if (s.userData.falling) {
         s.position.y -= dt * 6;
@@ -126,6 +185,8 @@ export class StrikesStage implements Stage {
     this.hits[age]! += 1;
     if (!this.host.reducedMotion()) this.shake = 1;
     this.host.sound('strike');
+    this.crack(hit.object as THREE.Mesh, hit.point, this.hits[age]!);
+    this.burst(hit.point, this.host.reducedMotion() ? 6 : 16);
     if (this.hits[age]! < this.strikesNeeded()) {
       this.say('The marble cracks. A guard kneels and presses the crack shut with his palms.');
       return;
@@ -148,4 +209,29 @@ export class StrikesStage implements Stage {
     this.carry = { left: CARRY_SECONDS, button };
     this.say('The hall is burning. Your chronicle is on the floor, the wax running. The sea is down the path.');
   }
+}
+
+/** Concentric turns of the spiral as grooves: dark lines on white, read by the palette as incisions. */
+function spiralGrooves(): THREE.CanvasTexture {
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const g = canvas.getContext('2d')!;
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, size, size);
+  g.strokeStyle = '#6a655c';
+  g.lineWidth = 3;
+  g.beginPath();
+  // Five turns, one per age, from the rim to the centre.
+  for (let a = 0; a < Math.PI * 10; a += 0.05) {
+    const r = (size / 2 - 6) * (1 - a / (Math.PI * 10));
+    const x = size / 2 + Math.cos(a) * r;
+    const y = size / 2 + Math.sin(a) * r;
+    if (a === 0) g.moveTo(x, y);
+    else g.lineTo(x, y);
+  }
+  g.stroke();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }

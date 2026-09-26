@@ -16,6 +16,7 @@ import { SUMMIT } from '../../content/crowd.ts';
 import { StreetLife } from './props.ts';
 import { Sky, TOWN_SKY } from '../sky.ts';
 import { at } from '../../core/clock.ts';
+import { glitchesFor, type Glitch } from '../../core/wear.ts';
 
 interface Interactable {
   x: number;
@@ -120,6 +121,37 @@ export class TownStage implements Stage {
     this.dust = new Dust(this.scene);
     // Glaucus is of the sea: where he stands along the shore is decided by real chance, not the seed.
     this.glaucusX = -12 + seaRandom() * 24;
+    // How worn this day is: fixed by the loop's number.
+    this.glitches = glitchesFor(host.memory.cycle);
+    this.markSign = makeMark();
+    this.scene.add(this.markSign);
+  }
+
+  private glitches: Glitch[] = [];
+  private glitchNext = 0;
+  private glitch: { g: Glitch; left: number } | null = null;
+  private markSign: THREE.Mesh;
+  /** The clock of the city's small motions (smoke, washing, torches): it stops when the day freezes. */
+  private streetTime = 0;
+
+  /** Starts the next glitch of the day once its minute comes; skips any the clock jumped past. */
+  private runGlitches(dt: number, minute: number): void {
+    if (this.glitch) {
+      this.glitch.left -= dt;
+      if (this.glitch.left <= 0) this.glitch = null;
+    }
+    while (!this.glitch && this.glitchNext < this.glitches.length && minute >= this.glitches[this.glitchNext]!.minute) {
+      const g = this.glitches[this.glitchNext++]!;
+      if (minute - g.minute > 3) continue;
+      this.glitch = { g, left: g.seconds };
+      if (g.kind === 'mark') {
+        // On a wall to one side of the scribe, for a few frames.
+        const p = this.player.position;
+        this.markSign.position.set(p.x + (g.pick < 0.5 ? -3.5 : 3.5), 2.4 + g.pick, p.z - 2.5);
+        this.markSign.lookAt(this.camera.position);
+      }
+    }
+    this.markSign.visible = this.glitch?.g.kind === 'mark';
   }
 
   private buildWorld(): void {
@@ -435,7 +467,11 @@ export class TownStage implements Stage {
 
   update(dt: number): void {
     const { input, clock } = this.host;
+    // The sea is not part of the simulation: it goes on moving even when the city hitches.
     this.sea.material.tick(dt);
+    this.runGlitches(dt, clock.minute);
+    if (this.glitch?.g.kind === 'hitch') return;
+    if (this.glitch?.g.kind !== 'freeze') this.streetTime += dt;
     this.movePlayer(dt);
     this.updateSky(clock.progress);
     this.updateResidents();
@@ -452,7 +488,11 @@ export class TownStage implements Stage {
     }
     if (near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) this.host.interact(near.knot);
 
-    this.crowd.update(clock.minute, this.time, this.dusk);
+    // A stutter: the person nearest the scribe takes the same few steps over and over.
+    const g = this.glitch;
+    const replay = g ? g.g.minute + (((g.g.seconds - g.left) * 2.5) % 1) * 1.6 : 0;
+    const stutter = g?.g.kind === 'stutter' ? { x: this.player.position.x, z: this.player.position.z, minute: replay } : undefined;
+    this.crowd.update(clock.minute, this.time, this.dusk, stutter);
     const p = this.player.position;
     const u = this.lookUp;
     // From nine the view begins to sway, a little more every hour: the ground is not quite steady.
@@ -585,9 +625,9 @@ export class TownStage implements Stage {
     this.windowLit.emissiveIntensity = dusk * 1.6;
     // The last hours: gusts off the mountain (sooner if the player has raised the wind), and eyes up.
     const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);
-    this.torches.update(this.time, dusk, gust);
+    this.torches.update(this.streetTime, dusk, gust);
     this.dust.update(this.time, gust, this.player.position);
-    this.street.update(this.time, gust);
+    this.street.update(this.streetTime, gust);
     // Eased so that it has lifted enough to see the sunset by eight, and is looking at the storm by eleven.
     this.lookUp = Math.pow(THREE.MathUtils.smoothstep(progress, 0.72, 0.92), 0.65);
     this.mountainLights.update(progress, this.time);
@@ -597,4 +637,25 @@ export class TownStage implements Stage {
       boat.rotation.z = Math.sin(this.time * 0.9 + i) * 0.03;
     }
   }
+}
+
+/** The mark: a circle with a line through it, in bone, cut out of nothing. */
+function makeMark(): THREE.Mesh {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 64;
+  const g = canvas.getContext('2d')!;
+  g.strokeStyle = '#f4efe4';
+  g.lineWidth = 7;
+  g.beginPath();
+  g.arc(32, 32, 22, 0, Math.PI * 2);
+  g.moveTo(14, 50);
+  g.lineTo(50, 14);
+  g.stroke();
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.magFilter = THREE.NearestFilter;
+  const mark = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, depthTest: false, fog: false }));
+  mark.renderOrder = 10;
+  mark.userData.noOutline = true;
+  mark.visible = false;
+  return mark;
 }

@@ -40,6 +40,7 @@ import { Lyre } from './ui/Lyre.ts';
 import { button, Modal } from './ui/Modal.ts';
 import { updateMeta } from './ui/meta.ts';
 import { ResetScreen } from './ui/ResetScreen.ts';
+import { Passage } from './ui/Passage.ts';
 import { SettingsPanel } from './ui/SettingsPanel.ts';
 import type { SettingsStore } from './core/settings.ts';
 
@@ -64,6 +65,7 @@ export class Game {
   private modal: Modal;
   private lyre: Lyre;
   private resetScreen: ResetScreen;
+  private passage: Passage;
   private story!: StoryEngine;
   private stages!: Record<StageId, Stage>;
   private current!: Stage;
@@ -111,6 +113,7 @@ export class Game {
     this.lyre = new Lyre(overlay, (note) => this.audio.pluck(note, 0.7));
     this.modal = new Modal(overlay);
     this.resetScreen = new ResetScreen(overlay);
+    this.passage = new Passage(overlay);
     this.settingsPanel = new SettingsPanel(overlay, settings);
     this.guides = new Guides(overlay, () => this.memory.guides, () => this.settings.value.tips);
     settings.subscribe((s) => {
@@ -305,6 +308,14 @@ export class Game {
   }
 
   private activate(id: StageId, entry?: string): void {
+    // Down the steps into the Hall, or back up into the day: the passage covers the seam.
+    const from = this.current?.id;
+    const passage = from === 'town' && id === 'spiral' ? 'down' : from === 'spiral' && id === 'town' ? 'up' : null;
+    if (passage && this.phase === 'playing') {
+      const { scene, camera } = this.current;
+      this.passage.play(scene && camera ? this.renderer.snapshot(scene, camera) : null, passage, this.settings.value.reducedMotion);
+      this.audio.play(passage === 'down' ? 'descend' : 'ascend');
+    }
     this.current?.exit();
     this.current = this.stages[id];
     const palette = this.current.palette;
@@ -514,6 +525,8 @@ export class Game {
     if (this.lost(m)) return;
     this.save.cycle.lost.push(m);
     if (m === 'masks') this.save.cycle.wornMask = null;
+    this.hud.shatter(m);
+    window.setTimeout(() => this.audio.play('crack'), 550);
     this.persist();
   }
 

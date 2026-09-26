@@ -167,6 +167,7 @@ h1 { margin: 0; font-size: 4.2rem; letter-spacing: 0.6em; margin-right: -0.6em; 
   position: absolute; inset: 0; background: var(--lacquer);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.6rem;
 }
+.passage { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; z-index: 2; pointer-events: none; }
 .reset-freeze { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .reset-quiet { font-style: italic; opacity: 0.7; margin: 1.5rem 0; }
 
@@ -307,7 +308,7 @@ button.carry { position: absolute; left: 50%; top: 40%; transform: translateX(-5
 .sprint-good { color: #d6e6dc; }
 
 /* Diary without dates */
-.diary { position: absolute; inset: 0; overflow-y: auto; background: #e8e2d0; color: #1d1611; padding: 4rem max(2rem, calc(50% - 22rem)); font-size: 1.15rem; line-height: 1.7; }
+.diary { position: absolute; inset: 0; overflow-y: auto; background-color: #e8e2d0; background-image: var(--paper); color: #1d1611; padding: 4rem max(2rem, calc(50% - 22rem)); font-size: 1.15rem; line-height: 1.7; }
 .diary button { color: #1d1611; border-color: #1d1611; }
 .diary button:hover:not(:disabled) { background: #1d1611; color: #e8e2d0; }
 .diary-event { font-style: italic; }
@@ -409,3 +410,55 @@ button.hint-button:hover, button.hint-button:focus-visible { color: var(--lacque
 .hud-toast.quiet { border-left: 1px solid var(--rule); }
 .hud-toast.quiet .toast-kicker { color: var(--faint); }
 .hud-toast.quiet span:last-child { transform: skewX(-8deg); color: var(--muted); }
+
+/* A tool the strikes took, breaking: two halves along a crack, and grit. */
+.shatter { position: fixed; z-index: 3; pointer-events: none; }
+.shatter.center { left: 50%; top: 60%; transform: translate(-50%, -50%); }
+.shatter-chip { padding: 0.45rem 0.9rem; background: var(--panel); color: var(--bone); font-family: var(--mono); font-size: 0.95rem; white-space: nowrap; }
+.shatter-half { position: absolute; inset: 0; animation: shatter-fall 1.9s ease-in forwards; }
+.shatter-half.left { --dx: -1; clip-path: polygon(0 0, 53% 0, 45% 34%, 57% 58%, 46% 100%, 0 100%); }
+.shatter-half.right { --dx: 1; clip-path: polygon(53% 0, 100% 0, 100% 100%, 46% 100%, 57% 58%, 45% 34%); }
+@keyframes shatter-fall {
+  0%, 30% { transform: none; opacity: 1; }
+  36% { transform: translateX(calc(var(--dx) * 3px)); opacity: 1; }
+  100% { transform: translate(calc(var(--dx) * 46px), 140px) rotate(calc(var(--dx) * 28deg)); opacity: 0; }
+}
+.grit { position: absolute; left: 50%; top: 45%; width: 3px; height: 3px; background: var(--bone); opacity: 0; animation: grit 1.2s ease-in forwards; }
+@keyframes grit { 0% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translate(var(--gx), 110px); } }
+html.reduced-motion .shatter-half { animation: shatter-fade 1.2s forwards; }
+html.reduced-motion .grit { display: none; }
+@keyframes shatter-fade { 0%, 40% { opacity: 1; } 100% { opacity: 0; } }
+
+/* The Desk's room: tubes that are never quite steady, a faint screen grain, a window that never changes. */
+.desk::before, .desk::after { content: ''; position: absolute; inset: 0; pointer-events: none; }
+.desk::before { background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.09) 0 1px, transparent 1px 3px); z-index: 2; }
+.desk::after { background: #e8f2ec; opacity: 0; animation: tube 13s steps(1) infinite; z-index: 2; }
+@keyframes tube { 0%, 61%, 63%, 64.5%, 100% { opacity: 0; } 62% { opacity: 0.05; } 64% { opacity: 0.035; } }
+.desk.arriving .desk-queue li { animation: arrive 0.4s both; }
+.desk.arriving .desk-queue li:nth-child(2) { animation-delay: 0.12s; }
+.desk.arriving .desk-queue li:nth-child(3) { animation-delay: 0.24s; }
+.desk.arriving .desk-queue li:nth-child(4) { animation-delay: 0.36s; }
+.desk.arriving .desk-queue li:nth-child(5) { animation-delay: 0.48s; }
+.desk.arriving .desk-queue li:nth-child(n + 6) { animation-delay: 0.6s; }
+@keyframes arrive { from { opacity: 0; transform: translateX(-0.6rem); } }
+.desk-window { margin-top: 2rem; height: 7rem; border: 1px solid #4d5c54;
+  background: repeating-linear-gradient(180deg, transparent 0 9px, rgba(27, 31, 29, 0.55) 9px 11px), linear-gradient(#c3cdd0, #aab5b8 70%, #8e9a93); }
+.desk-weather { font-size: 0.75rem; color: #93a99b; margin-top: 0.4rem; }
+.desk-typing { min-height: 1.2em; font-size: 0.75rem; color: #93a99b; font-style: italic; margin: 0.3rem 0 0; }
+html.reduced-motion .desk::after, html.reduced-motion .desk.arriving .desk-queue li { animation: none; }
+
+/* The diary's page: grain and fibres, ink that sits into the paper, and the reader's own daylight. */
+.diary { --paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.27 0 0 0 0 0.18 0 0 0 0.09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  transition: background-color 4s; }
+.diary::before { content: ''; position: fixed; inset: 0; pointer-events: none; transition: background 4s; background: radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(80, 58, 36, 0.18)); }
+.diary[data-light='dawn'] { background-color: #eee3cf; }
+.diary[data-light='dawn']::before { background: linear-gradient(100deg, rgba(255, 196, 150, 0.16), transparent 60%), radial-gradient(ellipse at 50% 40%, transparent 55%, rgba(80, 58, 36, 0.16)); }
+.diary[data-light='dusk'] { background-color: #e6d6b8; }
+.diary[data-light='dusk']::before { background: linear-gradient(260deg, rgba(214, 120, 60, 0.18), transparent 65%), radial-gradient(ellipse at 50% 40%, transparent 50%, rgba(80, 48, 30, 0.24)); }
+/* Night: one lamp on the table, the rest of the page in the dark. */
+.diary[data-light='night'] { background-color: #cfc3aa; }
+.diary[data-light='night']::before { background: radial-gradient(ellipse 60% 70% at 50% 35%, rgba(255, 214, 150, 0.12), transparent 60%, rgba(20, 16, 24, 0.38)); }
+.diary-entries li, .diary-event { text-shadow: 0 0 0.5px rgba(29, 22, 17, 0.55); }
+.diary-entries li.fresh { animation: ink 2.4s ease-out both; }
+@keyframes ink { from { color: #0b0806; text-shadow: 0 0 3px rgba(29, 22, 17, 0.7); letter-spacing: 0.01em; } }
+html.reduced-motion .diary-entries li.fresh { animation: none; }
