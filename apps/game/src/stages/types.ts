@@ -1,7 +1,8 @@
 import type * as THREE from 'three';
 import type { DayClock } from '../core/clock.ts';
 import type { Knowledge } from '../core/knowledge.ts';
-import type { StageId } from '../core/types.ts';
+import type { CycleState, LoopMemory } from '../core/save.ts';
+import type { Mechanic, StageId } from '../core/types.ts';
 import type { Input } from '../engine/input.ts';
 import type { PaletteId } from '../render/palettes.ts';
 
@@ -16,6 +17,20 @@ export interface StageHost {
   switchStage(id: StageId, entry?: string): void;
   /** Show or hide the interaction prompt, e.g. "E — Star stele". */
   prompt(label: string | null): void;
+  memory: LoopMemory;
+  cycle: CycleState;
+  /** Container for DOM-based stages and stage overlays. */
+  overlay: HTMLElement;
+  /** Patches the Curator applied on the Desk; they change Eferon from the next cycle on. */
+  patches(): string[];
+  /** The observers noticed something: raise the wind and log an anomaly for the Desk. */
+  notice(anomaly: string, wind: number): void;
+  /** Mechanics destroyed by the strikes. */
+  lost(m: Mechanic): boolean;
+  loseMechanic(m: Mechanic): void;
+  /** Show an ending card; the game decides what comes after. */
+  ending(id: string): void;
+  persist(): void;
 }
 
 export interface Stage {
@@ -35,6 +50,8 @@ export interface Stage {
   dispose?(): void;
   update(dt: number): void;
   onResize?(): void;
+  /** Called when a dialogue started from this stage closes. */
+  afterDialogue?(): void;
   /** Player position to persist, for stages that have one. */
   snapshot?(): { x: number; z: number; facing: number };
 }

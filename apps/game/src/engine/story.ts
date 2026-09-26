@@ -13,6 +13,12 @@ export interface StoryLine {
   /** Stage to switch to once this line has been shown. */
   stage: StageId | null;
   spendMinutes: number;
+  /** Déjà vu line id: the second time around the player can finish it (ui/Dialogue.ts). */
+  dejavu: string | null;
+  /** Index of the word the player must beat the speaker to (marked with ^ in ink). */
+  cue: number;
+  /** UI action requested by the line: board, carve, song, ending:<id>. */
+  action: string | null;
 }
 
 export interface StoryChoice {
@@ -24,15 +30,19 @@ export interface StoryHost {
   knowledge: Knowledge;
   cycle(): number;
   hour(): number;
+  /** Extra EXTERNAL functions. Bound as not lookahead-safe: ink calls them only when it reaches them. */
+  functions?: Record<string, (...args: never[]) => unknown>;
 }
 
-const STAGES: StageId[] = ['town', 'spiral', 'desk', 'sea'];
+import { STAGE_IDS as STAGES } from '../core/types.ts';
 
 export class StoryEngine {
   private story: Story;
 
   constructor(json: string, host: StoryHost, savedState: string | null) {
     this.story = new Story(json);
+    // Unbound EXTERNALs fall back to the ink definitions in main.ink (tests, older hosts).
+    this.story.allowExternalFunctionFallbacks = true;
     this.story.BindExternalFunction('learn', (id: string) => {
       host.knowledge.learn(id);
       return true;
@@ -40,6 +50,9 @@ export class StoryEngine {
     this.story.BindExternalFunction('knows', (id: string) => host.knowledge.knows(id), true);
     this.story.BindExternalFunction('cycle', () => host.cycle(), true);
     this.story.BindExternalFunction('hour', () => host.hour(), true);
+    for (const [name, fn] of Object.entries(host.functions ?? {})) {
+      this.story.BindExternalFunction(name, fn as (...args: unknown[]) => unknown, false);
+    }
     if (savedState) {
       try {
         this.story.state.LoadJson(savedState);
@@ -64,7 +77,7 @@ export class StoryEngine {
       const line = parseLine(raw, this.story.currentTags ?? []);
       if (line.text) return line;
       // A tag-only line still carries effects (e.g. #stage) that must not be lost.
-      if (line.stage || line.spendMinutes) return line;
+      if (line.stage || line.spendMinutes || line.action) return line;
     }
     return null;
   }
@@ -87,13 +100,20 @@ export class StoryEngine {
 }
 
 function parseLine(text: string, tags: string[]): StoryLine {
-  const line: StoryLine = { text, speaker: null, style: 'narration', stage: null, spendMinutes: 0 };
+  const words = text.split(/\s+/);
+  const cue = words.findIndex((w) => w.startsWith('^'));
+  if (cue >= 0) text = text.replace('^', '');
+  const line: StoryLine = {
+    text, speaker: null, style: 'narration', stage: null, spendMinutes: 0, dejavu: null, cue, action: null,
+  };
   for (const tag of tags) {
     const [key = '', value = ''] = tag.split(':').map((s) => s.trim());
     if (key === 'speaker') line.speaker = value;
     else if (key === 'hand' || key === 'log' || key === 'hint') line.style = key;
     else if (key === 'stage' && (STAGES as string[]).includes(value)) line.stage = value as StageId;
     else if (key === 'spend') line.spendMinutes = Number(value) || 0;
+    else if (key === 'dejavu') line.dejavu = value;
+    else if (key === 'action') line.action = tag.slice(tag.indexOf(':') + 1).trim();
   }
   return line;
 }

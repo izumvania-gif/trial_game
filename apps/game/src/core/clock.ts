@@ -10,6 +10,8 @@ export class DayClock {
   minute: number;
   paused = false;
   speed = 1;
+  /** When the day ends. The wind brings it closer (see gustsToEnd). */
+  endMinute = DAY_MINUTES;
 
   constructor(minute = 0) {
     this.minute = minute;
@@ -18,17 +20,17 @@ export class DayClock {
   /** Advances by real seconds; returns true on the tick the day runs out. */
   tick(realSeconds: number): boolean {
     if (this.paused || this.isOver) return false;
-    this.minute = Math.min(DAY_MINUTES, this.minute + (realSeconds * this.speed) / DEFAULT_SECONDS_PER_MINUTE);
+    this.minute = Math.min(this.endMinute, this.minute + (realSeconds * this.speed) / DEFAULT_SECONDS_PER_MINUTE);
     return this.isOver;
   }
 
   /** Spends game time on an action (a conversation, a careful look). */
   spend(minutes: number): void {
-    this.minute = Math.min(DAY_MINUTES, this.minute + minutes);
+    this.minute = Math.min(this.endMinute, this.minute + minutes);
   }
 
   get isOver(): boolean {
-    return this.minute >= DAY_MINUTES;
+    return this.minute >= this.endMinute;
   }
 
   /** 0..1 through the day. */
@@ -47,6 +49,17 @@ export class DayClock {
     const m = total % 60;
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
   }
+}
+
+/** Game minutes since dawn for a 24h clock time, e.g. at(12) = noon. */
+export function at(hour: number, minute = 0): number {
+  return (hour - DAWN_HOUR) * 60 + minute;
+}
+
+/** Every full third of wind brings midnight one hour closer. */
+export function endMinuteForWind(wind: number): number {
+  const gusts = Math.min(3, Math.floor(wind * 3 + 1e-9));
+  return DAY_MINUTES - gusts * 60;
 }
 
 /** Roman hour numeral as Leont would read it on a sundial (I = first hour after dawn). */

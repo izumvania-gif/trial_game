@@ -1,10 +1,10 @@
 // Two-layer saves (docs/concept.md §7):
 // - LoopMemory survives the reset: what the player knows, words carved into the stele, endings seen.
 // - CycleState is wiped by every purification: time, position, the ink story state.
-import type { StageId } from './types.ts';
+import type { Mechanic, RegistryEntry, StageId, TicketDecision } from './types.ts';
 
 export const SAVE_KEY = 'eferon.save';
-export const SAVE_SCHEMA = 1;
+export const SAVE_SCHEMA = 2;
 const TABLET_PREFIX = 'EFERON1.';
 
 export interface LoopMemory {
@@ -15,6 +15,21 @@ export interface LoopMemory {
   endingsSeen: string[];
   /** Last CYCLE RUN number the server reported, shown when offline. */
   lastCycleRun: number | null;
+  /** Déjà vu lines the player has heard at least once (they can finish them next time). */
+  heard: string[];
+  /** Words Leont can carve into the stele. */
+  lexicon: string[];
+  masks: string[];
+  /** The registry of past Leonts, by leont id. */
+  registry: Record<string, RegistryEntry>;
+  /** Anomalies Leont caused, which turn into tickets on the Desk. */
+  anomalies: { id: string; cycle: number }[];
+  /** Desk decisions by ticket id; patches take effect in Eferon from the next cycle. */
+  tickets: Record<string, { decision: TicketDecision; patch?: string; cycle: number }>;
+  /** Visits to the Desk; each is a "sprint" for the Curator. */
+  sprint: number;
+  /** Book of Strangers: "resident:entryIndex" for every schedule entry the player has witnessed. */
+  seen: string[];
 }
 
 export interface CycleState {
@@ -23,6 +38,13 @@ export interface CycleState {
   player: { x: number; z: number; facing: number };
   /** Serialized ink state; null at the start of a cycle. */
   storyState: string | null;
+  /** 0..1: how much the observers have noticed today. Each third brings midnight an hour closer. */
+  wind: number;
+  wornMask: string | null;
+  /** Mechanics destroyed by the strikes in the Night of Anamnesis. */
+  lost: Mechanic[];
+  /** How the planned night went on the board; null until it is played. */
+  night: { citySilent: boolean; hallClear: boolean; shoreClear: boolean } | null;
 }
 
 export interface SaveFile {
@@ -41,11 +63,17 @@ export interface KeyValueStorage {
 }
 
 export function freshMemory(): LoopMemory {
-  return { cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null };
+  return {
+    cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [],
+  };
 }
 
 export function freshCycle(): CycleState {
-  return { minute: 0, stage: 'town', player: { x: 0, z: 6, facing: Math.PI }, storyState: null };
+  return {
+    minute: 0, stage: 'town', player: { x: 0, z: 6, facing: Math.PI }, storyState: null,
+    wind: 0, wornMask: null, lost: [], night: null,
+  };
 }
 
 export function newSave(contentVersion: string): SaveFile {
@@ -53,7 +81,10 @@ export function newSave(contentVersion: string): SaveFile {
 }
 
 /** Migrations from schema N to N+1. Add an entry whenever SaveFile changes shape. */
-const MIGRATIONS: Record<number, (old: any) => any> = {};
+const MIGRATIONS: Record<number, (old: any) => any> = {
+  // v2 added memory/cycle fields; parseSave fills them from the fresh defaults.
+  1: (old) => old,
+};
 
 export type LoadStatus = 'new' | 'loaded' | 'cycle-reset' | 'corrupt' | 'unavailable';
 

@@ -1,7 +1,7 @@
 // ?debug in the URL: time controls, stage jumps, save tools. Not part of the game.
 import { DAY_MINUTES } from '../core/clock.ts';
 import { clearSave, exportTablet, browserStorage } from '../core/save.ts';
-import type { StageId } from '../core/types.ts';
+import { STAGE_IDS } from '../core/types.ts';
 import type { Game } from '../game.ts';
 import { h } from './dom.ts';
 
@@ -18,8 +18,8 @@ export function mountDebugPanel(game: Game, parent: HTMLElement): void {
   const panel = h('div', { className: 'debug' },
     h('strong', {}, 'debug'),
     h('div', {}, ...[1, 20, 120].map((s) => btn(`×${s}`, () => game.debugSetSpeed(s)))),
-    h('div', {}, btn('23:58', () => game.debugJump(DAY_MINUTES - 2))),
-    h('div', {}, ...(['town', 'spiral', 'desk', 'sea'] as StageId[]).map((id) => btn(id, () => game.debugStage(id)))),
+    h('div', {}, btn('23:58', () => game.debugJump(DAY_MINUTES - 2)), btn('prep night', () => game.debugPrepareNight())),
+    h('div', {}, ...STAGE_IDS.map((id) => btn(id, () => game.debugStage(id)))),
     h('div', {},
       btn('export', () => window.prompt('Wax tablet code', exportTablet(game.save))),
       btn('wipe save', () => {

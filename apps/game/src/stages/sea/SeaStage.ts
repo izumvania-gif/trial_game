@@ -31,10 +31,14 @@ export class SeaStage implements Stage {
     this.camera.position.set(0, 1.7, 12);
   }
 
-  enter(): void {
+  enter(entry?: string): void {
     this.onResize();
-    this.host.interact('shore');
+    // After the strikes Leont comes down to the sea in the dark, with the knife.
+    this.final = entry === 'final';
+    this.host.interact(this.final ? 'sea_final' : 'shore');
   }
+
+  private final = false;
 
   exit(): void {}
 
@@ -53,9 +57,9 @@ export class SeaStage implements Stage {
     this.look += (input.mouse.x * 0.35 - this.look) * Math.min(1, dt * 2);
     this.camera.rotation.set(-0.05, -this.look, 0);
     // The sea at night is still the sea.
-    const night = THREE.MathUtils.smoothstep(clock.progress, 0.72, 0.9);
+    const night = this.final ? 1 : THREE.MathUtils.smoothstep(clock.progress, 0.72, 0.9);
     (this.scene.background as THREE.Color).set('#9fc3cc').lerp(new THREE.Color('#0b1622'), night);
     this.scene.fog!.color.copy(this.scene.background as THREE.Color);
-    if (input.wasPressed('Escape') || input.wasPressed('KeyS')) this.host.switchStage('town', 'shore');
+    if (!this.final && (input.wasPressed('Escape') || input.wasPressed('KeyS'))) this.host.switchStage('town', 'shore');
   }
 }

@@ -22,3 +22,33 @@ export async function reportReset(): Promise<number | null> {
     return null;
   }
 }
+
+export interface SteleResponse {
+  words: string[];
+  maxWords: number;
+  lines: string[][];
+}
+
+export async function fetchStele(): Promise<SteleResponse | null> {
+  try {
+    const res = await fetch('/api/stele');
+    return res.ok ? ((await res.json()) as SteleResponse) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Returns 'ok', 'wait' (cooldown) or null (offline / rejected). */
+export async function scratchLine(words: string[]): Promise<'ok' | 'wait' | null> {
+  try {
+    const res = await fetch('/api/stele', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ words }),
+    });
+    if (res.status === 429) return 'wait';
+    return res.ok ? 'ok' : null;
+  } catch {
+    return null;
+  }
+}

@@ -33,15 +33,15 @@ test('StoryEngine: knots, choices, learning and stage tags', async () => {
   engine.enter('stele');
   assert.match(engine.next()!.text, /star stele/);
   assert.equal(engine.canContinue(), false);
-  assert.deepEqual(engine.choices().map((c) => c.text), ['Scrape the moss from the corner', 'Leave it']);
+  assert.deepEqual(engine.choices().map((c) => c.text), ['Scrape the moss from the corner', 'Run your fingers along the cracks', 'Leave it']);
   engine.choose(0);
   const lines = [];
   for (let l = engine.next(); l; l = engine.next()) lines.push(l);
   assert.ok(knowledge.knows('name_in_stone'));
   assert.equal(lines[0]!.spendMinutes, 10);
 
+  knowledge.learn('hall_key');
   engine.enter('temple_door');
-  engine.next();
   engine.next();
   engine.choose(0);
   const goIn = engine.next()!;
@@ -50,4 +50,35 @@ test('StoryEngine: knots, choices, learning and stage tags', async () => {
   // State survives serialization (it is part of the cycle save).
   const restored = new StoryEngine(json, { knowledge, cycle: () => 1, hour: () => 6 }, engine.saveState());
   assert.ok(restored.hasKnot('midnight'));
+});
+
+test('déjà vu lines: cue marker is parsed and removed; host functions drive branches', async () => {
+  const { StoryEngine } = await import('../src/engine/story.ts');
+  const { Knowledge } = await import('../src/core/knowledge.ts');
+  const { json } = compileInkFile(resolve(storyDir, 'main.ink'));
+  const knowledge = new Knowledge(KNOWLEDGE, ['rain_at_midnight']);
+  let finished = false;
+  const engine = new StoryEngine(json, {
+    knowledge, cycle: () => 2, hour: () => 7,
+    functions: { dejavu_ok: () => finished, notice: () => true },
+  }, null);
+  engine.enter('aristion');
+  engine.next();
+  const line = engine.next()!;
+  assert.equal(line.dejavu, 'aristion_restless');
+  assert.ok(!line.text.includes('^'));
+  assert.equal(line.text.split(/\s+/)[line.cue], 'Go');
+  finished = true; // the player beat him to it
+  const lines = [];
+  for (let l = engine.next(); l; l = engine.next()) lines.push(l.text);
+  assert.ok(knowledge.knows('hall_key'));
+  assert.ok(knowledge.knows('aristion_trust'));
+});
+
+test('every action tag in the story is one the game handles', () => {
+  const known = /^(carve|stele_lines|board|ending:(exception_handled|aoidos|curator_missing))$/;
+  for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
+    const src = readFileSync(resolve(storyDir, file), 'utf8');
+    for (const m of src.matchAll(/#action:(\S+)/g)) assert.match(m[1]!, known, `${file}: #action:${m[1]}`);
+  }
 });
