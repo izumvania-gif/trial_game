@@ -50,3 +50,17 @@ test('learning everything explores every card; along the way an open card always
   const end = chronicleMap((id) => known.has(id));
   for (const c of end.cards) assert.equal(c.state, 'complete', `${c.subject.id} never completes`);
 });
+
+test('every conclusion sits on a real card, needs real facts, and has one word list per gap', async () => {
+  const { DEDUCTIONS, isRight } = await import('../src/content/deductions.ts');
+  const facts = new Set(KNOWLEDGE.facts.map((f) => f.id));
+  const { reachable } = validateGraph(KNOWLEDGE);
+  for (const d of DEDUCTIONS) {
+    assert.ok(SUBJECTS.some((s) => s.id === d.subject), `${d.id}: no card ${d.subject}`);
+    for (const f of d.requires) assert.ok(facts.has(f) && reachable.includes(f), `${d.id}: ${f}`);
+    assert.equal(d.sentence.split('___').length - 1, d.blanks.length, `${d.id}: gaps`);
+    for (const words of d.blanks) assert.equal(new Set(words).size, words.length, `${d.id}: repeated word`);
+    assert.ok(isRight(d, d.blanks.map((w) => w[0]!)));
+    assert.ok(!isRight(d, d.blanks.map((w) => w[1]!)));
+  }
+});

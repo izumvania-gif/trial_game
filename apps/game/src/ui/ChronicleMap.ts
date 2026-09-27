@@ -1,10 +1,18 @@
 // The chronicle drawn as a map of subjects, painted like a cup: cards for what Leont has looked
 // into, black figures with a question mark for what he has only heard of, and painted arrows for
 // what led where. Click a card to read it.
+import { deductionsFor, isRight, type Deduction } from '../content/deductions.ts';
 import { chronicleMap, nextOnCard, type Card } from '../content/subjects.ts';
 import type { Knowledge } from '../core/knowledge.ts';
+import type { LoopMemory } from '../core/save.ts';
 import { hintLine } from './Book.ts';
 import { h } from './dom.ts';
+import { cloneCanvas, portrait } from './portraits.ts';
+
+export interface MapHooks {
+  /** A conclusion carved right: the game writes the margin note and saves. */
+  onConclusion(d: Deduction): void;
+}
 
 /** The map's own coordinates: 100 wide, 60 high; a card is CARD_W × CARD_H of them. */
 const W = 100;
@@ -54,7 +62,8 @@ export function chronicleTabs(map: () => HTMLElement, questions: () => (Node | s
 /** Which card is open, kept between openings of the chronicle. */
 let selected: string | null = null;
 
-export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text: string }[], hintsShown: string[]): HTMLElement {
+export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text: string }[], memory: LoopMemory, hooks: MapHooks): HTMLElement {
+  const hintsShown = memory.hintsShown;
   const knows = (id: string) => knowledge.knows(id);
   const text = (id: string) => facts.find((f) => f.id === id)?.text ?? '';
   const map = chronicleMap(knows);
@@ -67,6 +76,12 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     ?? visible.find((c) => c.state === 'rumour')
     ?? visible[0];
   if (!selected || !visible.some((c) => c.subject.id === selected)) selected = pick()?.subject.id ?? null;
+
+  // New since the chronicle was last open: facts written since, and rumours first heard since.
+  const seen = new Set(memory.mapSeen);
+  const fresh = new Set(knowledge.list().filter((f) => !seen.has(f)));
+  const isNew = (c: Card) => (c.state === 'rumour' ? !seen.has(`rumour:${c.subject.id}`) : c.found.some((f) => fresh.has(f)));
+  memory.mapSeen = [...knowledge.list(), ...visible.filter((c) => c.state === 'rumour').map((c) => `rumour:${c.subject.id}`)];
 
   const board = h('div', { className: 'cmap-board' });
   const lines = svg('svg', { class: 'cmap-lines', viewBox: `0 0 ${W} ${H}`, 'aria-hidden': 'true' });
@@ -95,22 +110,32 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   const show = (id: string) => {
     selected = id;
     for (const [cid, el] of cardEls) el.classList.toggle('selected', cid === id);
-    detail.replaceChildren(...detailOf(byId.get(id)!, knows, text, hintsShown));
+    detail.replaceChildren(...detailOf(byId.get(id)!, knows, text, memory, fresh, hooks, () => { const el = cardEls.get(id); el?.classList.add('understood'); el?.querySelector('.cmap-conclude')?.remove(); show(id); }));
+    cardEls.get(id)?.classList.remove('new');
   };
 
   for (const card of visible) {
     const p = at(card);
     const total = card.subject.facts.length;
+    const more = card.state === 'explored' && !!nextOnCard(card.subject, knows);
+    const pending = card.state !== 'rumour' && deductionsFor(card.subject.id).some((d) => d.requires.every(knows) && !memory.deductions.includes(d.id));
+    const understood = deductionsFor(card.subject.id).some((d) => memory.deductions.includes(d.id));
+    const face = card.state !== 'rumour' && card.subject.face ? h('span', { className: 'cmap-face' }, cloneCanvas(portrait(card.subject.face, 'vase'))) : '';
     const el = h('button', {
       type: 'button',
-      className: `cmap-card ${card.state}`,
+      className: `cmap-card ${card.state}${isNew(card) ? ' new' : ''}${understood ? ' understood' : ''}${face ? ' has-face' : ''}`,
       title: card.state === 'rumour' ? 'Heard of, not yet seen' : card.subject.name,
     },
+    face,
     card.state === 'rumour'
       ? h('span', { className: 'cmap-q' }, '?')
-      : h('span', { className: 'cmap-name' }, card.subject.name),
-    card.state === 'rumour' ? '' : h('span', { className: 'cmap-dots' }, ...card.subject.facts.map((f) => h('i', { className: knows(f) ? 'on' : '' }))),
-    card.state === 'complete' ? h('span', { className: 'cmap-laurel', title: 'Nothing left to learn here' }, '❦') : '');
+      : h('span', { className: 'cmap-text' },
+        h('span', { className: 'cmap-name' }, card.subject.name),
+        h('span', { className: 'cmap-dots' }, ...card.subject.facts.map((f) => h('i', { className: knows(f) ? 'on' : '' })))),
+    card.state === 'complete' ? h('span', { className: 'cmap-laurel', title: 'Nothing left to learn here' }, '❦') : '',
+    more ? h('span', { className: 'cmap-more', title: 'There is more here, and the way is open' }, '!') : '',
+    pending ? h('span', { className: 'cmap-conclude', title: 'A conclusion to draw' }, '✎') : '',
+    h('span', { className: 'cmap-new' }, 'new'));
     el.style.left = `${(p.x / W) * 100}%`;
     el.style.top = `${(p.y / H) * 100}%`;
     el.setAttribute('aria-label', card.state === 'rumour' ? 'A rumour' : `${card.subject.name}: ${card.found.length} of ${total}`);
@@ -124,18 +149,73 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   return root;
 }
 
-function detailOf(card: Card, knows: (id: string) => boolean, text: (id: string) => string, hintsShown: string[]): (Node | string)[] {
+function detailOf(card: Card, knows: (id: string) => boolean, text: (id: string) => string, memory: LoopMemory, fresh: Set<string>,
+  hooks: MapHooks, rerender: () => void): (Node | string)[] {
   const out: (Node | string)[] = [];
   const next = nextOnCard(card.subject, knows);
   if (card.state === 'rumour') {
     out.push(h('h3', {}, '?'), h('p', { className: 'cmap-kicker' }, 'Heard of, not yet seen. What led here:'));
     out.push(h('ul', {}, ...card.heard.map((f) => h('li', {}, text(f)))));
   } else {
-    out.push(h('h3', {}, card.subject.name));
-    out.push(h('ul', {}, ...card.found.map((f) => h('li', {}, text(f)))));
+    const face = card.subject.face ? h('span', { className: 'cmap-detail-face' }, cloneCanvas(portrait(card.subject.face, 'vase'))) : '';
+    out.push(h('h3', {}, face, card.subject.name));
+    out.push(h('ul', {}, ...card.found.map((f) => h('li', { className: fresh.has(f) ? 'fresh' : '' }, text(f)))));
     if (card.state === 'complete') out.push(h('p', { className: 'cmap-kicker' }, 'Nothing left to learn here.'));
     else if (!next) out.push(h('p', { className: 'cmap-kicker' }, 'There is more here. Something elsewhere has to come first.'));
   }
-  if (next) out.push(hintLine(next.clue, `map:${next.fact}`, hintsShown));
+  if (next) out.push(hintLine(next.clue, `map:${next.fact}`, memory.hintsShown));
+  if (card.state !== 'rumour') {
+    for (const d of deductionsFor(card.subject.id)) {
+      if (!d.requires.every(knows)) continue;
+      out.push(conclusion(d, memory, hooks, rerender));
+    }
+  }
   return out;
+}
+
+/** The same shuffle every time for the same sentence, so the words don't jump about between visits. */
+function shuffled(words: string[], seed: string): string[] {
+  let x = [...seed].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const out = [...words];
+  for (let i = out.length - 1; i > 0; i--) {
+    x = (x * 1103515245 + 12345) >>> 0;
+    const j = x % (i + 1);
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+/** A sentence to complete: one choice per blank, then carve it. Wrong words are not kept, and cost nothing. */
+function conclusion(d: Deduction, memory: LoopMemory, hooks: MapHooks, rerender: () => void): HTMLElement {
+  const box = h('section', { className: 'cmap-conclusion' });
+  const parts = d.sentence.split('___');
+  if (memory.deductions.includes(d.id)) {
+    const filled = parts.flatMap((p, i) => (i < d.blanks.length ? [p, h('b', {}, d.blanks[i]![0]!)] : [p]));
+    box.append(h('p', { className: 'cmap-kicker' }, 'Concluded'), h('p', { className: 'cmap-sentence done' }, ...filled), h('p', { className: 'cmap-margin' }, d.margin));
+    return box;
+  }
+  const selects = d.blanks.map((words, i) => {
+    const s = h('select', { className: 'cmap-blank' }, h('option', { value: '' }, '…'), ...shuffled(words, d.id + i).map((w) => h('option', { value: w }, w)));
+    s.setAttribute('aria-label', `Blank ${i + 1}`);
+    return s;
+  });
+  const status = h('p', { className: 'cmap-kicker' });
+  const carve = h('button', { type: 'button', className: 'cmap-carve' }, 'Carve it');
+  carve.addEventListener('click', () => {
+    const chosen = selects.map((s) => s.value);
+    if (chosen.some((c) => !c)) {
+      status.textContent = 'Every gap needs a word.';
+      return;
+    }
+    if (!isRight(d, chosen)) {
+      status.textContent = 'The wax will not hold it. Something in the sentence is not true.';
+      return;
+    }
+    memory.deductions.push(d.id);
+    hooks.onConclusion(d);
+    rerender();
+  });
+  const sentence = parts.flatMap((p, i) => (i < selects.length ? [p, selects[i]!] : [p]));
+  box.append(h('p', { className: 'cmap-kicker' }, 'A conclusion to draw'), h('p', { className: 'cmap-sentence' }, ...sentence), carve, status);
+  return box;
 }

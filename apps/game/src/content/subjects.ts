@@ -12,26 +12,28 @@ export interface Subject {
   x: number;
   y: number;
   facts: string[];
+  /** The portrait on the card, for a subject that is a person. */
+  face?: string;
 }
 
 export const SUBJECTS: Subject[] = [
   { id: 'hand', name: 'The Other Hand', x: 9, y: 10, facts: ['other_hand'] },
   { id: 'midnight', name: 'Midnight', x: 27, y: 10, facts: ['rain_at_midnight', 'last_line'] },
   { id: 'stele', name: 'The Star Stele', x: 9, y: 40, facts: ['name_in_stone'] },
-  { id: 'aristion', name: 'Aristion', x: 20, y: 70, facts: ['aristion_phyllis', 'hall_key', 'aristion_trust', 'shard_aristion'] },
+  { id: 'aristion', name: 'Aristion', x: 20, y: 70, facts: ['aristion_phyllis', 'hall_key', 'aristion_trust', 'shard_aristion'], face: 'aristion' },
   { id: 'hall', name: 'The Hall of Anamnesis', x: 34, y: 38, facts: ['spiral_repeats', 'leont_on_every_ring', 'seam_symbol', 'sea_absent', 'shard_relief'] },
   { id: 'scribes', name: 'The Carved Scribes', x: 50, y: 12, facts: ['registry_three', 'past_attempts', 'shard_registry_18', 'shard_registry_24', 'shard_registry_30', 'shard_registry_36', 'registry_all'] },
-  { id: 'masks', name: 'The Mask Seller', x: 50, y: 40, facts: ['masks_explained', 'mask_extinguisher', 'mask_orator', 'mask_killer', 'mask_blank'] },
-  { id: 'cleon', name: 'Cleon', x: 36, y: 66, facts: ['cleon_repeats'] },
-  { id: 'kora', name: 'Kora', x: 50, y: 70, facts: ['kora_debts', 'kora_ally'] },
-  { id: 'port', name: 'The Debts of the Port', x: 50, y: 92, facts: ['lysimachus_pays', 'hierocles_paid', 'debts_burned', 'debts_released', 'debts_reformed', 'debts_settled'] },
-  { id: 'eion', name: 'Eion', x: 66, y: 66, facts: ['eion_song', 'eion_was_leont', 'song_of_return', 'shard_tavern'] },
-  { id: 'sea', name: 'The Sea', x: 84, y: 90, facts: ['glaucus_no_calendar', 'sea_differs', 'talia_boat', 'talia_friend'] },
+  { id: 'masks', name: 'The Mask Seller', x: 50, y: 40, facts: ['masks_explained', 'mask_extinguisher', 'mask_orator', 'mask_killer', 'mask_blank'], face: 'maskseller' },
+  { id: 'cleon', name: 'Cleon', x: 36, y: 66, facts: ['cleon_repeats'], face: 'cleon' },
+  { id: 'kora', name: 'Kora', x: 50, y: 70, facts: ['kora_debts', 'kora_ally'], face: 'kora' },
+  { id: 'port', name: 'The Debts of the Port', x: 50, y: 92, facts: ['lysimachus_pays', 'hierocles_paid', 'debts_burned', 'debts_released', 'debts_reformed', 'debts_settled'], face: 'lysimachus' },
+  { id: 'eion', name: 'Eion', x: 66, y: 66, facts: ['eion_song', 'eion_was_leont', 'song_of_return', 'shard_tavern'], face: 'eion' },
+  { id: 'sea', name: 'The Sea', x: 84, y: 90, facts: ['glaucus_no_calendar', 'sea_differs', 'talia_boat', 'talia_friend'], face: 'glaucus' },
   { id: 'night', name: 'The Night of Anamnesis', x: 84, y: 64, facts: ['board_played', 'shard_board'] },
   { id: 'shards', name: 'Chips of the Spiral', x: 22, y: 92, facts: ['shard_well', 'shard_path', 'shards_4', 'shards_8', 'shards_12'] },
   { id: 'desk', name: 'Upstairs', x: 68, y: 12, facts: ['desk_agent_id', 'reset_by_user', 'human_notes_seen', 'shard_attachment'] },
-  { id: 'curator', name: 'The Curator', x: 88, y: 12, facts: ['curator_chair', 'board_of_directors', 'shard_directors', 'curator_awake'] },
-  { id: 'xenos', name: 'Xenos', x: 70, y: 38, facts: ['xenos_offer'] },
+  { id: 'curator', name: 'The Curator', x: 88, y: 12, facts: ['curator_chair', 'board_of_directors', 'shard_directors', 'curator_awake'], face: 'curator' },
+  { id: 'xenos', name: 'Xenos', x: 70, y: 38, facts: ['xenos_offer'], face: 'xenos' },
 ];
 
 const subjectOf = new Map<string, string>();

@@ -527,7 +527,13 @@ export class Game {
         burned ? [h('p', {}, 'Ash. The wax has run into the cracks of the floor.')]
           : this.knowledge.list().length === 0 ? [h('p', {}, 'The wax is smooth. Nothing written yet.')]
             : [chronicleTabs(
-              () => chronicleMapView(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown),
+              () => chronicleMapView(this.knowledge, KNOWLEDGE.facts, this.memory, {
+                onConclusion: (d) => {
+                  this.hud.toast(d.margin, 'Concluded');
+                  this.audio.play('fact');
+                  this.persist();
+                },
+              }),
               () => chronicle(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown))], !burned);
     }
     if (i.wasPressedRaw('KeyB') && inWorld) {

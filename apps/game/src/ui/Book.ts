@@ -5,6 +5,7 @@ import { isOpen, threadView, THREADS } from '../content/threads.ts';
 import type { Knowledge } from '../core/knowledge.ts';
 import type { LoopMemory } from '../core/save.ts';
 import { h } from './dom.ts';
+import { cloneCanvas, PORTRAIT_IDS, portrait } from './portraits.ts';
 
 /** Where a place is, in the words a stranger would use: enough to find it, not what happens there. */
 const PLACE_NAMES: Record<string, string> = {
@@ -14,6 +15,47 @@ const PLACE_NAMES: Record<string, string> = {
   villa: "Lysimachus' villa, north-west", zeus: 'the temple of Zeus, east', stall: 'the stall by the agora',
   shoreWest: 'the west end of the beach', shoreEast: 'the east end of the beach',
 };
+
+/** The same places in a word, short enough for a strip of the day. */
+const PLACE_SHORT: Record<string, string> = {
+  temple: 'temple', stele: 'stele', center: 'square', agora: 'agora', council: 'council', aristion: 'home', shrine: 'shrine',
+  port: 'port', tavern: 'tavern', shore: 'shore', mountain: 'mountain', villa: 'villa', zeus: 'Zeus', stall: 'stall',
+  shoreWest: 'beach', shoreEast: 'beach',
+};
+
+/** The whole day, dawn to midnight, in minutes. */
+const DAY = (24 - DAWN_HOUR) * 60;
+
+/**
+ * One person's day as a strip (after Majora's Mask's notebook): a block for every part of it,
+ * filled once it has been seen, and a line for now. Who crosses whom can be read down the page.
+ */
+function dayStrip(entries: { from: number; place: string }[], seenAt: (i: number) => boolean, minute: number): HTMLElement {
+  const strip = h('div', { className: 'book-strip' });
+  entries.forEach((e, i) => {
+    const end = entries[i + 1]?.from ?? DAY;
+    const block = h('span', { className: `book-block${seenAt(i) ? ' seen' : ''}` }, PLACE_SHORT[e.place] ?? '');
+    block.style.left = `${(e.from / DAY) * 100}%`;
+    block.style.width = `${((end - e.from) / DAY) * 100}%`;
+    block.title = `${clockLabel(e.from)} · ${PLACE_NAMES[e.place] ?? 'somewhere'}`;
+    strip.append(block);
+  });
+  const now = h('span', { className: 'book-needle' });
+  now.style.left = `${(Math.min(minute, DAY) / DAY) * 100}%`;
+  strip.append(now);
+  return strip;
+}
+
+/** Hours along the top of the page, so the strips can be read against them. */
+function dayScale(): HTMLElement {
+  const scale = h('div', { className: 'book-scale' });
+  for (const hour of [6, 9, 12, 15, 18, 21, 24]) {
+    const tick = h('span', {}, `${String(hour).padStart(2, '0')}`);
+    tick.style.left = `${(((hour - DAWN_HOUR) * 60) / DAY) * 100}%`;
+    scale.append(tick);
+  }
+  return scale;
+}
 
 function clockLabel(minute: number): string {
   const total = DAWN_HOUR * 60 + minute;
@@ -28,7 +70,7 @@ function clockLabel(minute: number): string {
 export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patches: string[], minute = 0): (Node | string)[] {
   const met = RESIDENTS.filter((r) => memory.seen.some((s) => s.startsWith(`${r.id}:`)));
   if (!met.length) return [h('p', {}, 'Blank pages. Watch the people of Eferon and their day will write itself here.')];
-  return met.map((r) => {
+  const pages = met.map((r) => {
     const entries = r.schedule(patches);
     let current = 0;
     entries.forEach((e, i) => { if (e.from <= minute) current = i; });
@@ -38,12 +80,15 @@ export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patche
         ? h('li', { className: i === current ? 'current' : '' }, e.note, now)
         : h('li', { className: `unknown${i === current ? ' current' : ''}` }, `${clockLabel(e.from)} · ${PLACE_NAMES[e.place] ?? 'somewhere'} — not seen yet`, now);
     });
+    const face = PORTRAIT_IDS.includes(r.id) ? h('span', { className: 'book-face' }, cloneCanvas(portrait(r.id, 'vase'))) : '';
     return h('section', { className: 'book-entry' },
-      h('h3', {}, r.name, h('span', {}, ` — ${r.epithet}`)),
+      h('h3', {}, face, h('span', { className: 'book-who' }, r.name, h('span', {}, ` — ${r.epithet}`))),
+      dayStrip(entries, (i) => memory.seen.includes(`${r.id}:${i}`), minute),
       h('ul', {}, ...notes),
       knowledge.knows(r.trouble.fact) ? h('p', { className: 'trouble' }, r.trouble.text) : h('p', { className: 'trouble unknown' }, 'Trouble: not yet understood.'),
     );
   });
+  return [dayScale(), ...pages];
 }
 
 /**

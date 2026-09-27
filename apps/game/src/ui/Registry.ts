@@ -1,5 +1,5 @@
 // The registry page for one past Leont, and the overview of all six.
-import { ATTEMPTS, FATES, PAST_LEONTS, type PastLeont } from '../content/leonts.ts';
+import { ATTEMPTS, ATTEMPTS_SHORT, FATES, PAST_LEONTS, type PastLeont } from '../content/leonts.ts';
 import type { LoopMemory } from '../core/save.ts';
 import { h } from './dom.ts';
 
@@ -36,9 +36,31 @@ export function registryRow(memory: LoopMemory, leont: PastLeont, onChange: () =
   );
 }
 
+/**
+ * The thirty-six as one history (after Heaven's Vault's timeline): the scratches of the inner ring
+ * first, the outer ring last, and then the one reading it. A confirmed Leont says what he tried.
+ */
+export function registryTimeline(memory: LoopMemory): HTMLElement {
+  const byRing = [3, 2, 1, 0].map((ring) => PAST_LEONTS.map((l, i) => ({ l, n: i + 1 })).filter((x) => x.l.ring === ring).sort((a, b) => b.n - a.n));
+  const ringLabel = ['the outer ring · latest', 'second ring', 'third ring', 'the scratches · oldest'];
+  const groups = byRing.map((cells, gi) => h('div', { className: 'regline-group' },
+    h('span', { className: 'regline-ring' }, ringLabel[3 - gi]!),
+    h('div', { className: 'regline-cells' }, ...cells.map(({ l, n }) => {
+      const e = memory.registry[l.id];
+      const tried = e?.locked ? ATTEMPTS[l.attempt]! : '';
+      const cell = h('span', { className: `regline-cell${e?.locked ? ' known' : e ? ' seen' : ''}` },
+        h('b', {}, roman(n)), h('small', {}, e?.locked ? ATTEMPTS_SHORT[l.attempt] ?? '' : e ? '…' : '?'));
+      cell.title = e?.locked ? `Leont ${roman(n)}: ${tried}, and ${FATES[l.fate]}` : `Leont ${roman(n)}: not yet named`;
+      return cell;
+    }))));
+  return h('div', { className: 'regline' }, ...groups,
+    h('div', { className: 'regline-group' }, h('span', { className: 'regline-ring' }, 'now'), h('div', { className: 'regline-cells' }, h('span', { className: 'regline-cell you' }, h('b', {}, 'You'), h('small', {}, 'Leont')))));
+}
+
 export function registryOverview(memory: LoopMemory, inspected: string[], onChange: () => void): (Node | string)[] {
   const rows = PAST_LEONTS.filter((l) => inspected.includes(l.id) || memory.registry[l.id]);
   return [
+    registryTimeline(memory),
     h('p', { className: 'registry-rule' }, 'Three correct identifications confirm one another. Wrong ones are never marked.'),
     ...(rows.length ? rows.map((l) => registryRow(memory, l, onChange)) : [h('p', {}, 'Click a carved scribe on the spiral to begin.')]),
   ];

@@ -23,6 +23,15 @@ export const ATTEMPTS: Record<string, string> = {
   taught_children: 'taught the children a different myth',
 };
 
+/** The same attempts in two or three words, for the registry's timeline. */
+export const ATTEMPTS_SHORT: Record<string, string> = {
+  quenched_fire: 'the fire', spoke_first: 'the speech', warned_city: 'a warning', fled_city: 'the hills',
+  killed_priest: 'the knife', moved_date: 'the date', burned_stele: 'the stele', wrote_other_line: 'another line',
+  refused_sacrifice: 'no sacrifice', carried_tablets: 'the tablets', sang_early: 'the song', took_the_offer: 'the offer',
+  hid_in_hall: 'hiding', bribed_priest: 'a bribe', burned_tables: 'the tables', blinded_himself: 'his eyes',
+  freed_bull: 'the bull', taught_children: 'a new myth',
+};
+
 export const FATES: Record<string, string> = {
   flood: 'the flood came at midnight',
   fire: 'the fire came at its hour',

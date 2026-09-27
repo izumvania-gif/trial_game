@@ -44,6 +44,10 @@ export interface LoopMemory {
   learnedOn: Record<string, number>;
   /** Hints the player chose to see, as "thread:step". */
   hintsShown: string[];
+  /** Facts, and rumour cards, the chronicle map showed the last time it was open: the rest is new. */
+  mapSeen: string[];
+  /** Conclusions carved in the chronicle (content/deductions.ts). */
+  deductions: string[];
 }
 
 export interface CycleState {
@@ -83,7 +87,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [],
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [],
   };
 }
 

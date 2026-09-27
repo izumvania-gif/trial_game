@@ -535,3 +535,61 @@ button.cmap-card:focus-visible { outline: 3px dashed var(--lacquer); outline-off
 .cmap-questions { height: 100%; overflow-y: auto; max-width: 46rem; margin: 0 auto; padding: 1rem 1.6rem; background: var(--panel-solid); color: var(--bone); border: 2px solid var(--lacquer); }
 .cmap-detail { align-self: flex-start; max-height: 100%; }
 .cmap-arrow.settled { opacity: 0.22; }
+/* Faces on the cards of people; marks for what is new, what has more, and a conclusion to draw. */
+button.cmap-card.has-face { flex-direction: row; justify-content: flex-start; gap: 0.35rem; padding-left: 0.45rem; }
+.cmap-face { flex: none; height: 78%; aspect-ratio: 1; margin-top: 0.35rem; }
+.cmap-face canvas, .cmap-detail-face canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.cmap-text { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; flex: 1; min-width: 0; }
+.cmap-more, .cmap-conclude {
+  position: absolute; top: -0.55rem; width: 1.25rem; height: 1.25rem; border-radius: 50%; display: grid; place-items: center;
+  font-size: 0.78rem; font-variant: normal; font-weight: bold; border: 2px solid var(--lacquer);
+}
+.cmap-more { left: -0.55rem; background: var(--added-red); color: var(--bone); }
+.cmap-conclude { right: -0.55rem; background: var(--bone); color: var(--lacquer); }
+.cmap-new {
+  display: none; position: absolute; bottom: -0.7rem; left: 50%; transform: translateX(-50%); padding: 0 0.45rem;
+  background: var(--lacquer); color: var(--bone); font-size: 0.62rem; letter-spacing: 0.18em; text-transform: uppercase; font-variant: normal; border-radius: 2px;
+}
+button.cmap-card.new .cmap-new { display: block; animation: cmap-glint 1.8s ease-in-out infinite; }
+@keyframes cmap-glint { 50% { background: var(--added-red); } }
+html.reduced-motion button.cmap-card.new .cmap-new { animation: none; }
+button.cmap-card.understood { box-shadow: inset 0 0 0 3px var(--bone), inset 0 0 0 4px var(--added-red), 0 4px 0 rgba(13, 11, 9, 0.35); }
+.cmap-detail h3 { display: flex; align-items: center; gap: 0.6rem; }
+.cmap-detail-face { width: 3.2rem; height: 3.2rem; flex: none; }
+.cmap-detail li.fresh::after { content: ' new'; font-size: 0.66rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--added-red); }
+.cmap-conclusion { margin-top: 1.1rem; padding-top: 0.9rem; border-top: 1px solid var(--lacquer); }
+.cmap-sentence { line-height: 2.1; font-size: 1.02rem; }
+.cmap-sentence.done b { font-weight: normal; border-bottom: 2px solid var(--added-red); }
+select.cmap-blank {
+  font: inherit; font-size: 0.95rem; color: var(--lacquer); background: transparent; border: none; border-bottom: 2px dashed var(--lacquer);
+  padding: 0 0.2rem; margin: 0 0.15rem; cursor: pointer; max-width: 100%;
+}
+select.cmap-blank:focus-visible { outline: 2px solid var(--added-red); }
+button.cmap-carve { margin-top: 0.5rem; background: var(--lacquer); color: var(--bone); border: none; padding: 0.35rem 1.2rem; letter-spacing: 0.18em; text-transform: uppercase; font-size: 0.75rem; }
+.cmap-margin { font-style: italic; }
+/* The Book's strips of the day: a block per part of someone's day, bone once seen; now is a red line. */
+.book-entry h3 { display: flex; align-items: center; gap: 0.6rem; }
+.book-face { width: 2.6rem; height: 2.6rem; flex: none; }
+.book-face canvas { width: 100%; height: 100%; image-rendering: pixelated; display: block; }
+.book-scale { position: sticky; top: -2rem; z-index: 1; height: 1.2rem; margin: 0.4rem 0 0.2rem; background: var(--panel-solid); font-family: var(--mono); font-size: 0.66rem; color: var(--muted); }
+.book-scale span { position: absolute; transform: translateX(-50%); }
+.book-scale span:first-child { transform: none; }
+.book-scale span:last-child { transform: translateX(-100%); }
+.book-strip { position: relative; height: 1.15rem; margin: 0.35rem 0 0.5rem; border: 1px solid var(--rule); }
+.book-block {
+  position: absolute; top: 0; bottom: 0; overflow: hidden; white-space: nowrap; padding: 0 0.25rem; box-sizing: border-box;
+  font-size: 0.64rem; line-height: 1.05rem; letter-spacing: 0.04em; color: var(--muted); border-right: 1px solid var(--rule);
+  background: repeating-linear-gradient(135deg, transparent 0 4px, rgba(232, 226, 208, 0.08) 4px 6px);
+}
+.book-block.seen { background: var(--bone); color: var(--lacquer); }
+.book-needle { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--terracotta); }
+/* The registry's timeline: oldest scratches on the left, the reader on the right. */
+.regline { display: flex; flex-direction: column; gap: 0.35rem; margin: 0.4rem 0 1rem; }
+.regline-group { display: flex; flex-direction: column; gap: 0.2rem; }
+.regline-ring { font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.regline-cells { display: grid; grid-template-columns: repeat(9, 1fr); gap: 2px; }
+.regline-cell { min-width: 0; min-height: 2.6rem; padding: 0.15rem; display: flex; flex-direction: column; align-items: center; gap: 0.1rem; border: 1px solid var(--rule); font-size: 0.6rem; line-height: 1.05; text-align: center; color: var(--muted); }
+.regline-cell b { font-weight: normal; font-size: 0.72rem; letter-spacing: 0.05em; }
+.regline-cell.seen { border-color: var(--ember); }
+.regline-cell.known { background: var(--bone); color: var(--lacquer); border-color: var(--bone); }
+.regline-cell.you { border: 1px dashed var(--ember); color: var(--ember); grid-column: 1 / -1; min-height: 0; flex-direction: row; justify-content: center; gap: 0.5rem; }
