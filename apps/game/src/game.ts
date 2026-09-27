@@ -33,6 +33,7 @@ import { StrikesStage } from './stages/strikes/StrikesStage.ts';
 import { TownStage } from './stages/town/TownStage.ts';
 import type { Stage, StageHost } from './stages/types.ts';
 import { bookOfStrangers, chronicle, hintLine } from './ui/Book.ts';
+import { chronicleMapView, chronicleTabs } from './ui/ChronicleMap.ts';
 import { Dialogue, type DialogueOptions } from './ui/Dialogue.ts';
 import { Guides } from './ui/Guide.ts';
 import { h } from './ui/dom.ts';
@@ -521,8 +522,13 @@ export class Game {
     if (this.dialogue.open || this.modal.open || this.lyre.open || this.settingsPanel.open) return;
     const inWorld = this.current.id === 'town' || this.current.id === 'spiral';
     if (i.wasPressedRaw('KeyC') && inWorld) {
+      const burned = this.lost('chronicle');
       this.hud.togglePanel('chronicle', 'Chronicle', () =>
-        this.lost('chronicle') ? [h('p', {}, 'Ash. The wax has run into the cracks of the floor.')] : chronicle(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown));
+        burned ? [h('p', {}, 'Ash. The wax has run into the cracks of the floor.')]
+          : this.knowledge.list().length === 0 ? [h('p', {}, 'The wax is smooth. Nothing written yet.')]
+            : [chronicleTabs(
+              () => chronicleMapView(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown),
+              () => chronicle(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown))], !burned);
     }
     if (i.wasPressedRaw('KeyB') && inWorld) {
       this.hud.togglePanel('book', 'Book of Strangers', () =>

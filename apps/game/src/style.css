@@ -473,3 +473,65 @@ html.reduced-motion .diary-entries li.fresh { animation: none; }
 /* The Book of Strangers: where they are now. */
 .book-entry li.current { color: var(--bone); }
 .book-now { margin-left: 0.5rem; padding: 0 0.35rem; font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--bone); border: 1px solid var(--terracotta); }
+
+/* ─── The chronicle as a map, painted like a cup ───────────────────────────────
+   Terracotta ground, black gloss, bone for white-ground panels and added red for accents.
+   A meander runs under the title and along each card, as it runs round a cup's rim. */
+:root {
+  --meander: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cpath d='M0 11H22V1H6V8H17V4H10' fill='none' stroke='%230d0b09' stroke-width='2'/%3E%3C/svg%3E");
+  --meander-bone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'%3E%3Cpath d='M0 11H22V1H6V8H17V4H10' fill='none' stroke='%23e8e2d0' stroke-width='2'/%3E%3C/svg%3E");
+}
+.chronicle.wide {
+  left: 0; width: auto; padding: 1.1rem 1.6rem 0.8rem; display: flex; flex-direction: column; overflow: hidden;
+  background: radial-gradient(ellipse at 50% 45%, #c2602f 0%, var(--terracotta) 55%, #8a3c1e 100%);
+  color: var(--lacquer); border-left: none;
+}
+.chronicle.wide h2 { color: var(--lacquer); margin: 0; padding-bottom: 16px; background: var(--meander) repeat-x left bottom / 18px 9px; }
+.chronicle.wide .chronicle-hint { color: var(--lacquer); margin: 0.5rem 0 0; }
+.cmap-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.cmap-tabs { display: flex; gap: 0.5rem; margin: 0.7rem 0 0.8rem; }
+button.cmap-tab { background: transparent; border: 1px solid var(--lacquer); color: var(--lacquer); padding: 0.25rem 1.1rem; letter-spacing: 0.2em; text-transform: uppercase; font-size: 0.78rem; }
+button.cmap-tab.on { background: var(--lacquer); color: var(--bone); }
+.cmap-body { flex: 1; min-height: 0; }
+.cmap { display: flex; gap: 1.2rem; height: 100%; }
+.cmap-frame { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
+.cmap-board { position: relative; width: min(100%, calc((100vh - 10.5rem) * 5 / 3)); aspect-ratio: 5 / 3; }
+.cmap-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.cmap-arrow { fill: none; stroke: var(--lacquer); stroke-width: 0.34; stroke-linecap: round; }
+.cmap-arrow.to-rumour { stroke-dasharray: 0.9 0.8; }
+.cmap-head { fill: var(--lacquer); }
+button.cmap-card {
+  position: absolute; transform: translate(-50%, -50%); width: 14%; height: 12.3%; padding: 0.5rem 0.4rem 0.3rem;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.3rem;
+  background: var(--bone); color: var(--lacquer); border: 2px solid var(--lacquer); border-radius: 3px;
+  box-shadow: inset 0 0 0 3px var(--bone), inset 0 0 0 4px var(--lacquer), 0 4px 0 rgba(13, 11, 9, 0.35);
+  font-size: clamp(0.62rem, 0.95vw, 0.85rem); font-variant: small-caps; letter-spacing: 0.06em; line-height: 1.15; text-transform: none; cursor: pointer;
+}
+button.cmap-card::before { content: ''; position: absolute; left: 7px; right: 7px; top: 6px; height: 6px; background: var(--meander) repeat-x left center / 12px 6px; opacity: 0.85; }
+button.cmap-card.rumour { background: var(--lacquer); box-shadow: inset 0 0 0 3px var(--lacquer), inset 0 0 0 4px #c8683a, 0 4px 0 rgba(13, 11, 9, 0.35); }
+button.cmap-card.rumour::before { background-image: var(--meander-bone); opacity: 0.5; }
+button.cmap-card:hover { transform: translate(-50%, -52%); }
+button.cmap-card.selected { outline: 3px solid var(--bone); outline-offset: 3px; }
+button.cmap-card.rumour.selected { outline-color: var(--lacquer); }
+button.cmap-card:focus-visible { outline: 3px dashed var(--lacquer); outline-offset: 3px; }
+.cmap-name { padding-top: 0.35rem; text-align: center; }
+.cmap-q { font-size: clamp(1.1rem, 2vw, 1.8rem); color: var(--bone); line-height: 1; padding-top: 0.2rem; }
+.cmap-dots { display: flex; gap: 3px; }
+.cmap-dots i { width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--lacquer); }
+.cmap-dots i.on { background: var(--lacquer); }
+.cmap-laurel { position: absolute; right: 7px; bottom: 3px; color: var(--added-red); font-size: 0.95rem; }
+.cmap-detail {
+  flex: none; width: min(24rem, 32vw); overflow-y: auto; padding: 1.1rem 1.3rem;
+  background: var(--bone); color: var(--lacquer); border: 2px solid var(--lacquer);
+  box-shadow: inset 0 0 0 4px var(--bone), inset 0 0 0 5px var(--lacquer), 0 5px 0 rgba(13, 11, 9, 0.3);
+}
+.cmap-detail h3 { font-weight: normal; letter-spacing: 0.16em; text-transform: uppercase; font-size: 0.95rem; margin: 0.2rem 0 0.4rem; padding-bottom: 14px; background: var(--meander) repeat-x left bottom / 14px 7px; }
+.cmap-detail li { margin: 0.65rem 0; line-height: 1.45; }
+.cmap-kicker { font-style: italic; color: #3b2a1f; }
+.cmap-detail .thread-next { color: var(--lacquer); }
+.cmap-detail .thread-next span { color: var(--added-red); }
+.cmap-detail button.hint-button { color: var(--lacquer); border-color: var(--lacquer); background: transparent; }
+.cmap-detail button.hint-button:hover { background: var(--lacquer); color: var(--bone); }
+.cmap-questions { height: 100%; overflow-y: auto; max-width: 46rem; margin: 0 auto; padding: 1rem 1.6rem; background: var(--panel-solid); color: var(--bone); border: 2px solid var(--lacquer); }
+.cmap-detail { align-self: flex-start; max-height: 100%; }
+.cmap-arrow.settled { opacity: 0.22; }

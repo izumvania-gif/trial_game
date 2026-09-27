@@ -122,8 +122,10 @@ export class Hud {
   }
 
   /** Side panels: the chronicle (C), the Book of Strangers (B). One at a time. */
-  togglePanel(id: string, title: string, content: () => (Node | string)[]): void {
+  togglePanel(id: string, title: string, content: () => (Node | string)[], wide = false): void {
     if (this.openPanelId === id) return this.closePanel();
+    // The chronicle's map takes the whole screen; the Book stays a page at the side.
+    this.chronicleEl.classList.toggle('wide', wide);
     this.chronicleEl.replaceChildren(h('h2', {}, title), ...content(), h('p', { className: 'chronicle-hint' }, ...keyLine('Esc — close')));
     this.chronicleEl.hidden = false;
     this.openPanelId = id;
