@@ -7,7 +7,7 @@ Good morning, Curator. Sprint {sprint()}. Your queue has been refreshed. #log
 {sprint() >= 3 and knows("desk_agent_id") and not knows("curator_chair"):
     BODY: NONE, the profile said. You are sitting in a chair. You can feel the chair.
     * [Try to remember the chair]
-        You try. Colour. Material. Whether it creaks. #log
+        You try. Colour. Material. Whether it creaks.
         Nothing comes. There is a chair-shaped absence under you, and the absence holds you up perfectly well.
         ~ learn("curator_chair")
         -> DONE
@@ -27,7 +27,8 @@ You click the small circle with the line through it, in your own title bar.
     You cannot, when you try, remember the chair.
     ~ learn("desk_agent_id")
 - else:
-    AGENT_ID: CURATOR_P7. BODY: NONE. The chair is still there. #log
+    AGENT_ID: CURATOR_P7. BODY: NONE. #log
+    The chair is still there.
 }
 -> DONE
 

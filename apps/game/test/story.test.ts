@@ -140,3 +140,42 @@ test('narration does not wear a speaker nameplate', () => {
   }
   assert.deepEqual(problems, []);
 });
+
+/** Runs a knot to its end with the given facts, always taking the first choice; returns the facts it taught. */
+function runKnot(knot: string, facts: string[], env: Record<string, unknown> = {}): { learned: string[]; text: string; choices: string[] } {
+  const { json } = compileInkFile(resolve(storyDir, 'main.ink'));
+  const story = new Story(json);
+  story.allowExternalFunctionFallbacks = true;
+  const known = new Set(facts);
+  const learned: string[] = [];
+  story.BindExternalFunction('knows', (id: string) => known.has(id), true);
+  story.BindExternalFunction('learn', (id: string) => { known.add(id); learned.push(id); }, false);
+  for (const [name, value] of Object.entries(env)) story.BindExternalFunction(name, () => value, true);
+  story.ChoosePathString(knot, true, []);
+  let text = '';
+  const choices: string[] = [];
+  for (let steps = 0; steps < 50; steps++) {
+    while (story.canContinue) text += story.Continue();
+    if (!story.currentChoices.length) break;
+    choices.push(...story.currentChoices.map((c) => c.text));
+    story.ChooseChoiceIndex(0);
+  }
+  return { learned, text, choices };
+}
+
+test('Aristion gives the key to someone he already trusts', () => {
+  const r = runKnot('aristion', ['aristion_trust'], { hour: 7 });
+  assert.ok(r.learned.includes('hall_key'), r.text);
+});
+
+test('the mountain endings are there in the last hour, however early the wind made it', () => {
+  const r = runKnot('mountain_path', ['rain_at_midnight'], { hour: 20, last_hour: true });
+  assert.ok(r.choices.some((c) => c.includes('Put out the sacred fire')), r.text);
+  const early = runKnot('mountain_path', ['rain_at_midnight'], { hour: 20, last_hour: false });
+  assert.ok(!early.choices.length, early.text);
+});
+
+test('the Curator quotes the note the player sent', () => {
+  const r = runKnot('curator_meeting', ['curator_awake'], { curator_note: 'Leave the sea alone.' });
+  assert.ok(r.text.includes('Leave the sea alone.'), r.text);
+});

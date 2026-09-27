@@ -18,13 +18,15 @@ export class Modal {
     return !this.root.hidden;
   }
 
-  show(className: string, children: (Node | string)[], opts: { dismissable?: boolean; onClose?: () => void } = {}): void {
+  show(className: string, children: (Node | string)[], opts: { dismissable?: boolean; onClose?: () => void; autofocus?: boolean } = {}): void {
     this.card.className = `modal-card ${className}`;
     this.card.dataset.dismissable = opts.dismissable === false ? 'no' : 'yes';
     this.card.replaceChildren(...children);
     this.onClose = opts.onClose ?? null;
     this.root.hidden = false;
-    this.card.querySelector<HTMLElement>('button')?.focus();
+    // The Wake test must not be pressed by a stray Space: there, nothing takes the focus.
+    if (opts.autofocus !== false) this.card.querySelector<HTMLElement>('button')?.focus();
+    else (document.activeElement as HTMLElement | null)?.blur();
   }
 
   close(): void {

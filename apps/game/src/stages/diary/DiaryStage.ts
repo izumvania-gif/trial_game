@@ -45,13 +45,19 @@ export class DiaryStage implements Stage {
   }
 
   update(dt: number): void {
-    // The page is lit by the reader's own day: checked once a minute.
+    // The page is lit by the reader's own day: checked once a minute. A new day turns the page.
     this.lightCheck += dt;
     if (this.lightCheck > 60) {
       this.lightCheck = 0;
       this.light();
+      const ep = this.host.memory.epilogue;
+      if (ep && daysSince(ep.start, Date.now()) !== this.shownDay) this.render();
     }
   }
+
+  /** The real day the page shows, so a new one can be noticed while the diary is open. */
+  private shownDay = -1;
+  private closing = false;
 
   /** Morning, day, evening or night, by this computer's clock. */
   private light(): void {
@@ -64,13 +70,17 @@ export class DiaryStage implements Stage {
     const ep = this.host.memory.epilogue;
     if (!ep) return;
     const today = daysSince(ep.start, Date.now());
+    this.shownDay = today;
     const prophet = ep.mode === 'prophet';
     const written = ep.entries.some((e) => e.day === today);
 
     // The prophet's diary slowly grows dates; after a few days the circle comes back.
     if (prophet && today >= PROPHET_DAYS) {
       this.root.replaceChildren(h('p', { className: 'log' }, 'LOG: CYCLE RUN #1'));
-      window.setTimeout(() => this.host.ending('prophet'), 1500);
+      if (!this.closing) {
+        this.closing = true;
+        window.setTimeout(() => this.host.ending('prophet'), 1500);
+      }
       return;
     }
 

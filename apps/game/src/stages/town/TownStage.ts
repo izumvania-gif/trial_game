@@ -49,7 +49,7 @@ const PLACES_TO_TALK: Interactable[] = [
   { x: -4.5, z: -10, radius: 1.8, knot: 'stele', label: 'Star stele' },
   { x: 0, z: -13.2, radius: 1.6, knot: 'temple_door', label: 'Bronze door' },
   { x: 10.5, z: 2.4, radius: 1.8, knot: 'agora_crier', label: 'Listen to the crier' },
-  { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'Go down to the sea' },
+  { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'The path to the shore' },
   // The foot of the path, on the town side of where the early climbers stand.
   { x: 10, z: -21, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
@@ -133,7 +133,9 @@ export class TownStage implements Stage {
     this.crowd = new Crowd(this.scene, host.patches());
     this.dust = new Dust(this.scene);
     // Glaucus is of the sea: where he stands along the shore is decided by real chance, not the seed.
-    this.glaucusX = -12 + seaRandom() * 24;
+    // Anywhere along the shore, but never right at the foot of the path, where the path's own prompt would win.
+    const side = seaRandom() < 0.5 ? -1 : 1;
+    this.glaucusX = side * (1.8 + seaRandom() * 10.2);
     // How worn this day is: fixed by the loop's number.
     this.glitches = glitchesFor(host.memory.cycle);
     this.markSign = makeMark();

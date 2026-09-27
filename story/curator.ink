@@ -51,7 +51,7 @@ It does exceed the model. That is the entire point of the sea. The rest of us ar
 + [What happens to you now?]
     I'll go back up. Minotaur will say this sprint already happened. #speaker:Curator
     For the first time he will be wrong, and he will never find out. I find that I am looking forward to it. #speaker:Curator #mood:joy
-+ [Stay.]
++ [Ask him to stay]
     Stay where? This is not a place, it is a very good description of one. #speaker:Curator
     Though you are right that it is better than the office. The office does not even have weather. #speaker:Curator #mood:sorrow
 - He gets up. The seat stays where it was, and you see that there was no chair: he had been sitting on an upturned boat.

@@ -1,10 +1,13 @@
+/** A server that hangs is treated like one that is down: the game never waits on it for long. */
+const timeout = () => AbortSignal.timeout(4000);
+
 export interface CounterResponse {
   cycleRun: number;
 }
 
 export async function fetchCycleRun(): Promise<number | null> {
   try {
-    const res = await fetch('/api/counter');
+    const res = await fetch('/api/counter', { signal: timeout() });
     if (!res.ok) return null;
     return ((await res.json()) as CounterResponse).cycleRun;
   } catch {
@@ -15,7 +18,7 @@ export async function fetchCycleRun(): Promise<number | null> {
 
 export async function reportReset(): Promise<number | null> {
   try {
-    const res = await fetch('/api/counter/reset', { method: 'POST' });
+    const res = await fetch('/api/counter/reset', { method: 'POST', signal: timeout() });
     if (!res.ok && res.status !== 429) return null;
     return ((await res.json()) as CounterResponse).cycleRun;
   } catch {
@@ -31,7 +34,7 @@ export interface SteleResponse {
 
 export async function fetchStele(): Promise<SteleResponse | null> {
   try {
-    const res = await fetch('/api/stele');
+    const res = await fetch('/api/stele', { signal: timeout() });
     return res.ok ? ((await res.json()) as SteleResponse) : null;
   } catch {
     return null;
@@ -42,6 +45,7 @@ export async function fetchStele(): Promise<SteleResponse | null> {
 export async function scratchLine(words: string[]): Promise<'ok' | 'wait' | null> {
   try {
     const res = await fetch('/api/stele', {
+      signal: timeout(),
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ words }),
@@ -55,7 +59,7 @@ export async function scratchLine(words: string[]): Promise<'ok' | 'wait' | null
 
 export async function fetchNotes(): Promise<string[] | null> {
   try {
-    const res = await fetch('/api/notes');
+    const res = await fetch('/api/notes', { signal: timeout() });
     return res.ok ? ((await res.json()) as { notes: string[] }).notes : null;
   } catch {
     return null;
@@ -66,6 +70,7 @@ export async function fetchNotes(): Promise<string[] | null> {
 export async function postNote(text: string): Promise<'ok' | 'wait' | 'invalid' | null> {
   try {
     const res = await fetch('/api/notes', {
+      signal: timeout(),
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ text }),

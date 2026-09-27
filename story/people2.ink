@@ -7,17 +7,23 @@
     Lysimachus is carried up the mountain in a litter. He waves to you. He waves to everyone.
     -> DONE
 - hour() == 15:
-    Hierocles, the priest of Zeus, is leaving Lysimachus' porch. His purse is heavier than when he came in. Lysimachus sees you seeing it and smiles.
+    Hierocles, the priest of Zeus, is walking away from Lysimachus' bollard at the port. His purse is heavier than when he came. Lysimachus sees you seeing it and smiles.
     Every Silver Age, scribe, somebody has to be the first to own something. I make sure it's me. And I make sure the gods are punctual. #speaker:Lysimachus #mood:joy
     ~ learn("lysimachus_pays")
     -> DONE
-- hour() >= 17:
+- hour() >= 18:
     Lysimachus is at dinner with the archons. Through the window you can hear him laughing, and the archons laughing a little after him.
     -> DONE
+- hour() >= 16:
+    Lysimachus is on his way home to dress for dinner, a slave behind him carrying the ledger of the boats.
 - hour() >= 13:
     Lysimachus sits on a bollard at the port, writing down the names of the boats that did not sail.
-- hour() >= 9:
+- hour() >= 12:
+    Lysimachus is on his way down to the port, his slaves pushing a cart of everything he bought.
+- hour() >= 10:
     Lysimachus is buying up the agora: oil, cloth, a goat. Nobody will need them tomorrow. He knows. He buys them anyway.
+- hour() >= 9:
+    Lysimachus is on his way to the agora with two slaves and an empty cart.
 - else:
     Lysimachus counts his ledgers on the porch of his villa, moving his lips.
 }
@@ -44,6 +50,10 @@
     -> DONE
 }
 The slave by the door has gone in to serve the dinner. Through the courtyard, a door stands open on the counting room: shelves of ledgers, every debt in the port.
+{patched("ledger_copy") and knows("kora_debts") and not knows("debts_settled"):
+    The shelves are full twice over. Somebody made a second copy of every ledger overnight, in a hand that is not a clerk's. Burning both would take until midnight.
+    -> DONE
+}
 {knows("kora_debts") and not knows("debts_settled"):
     * [Burn the ledgers]
         ~ notice("ledgers_burned", 0.34)
@@ -73,8 +83,14 @@ The slave by the door has gone in to serve the dinner. Through the courtyard, a 
     Hierocles is already on the mountain path, ahead of everyone, the knife wrapped in linen.
 - hour() >= 18:
     Hierocles is rehearsing the formula in the temple of Zeus. Let the world return to its beginning, as the sun returns to its rising. Again. Again.
+- hour() >= 17:
+    Hierocles is on his way back to the temple of Zeus, one hand on his purse.
 - hour() >= 15:
-    Hierocles is on his way to Lysimachus' villa. He does not stop to talk.
+    Hierocles stands at the port beside Lysimachus' bollard. Their heads are close together. They stop when you come near.
+- hour() >= 14:
+    Hierocles is on his way down to the port, to Lysimachus.
+- hour() >= 12:
+    Hierocles stands alone on the council steps, watching the agora, where Cleon is.
 - hour() >= 11:
     Hierocles and Cleon talk quietly on the council steps and stop when you come near.
 - else:
@@ -84,15 +100,18 @@ Go home, scribe. Write down what the stars say. That is all anyone needs from yo
 -> DONE
 
 === glaucus ===
-{hour() >= 23 and knows("sea_absent"): -> knife}
+{(hour() >= 23 or last_hour()) and knows("sea_absent"): -> knife}
 Glaucus, the priest of Poseidon, stands up to his knees in the water. Today he is here. Tomorrow he will be somewhere else along the shore; he has never told anyone where.
 {not knows("glaucus_no_calendar"):
     Calendar? The sea hasn't got one. Why should I? #speaker:Glaucus #mood:joy
     ~ learn("glaucus_no_calendar")
 }
-{knows("spiral_repeats") and not knows("sea_absent"):
+{
+- knows("spiral_repeats") and not knows("sea_absent"):
     You've been in the white hall, haven't you. You've got the look. #speaker:Glaucus #mood:wonder
     Go and look for me on your stone wheel, astronomer. You won't find me. Nor the water. #speaker:Glaucus #mood:joy
+- hour() >= 20:
+    It's dark now. The sea is the same in the dark. I mean it isn't. You know what I mean. #speaker:Glaucus #mood:joy
 - else:
     Come back when it's dark, if you want. The sea is the same in the dark. I mean it isn't. You know what I mean. #speaker:Glaucus #mood:joy
 }
@@ -117,7 +136,9 @@ But the stone in the hall still remembers everything, astronomer. Whatever you d
 - else:
     A stall of pale masks by the agora. The seller has a wide smile and a pack on his back taller than he is.
 }
-You've met with a terrible fate, haven't you? #speaker:The mask seller #mood:wonder
+{maskseller == 1:
+    You've met with a terrible fate, haven't you? #speaker:The mask seller #mood:wonder
+}
 {not knows("masks_explained"):
     These? Faces. Nobody in Eferon has them. Every one of them is yours, scribe. #speaker:The mask seller #mood:joy
     Every time one of you fights the day, the stone keeps his face. Read the stone right, and the face comes away in your hand. #speaker:The mask seller
@@ -131,7 +152,7 @@ You've met with a terrible fate, haven't you? #speaker:The mask seller #mood:won
 - has_mask("Orator"):
     You have the one that speaks. The assembly meets at the eleventh hour, on the council steps. #speaker:The mask seller
 - has_mask("Extinguisher"):
-    You have the smooth-cheeked one, the one with the water jar. A blind man in this city would know it by touch. #speaker:The mask seller #mood:joy
+    You have the one with the water jar. A blind man in this city would know it by touch. #speaker:The mask seller #mood:joy
 - else:
     Four faces can still be taken off the stone. The rest are carved too deep. #speaker:The mask seller #mood:sorrow
 }
@@ -149,10 +170,6 @@ You've met with a terrible fate, haven't you? #speaker:The mask seller #mood:won
     Xenos is reading the stele, very slowly, as if proofreading it.
 }
 His face is a smooth white oval. When he speaks, it is from somewhere slightly behind it.
-{not knows("xenos_offer"):
-    ~ notice("xenos_contact", 0.1)
-    ~ learn("xenos_offer")
-}
 {
 - wearing() == "Blank":
     Colleague. #speaker:Xenos
@@ -164,8 +181,16 @@ His face is a smooth white oval. When he speaks, it is from somewhere slightly b
     You are not interesting enough yet, scribe. Make some noise. Then we'll talk. #speaker:Xenos
     -> DONE
 }
+{not knows("xenos_offer"):
+    ~ notice("xenos_contact", 0.1)
+    ~ learn("xenos_offer")
+}
 There is a room where the reset doesn't reach. A desk, a window, a chronicle to keep. You'd write the slanted lines. The young ones need them. #speaker:Xenos
-Nobody has ever said no. I would know. #speaker:Xenos
+{xenos.refused:
+    You said no once. I remember. The offer does not expire; that is the only thing here that doesn't. #speaker:Xenos
+- else:
+    Nobody has ever said no. I would know. #speaker:Xenos
+}
 + [Accept]
     He holds out a hand. It is warm. That surprises you more than anything else today. #action:ending:promotion
     -> DONE
@@ -174,7 +199,7 @@ Nobody has ever said no. I would know. #speaker:Xenos
     And who reads yours? #speaker:Leont #mood:wonder
     He doesn't answer. For a moment the oval of his face looks like it is listening to something very far above.
     -> DONE
-+ [Refuse]
++ (refused) [Refuse]
     Nobody refuses. Well. Then you are the first. Or the first I'll remember, which isn't the same thing. #speaker:Xenos
     -> DONE
 
@@ -183,6 +208,12 @@ Nobody has ever said no. I would know. #speaker:Xenos
 - hour() >= 20: Talia sits with her father at the tavern. Neither of them talks. The Pelagia is tied up at the quay, late, as always.
 - hour() >= 12: Talia waits at the end of the quay for the Pelagia.
 - else: Talia mends a net on the beach, with her back to the city.
+}
+{not knows("talia_boat") and hour() >= 20:
+    He went out anyway, on the last day. Came back late. He always does. #speaker:Talia #mood:sorrow
+    Never the same lateness, though. Sometimes it's a little, sometimes a lot. I've been counting for years. #speaker:Talia
+    ~ learn("talia_boat")
+    -> DONE
 }
 {not knows("talia_boat"):
     My father went out anyway. On the last day. He always goes out. And he always comes back late. #speaker:Talia #mood:sorrow
@@ -215,7 +246,10 @@ Nobody has ever said no. I would know. #speaker:Xenos
 }
 {patched("assembly_closed"):
     The council house is shut. A notice: NO ASSEMBLY ON THE LAST DAY. The ink is still wet.
-    -> DONE
+    {wearing() != "Orator":
+        -> DONE
+    }
+    The doorkeeper looks at your face, and forgets the notice, and opens the door.
 }
 The assembly is sitting on the steps, half asleep, voting on the price of lamp oil for a tomorrow that will not come.
 {wearing() != "Orator":
@@ -226,11 +260,14 @@ The assembly is sitting on the steps, half asleep, voting on the price of lamp o
     You stand, in the Orator's face, and the steps go quiet. You realise you have nothing to say to them. Not yet.
     -> DONE
 }
-{knows("debts_settled"):
-    They look at you expectantly. The debts are already gone. You sit back down.
+{knows("debts_reformed"):
+    They look at you expectantly. You have already given them their law. You sit back down.
     -> DONE
 }
 You stand up in the Orator's face, and the steps go quiet the way the agora goes quiet for Cleon.
+{knows("debts_settled"):
+    The port owes nothing tonight already. But what was burned or bought can be undone; a law is harder.
+}
 * [Propose that every debt in the port be cancelled, today]
     ~ notice("assembly", 0.34)
     You speak. You don't know where the words come from; they come from the face. Iron rusts, you tell them. Let it rust tonight, not tomorrow. #spend:45

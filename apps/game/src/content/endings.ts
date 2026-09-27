@@ -78,7 +78,7 @@ export const ENDINGS: Record<string, EndingCard> = {
     id: 'exception_handled',
     title: 'Exception Handled',
     lines: [
-      'For a moment it works. The fire hisses out, and ten thousand people look at you instead of the sky.',
+      'For a moment it works. The ritual stumbles, and ten thousand people look at you instead of the sky.',
       'Then the rain comes anyway, at its hour.',
       'Tomorrow a scribe on the outer ring will be carved doing exactly what you did.',
     ],

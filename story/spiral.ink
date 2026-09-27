@@ -2,7 +2,7 @@
 A disk of white marble, taller than three men, carved in a spiral that runs inward to an empty circle.
 The outer ring is the market. The council. The plague ships. This year.
 ~ learn("spiral_repeats")
-Drag a ring to turn it. Click a carved scribe to study him. Tab — the registry. #hint
+Drag — turn a ring · Click — study a scribe · Tab — registry #hint
 -> DONE
 
 === spiral_aligned ===
@@ -19,7 +19,7 @@ You touch the mark. The marble goes smooth and cold, like no stone you know.
 LOG: CYCLE RUN — LEONT_ASTRO_ASSIST FAILED TO ALTER RESET TIMING #log
 + [Hold on to it] #stage:desk
     -> DONE
-+ [Let go] The hall comes back. Your heart is going like a hare's.
++ [Let go] The Hall comes back. Your heart is going like a hare's.
     -> DONE
 
 === registry_confirmed ===
@@ -28,7 +28,7 @@ The carvings seem to settle into the stone, as if they had been waiting to be re
     The face of the scribe with the water jar was chiselled smooth. You touch it, and the smooth face comes away in your hand like a mask.
     ~ give_mask("Extinguisher")
     ~ learn("mask_extinguisher")
-    M — put on a mask, in the city. M again changes it. #hint
+    M — put on or change a mask (in the city) #hint
 }
 {identified("l2") and not has_mask("Orator"):
     The inlaid face of the scribe on the council steps loosens under your thumb. It is warm, as if someone had just been speaking through it.
@@ -84,7 +84,7 @@ there is no sea on the spiral. Not one wave. Not a boat, not a shore. The city o
 -> DONE
 
 === spiral_no_sea ===
-Glaucus said: look for me on your stone wheel. You look. Market, council, plague ships — plague ships without water under them.
+Glaucus keeps no calendar. The sea keeps none either. You look for it on the stone. Market, council, plague ships — plague ships without water under them.
 -> registry_confirmed.no_sea
 
 === spiral_shard ===

@@ -14,7 +14,7 @@ export const HINTS: Hint[] = [
   { when: ['hall_key'], until: 'spiral_repeats', text: 'The door was never the hard part.' },
   { when: ['spiral_repeats'], until: 'registry_three', text: 'Read the carvings the way you read the stars: all of them, twice. Three true names confirm each other.' },
   { when: ['rain_at_midnight'], until: 'cleon_repeats', text: 'Listen to Cleon at the seventh hour. Then listen again tomorrow.' },
-  { when: ['mask_extinguisher'], until: 'song_of_return', text: 'Wear the smooth face to the blind man in the evening.' },
+  { when: ['mask_extinguisher'], until: 'song_of_return', text: 'Wear the face with the water jar to the blind man in the evening.' },
   { when: ['seam_symbol'], until: 'desk_agent_id', text: 'Hold on to the mark longer. Read your own profile.' },
   { when: ['kora_debts'], until: 'debts_settled', text: 'The flood is the only amnesty the poor get. Find them another one before you take the flood away.' },
   { when: ['cleon_repeats'], until: 'kora_ally', text: 'Kora will believe the words, not you. Give her Cleon\'s words before he says them.' },

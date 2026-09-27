@@ -6,6 +6,9 @@
     Under the window an old man is singing. He sings about a scribe who carried the tablets out of the fire. Don't, he sings. Don't carry them.
 - ended_last_cycle("exception_handled"):
     ACCOUNTED FOR #log
+- ended_last_cycle("wake_pressed"):
+    RESET INITIATED BY USER #log
+    Everything was done, and you pressed it anyway. The hand remembers the button better than the head remembers why.
 - ended_last_cycle("curator_missing") and not knows("curator_awake"):
     ROLLBACK APPROVED BY: CURATOR_P7 (auto) #log
 - ended_last_cycle("curator_missing"):
@@ -21,31 +24,35 @@
 - else:
     Grey light on the wax. You fell asleep over the chronicle. Again.
 }
-{damaged():
+{ended_last_cycle("intermediate"):
     The stars were late last night. You checked twice. The tables say one thing and the sky says another, and neither is sure.
 }
 {shard_line() != "":
     On the first tablet, older than the others, in a slanted hand you almost recognise:
     {shard_line()} #hand
 }
+~ temp slanted = false
 {
 - ended_last_cycle("promotion"):
     At the bottom of the last tablet, in a hand that does not slant at all, very even, very tired:
-    Welcome back. You won't remember this. I will. — P8 #hand
+    Welcome back. You won't remember this. I will. — P-8 #hand
 - ended_last_cycle("centre"):
     At the bottom of the last tablet, in the slanted hand, two words, pressed so hard the wax tore:
     First, memory. #hand
+    ~ slanted = true
 - ended_last_cycle("revolution"):
     At the bottom of the last tablet, in the slanted hand: Just this once, she said. It is always just this once. #hand
+    ~ slanted = true
 - dawn_hint() != "":
     At the bottom of the last tablet there is a line you did not write.
     {dawn_hint()} #hand
+    ~ slanted = true
 }
 ~ learn("other_hand")
 {voice() != "":
     {voice()} #voice
 }
-{knows("rain_at_midnight") and not ended_last_cycle("promotion"):
+{slanted and knows("rain_at_midnight"):
     The letters lean the way yours would, if you were in a hurry. If you had done this before.
 }
 {stele_word() != "":
@@ -56,7 +63,10 @@ The city is not awake yet. #action:carve
 
 === stele ===
 The star stele of the temple of Apollo. Tables of eclipses, the five ages, the names of those who led each one.
-{stele_word() != "":
+{
+- stele_word() != "" and patched("stele_moss"):
+    Fresh moss has grown over the crack overnight, thick and green, as if a season had passed in a night. You scrape it off with your thumb. Underneath, in your own hand: {stele_word()}.
+- stele_word() != "":
     In the crack beneath the moss, in your own hand: {stele_word()}.
 }
 {not knows("name_in_stone"):
@@ -92,10 +102,14 @@ There are many Leonts in Eferon. You tell yourself that twice.
     Whose orders, he doesn't say. He doesn't seem to know.
     -> DONE
 }
-The door to the Hall of Anamnesis. Every morning Aristion's key is back on his belt, and every morning it is in your hand; the lock does not ask how.
+{learned_today("hall_key"):
+    The door to the Hall of Anamnesis. Aristion's key is still warm from his belt. It turns as if it had been waiting.
+- else:
+    The door to the Hall of Anamnesis. Every morning Aristion's key is back on his belt, and every morning it is in your hand; the lock does not ask how.
+}
 + [Go in]
     ~ notice("hall_access", 0.1)
-    The hall is cold. Something in the middle of it is very large and very white. #stage:spiral
+    The Hall is cold. Something in the middle of it is very large and very white. #stage:spiral
     -> DONE
 + [Not yet] -> DONE
 
@@ -129,7 +143,7 @@ The path goes down between the rocks to the water.
     ~ learn("shard_path")
     -> DONE
 }
-{hour() < 22:
+{hour() < 22 and not last_hour():
     The path up the holy mountain. Tonight the whole city climbs it. Not yet.
     -> DONE
 }
@@ -139,14 +153,14 @@ Let the world return to its beginning, as the sun returns to its rising. #speake
     ~ notice("quenched_fire", 0.34)
     You tip the water jar over the tripod. The fire hisses out. Ten thousand people look at you instead of the sky. #action:ending:exception_handled
     -> DONE
-+ {knows("cleon_repeats")} [Shout the priest's next words before he can]
++ {knows("rain_at_midnight")} [Shout the priest's next words before he can]
     ~ notice("spoke_first", 0.34)
     You shout it first. The crowd turns. Somewhere a woman makes the sign against the evil eye. #action:ending:exception_handled
     -> DONE
 + {knows("kora_ally") and knows("debts_reformed")} [Let Kora take the altar from Hierocles]
     Kora climbs onto the altar steps. The dockworkers climb with her. Hierocles looks round for the archons, and the archons are already running. #action:ending:revolution
     -> DONE
-+ {knows("last_line") and knows("aristion_phyllis")} [Write the last line yourself, cleanly, for Aristion]
++ {knows("last_line") and knows("aristion_phyllis") and knows("past_attempts")} [Write the last line yourself, cleanly, for Aristion]
     You take out your tablet. You know exactly what the last line is. You write it in your best hand, and give it to Hierocles, and step back into the crowd. #action:ending:sisyphus
     -> DONE
 + [Say Yes with them]
@@ -156,14 +170,15 @@ Let the world return to its beginning, as the sun returns to its rising. #speake
 
 === midnight ===
 The wind rises. It always rises first.
-On the mountain ten thousand voices answer the priest. Yes. #speaker:Eferon
+On the mountain ten thousand voices answer the priest.
+Yes. #speaker:Eferon
 Then the rain.
 ~ learn("rain_at_midnight")
 -> DONE
 
 // The last hour: a named resident has stopped wherever eleven found them, facing the mountain.
 === still(name) ===
-{name} has stopped mid-step at the eleventh hour, facing the mountain. Not a word. Not a blink.
+{name} has stopped where the last hour found them, turned towards the mountain. Not a word. Not a blink.
 You say the name. Nothing. The whole city is listening to something you cannot hear.
 -> DONE
 

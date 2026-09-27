@@ -11,7 +11,11 @@ Aristion lies on a pallet in his doorway, grey as the stone. His eyes are still 
 {ended_last_cycle("sisyphus"):
     You look tired, boy. Like a man who carried something up a hill in the night, and was glad to. #speaker:Aristion #mood:joy
 }
-{knows("aristion_trust"): -> after_key}
+{knows("aristion_trust") and knows("hall_key"): -> after_key}
+{knows("aristion_trust"):
+    He sees who it is and reaches for his belt before you have said anything.
+    -> give_key
+}
 You will never be at peace. ^Go and look at what they called holy before you. #speaker:Aristion #dejavu:aristion_restless #mood:sorrow
 {dejavu_ok("aristion_restless"):
     ~ notice("dejavu_aristion", 0.2)
@@ -22,10 +26,10 @@ You will never be at peace. ^Go and look at what they called holy before you. #s
     -> give_key
 }
 {knows("hall_key"): -> after_key}
-He coughs. The fever is climbing his neck; by the fourth hour it will have him.
-* [Ask for the key to the Hall of Anamnesis] -> ask_key
-* [Ask why he never went into the Hall himself] -> ask_why
-* [Let him rest] -> DONE
+He coughs. The fever is climbing his neck; by the {fever == 8: third|fourth} hour it will have him.
++ [Ask for the key to the Hall of Anamnesis] -> ask_key
++ [Ask why he never went into the Hall himself] -> ask_why
++ [Let him rest] -> DONE
 
 = ask_key
 The key. #speaker:Aristion
@@ -62,6 +66,8 @@ Look at it. Look at all of it. And then, I beg you, leave it as it is. My wife i
     ...And if it is tonight, I will get up. I can still hold a door against two boys with spears. #speaker:Aristion #mood:anger
 - else:
     You have the key. What more do you want from a sick old man? #speaker:Aristion #mood:anger
+    + [Ask why he never went into the Hall himself] -> ask_why
+    + [Let him rest] -> DONE
 }
 -> DONE
 
@@ -87,6 +93,7 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
 - hour() >= 22: Kora climbs towards the mountain with the procession, a torch in her fist, looking at nobody.
 - hour() >= 18: Tonight Kora buys the dockworkers' round at the port tavern. Nobody drinks more than one. Nobody pays.
 - hour() >= 13: Kora counts something on her fingers. The agora is done with her; the shrine of Demeter is waiting.
+- hour() == 12: Kora stands at the edge of the agora with her arms crossed, listening to Cleon as if she were checking his sums.
 - hour() >= 10: Kora has her arms crossed already. She is waiting for Cleon, and she wants him to see it.
 - else: Kora is sweeping the shrine of Demeter as if it had personally offended her.
 }
@@ -130,9 +137,9 @@ Then tell me what he says after "Citizens of Eferon, we have been told that iron
 She is quiet for a while. #spend:15
 {
 - hour() > speech:
-    He said that in the agora today, word for word. And you didn't hear it there. You had it from the stones. #speaker:Kora #mood:fear
+    He said that in the agora today, word for word. You say it the way people say things they read on stones. #speaker:Kora #mood:fear
 - hour() == speech:
-    That is what he is shouting in the agora right now. Word for word. And you were here, with me. #speaker:Kora #mood:fear
+    That is what he is shouting over there right now. Word for word. And you said it before he did. #speaker:Kora #mood:fear
 - else:
     He hasn't said it yet. He'll say it at the {speech == 11: sixth| seventh} hour, and I'll be standing there, and I'll know it before he does. #speaker:Kora #mood:fear
 }
@@ -191,7 +198,13 @@ Citizens of Eferon, we have been told that iron rusts. I say: ^let it rust! Let 
 {
 - hour() >= 23: -> shore_talk
 - hour() >= 18: -> evening
+- hour() >= 17:
+    Eion is on his way down to the port tavern, one hand on the walls, the lyre on his back. He hums the ages under his breath.
+    -> DONE
 - hour() >= 14: -> agora_song
+- hour() >= 13:
+    Eion is on his way up to the agora, tapping the house walls as he goes, counting doors.
+    -> DONE
 - else:
     Eion is asleep under a table at the tavern, one hand on his lyre, snoring in a perfect metre.
     -> DONE
@@ -219,7 +232,7 @@ I know that face. I wore it, once. Or the one before me did. #speaker:Eion #mood
 You want to know how to fold the day shut. Everybody does, around the third time. #speaker:Eion #mood:joy
 He takes your hands and puts them on the strings. Down, left, up. Down, left, up.
 The Song of Return. Play it and the morning comes early. Don't ask whose morning. #speaker:Eion #mood:sorrow
-R — raise the lyre. Arrow keys pluck the strings. #hint
+R — raise the lyre · Arrows — pluck the strings #hint
 ~ learn("song_of_return")
 ~ learn("eion_was_leont")
 -> DONE
@@ -239,6 +252,7 @@ Eion puts the lyre down.
     He runs his fingers over your face, slowly, the way he reads the stones.
     All of us, named. Every chip back in its place. And something in the stele that was never there before. #speaker:Eion #mood:wonder
     I carried the tablets out, once. Don't. Whatever burns tonight, let it burn. #speaker:Eion #mood:sorrow
+    And afterwards, when something asks you to wake up — you'll know it, it always asks politely — don't. Wait. #speaker:Eion
     Sit. This time the table is the same, and we are not. #speaker:Eion #mood:joy
 - else:
     You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion #mood:wonder

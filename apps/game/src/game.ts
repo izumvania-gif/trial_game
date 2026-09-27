@@ -5,6 +5,7 @@ import { ENDINGS } from './content/endings.ts';
 import { STAGE_CONTROLS, STAGE_GUIDES, TIPS } from './content/guides.ts';
 import { isOpen, threadView, THREADS, UNLOCKS } from './content/threads.ts';
 import { KNOWLEDGE } from './content/knowledge.ts';
+import { dayEvent } from './content/epilogue.ts';
 import { pickHint } from './content/hints.ts';
 import { LEXICON } from './content/lexicon.ts';
 import { MASKS } from './content/masks.ts';
@@ -148,11 +149,12 @@ export class Game {
       this.beginCycle(false);
       this.activate('diary');
     } else {
-      this.beginCycle(this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
+      const finale = this.save.cycle.finale;
+      this.beginCycle(!finale && !this.backupDetected && this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
       if (this.backupDetected) {
         this.memory.damaged = true;
         this.ending('intermediate');
-      }
+      } else if (finale) this.resumeFinale(finale);
     }
     requestAnimationFrame((t) => {
       this.lastTime = t;
@@ -179,6 +181,9 @@ export class Game {
 
   notice(anomaly: string, wind: number): void {
     if (!this.memory.anomalies.some((a) => a.id === anomaly)) this.memory.anomalies.push({ id: anomaly, cycle: this.memory.cycle });
+    // The observers notice a kind of thing once a day; doing it again the same day adds nothing.
+    if (this.save.cycle.noticed.includes(anomaly)) return;
+    this.save.cycle.noticed.push(anomaly);
     const before = endMinuteForWind(this.save.cycle.wind);
     this.save.cycle.wind = Math.min(1, this.save.cycle.wind + wind);
     const after = endMinuteForWind(this.save.cycle.wind);
@@ -245,7 +250,8 @@ export class Game {
     this.current = undefined as unknown as Stage;
     this.phase = 'playing';
     this.hud.setCycle(this.cycleRun, this.memory.cycle);
-    this.activate(cycle.stage);
+    // Resuming the finale's night at the sea: the shore without its daytime greeting.
+    this.activate(cycle.stage, cycle.stage === 'sea' && cycle.finale ? 'after' : undefined);
     if (atDawn) this.interact('dawn');
     this.recapDue = atDawn && this.memory.cycle >= 2 && !this.memory.epilogue;
   }
@@ -299,6 +305,10 @@ export class Game {
       heard: (id: string) => this.heardBefore.has(id),
       dawn_hint: () => pickHint((f) => this.knowledge.knows(f), this.memory.cycle) ?? '',
       ended_last_cycle: (id: string) => this.memory.lastEnding?.id === id && this.memory.lastEnding.cycle === this.memory.cycle - 1,
+      // Learned in this very cycle: the first time something happens reads differently from every time after.
+      learned_today: (id: string) => this.knowledge.knows(id) && this.memory.learnedOn[id] === this.memory.cycle,
+      // The last hour of the day, whenever the wind has made it: midnight may come at 21:00.
+      last_hour: () => this.clock.minute >= this.clock.endMinute - 60,
       wind: () => Math.round(this.save.cycle.wind * 100),
       sprint: () => this.memory.sprint,
       registry_locked: () => Object.values(this.memory.registry).filter((e) => e.locked).length,
@@ -333,6 +343,7 @@ export class Game {
     this.hud.setVisible(!this.current.hideHud);
     this.hud.setControls(STAGE_CONTROLS[id] ?? null);
     this.save.cycle.stage = id;
+    if (id === 'sea' && entry === 'final') this.save.cycle.finale = 'sea';
     this.current.enter(entry);
   }
 
@@ -455,7 +466,8 @@ export class Game {
     });
 
     this.sinceSave += dt;
-    if (this.sinceSave > AUTOSAVE_SECONDS && this.phase === 'playing') this.persist();
+    // Not in the middle of a conversation: a reload would resume the story half way through a knot.
+    if (this.sinceSave > AUTOSAVE_SECONDS && this.phase === 'playing' && !this.dialogue.open) this.persist();
     this.input.endFrame();
   }
 
@@ -672,8 +684,23 @@ export class Game {
     return unique.length ? unique[this.memory.cycle % unique.length]! : '';
   }
 
+  /** A reload in the middle of the finale picks it up where it stood, rather than losing the night. */
+  private resumeFinale(finale: string): void {
+    if (finale.startsWith('ending:')) return this.ending(finale.slice('ending:'.length));
+    if (finale === 'sea') return this.activate('sea', 'final');
+    this.activate('sea', 'after');
+    if (finale.startsWith('wake:')) this.wakeTest(finale.endsWith('prophet') ? 'prophet' : 'true');
+    else if (finale === 'curator') this.interact('curator_meeting');
+  }
+
+  private setFinale(finale: string | null): void {
+    this.save.cycle.finale = finale;
+    this.persist();
+  }
+
   /** The last test: everything is done, and a button says Wake. Do not press it. */
   private wakeTest(mode: 'true' | 'prophet'): void {
+    this.setFinale(`wake:${mode}`);
     const seconds = 45;
     let left = seconds;
     const label = h('p', { className: 'log' }, '');
@@ -688,8 +715,10 @@ export class Game {
         window.clearInterval(timer);
         this.modal.close();
         // Nobody pressed it. On the true path somebody is waiting in the hut before the diary.
-        if (mode === 'true') this.interact('curator_meeting');
-        else this.beginEpilogue(mode);
+        if (mode === 'true') {
+          this.setFinale('curator');
+          this.interact('curator_meeting');
+        } else this.beginEpilogue(mode);
       }
     };
     const timer = window.setInterval(tick, 1000);
@@ -700,7 +729,7 @@ export class Game {
       h('p', {}, 'Somewhere a button is waiting for you, the way it always has.'),
       label,
       wake,
-    ], { dismissable: false });
+    ], { dismissable: false, autofocus: false });
     tick();
   }
 
@@ -709,13 +738,16 @@ export class Game {
     if (mode === 'true' && !this.memory.endingsSeen.includes('diary_without_dates')) this.memory.endingsSeen.push('diary_without_dates');
     this.memory.epilogue = { mode, start: Date.now(), entries: [] };
     this.memory.lastEnding = { id, cycle: this.memory.cycle };
-    this.persist();
+    this.save.cycle.finale = null;
     this.activate('diary');
+    this.persist();
   }
 
   /** Forget everything — except the shard. A new Leont will find it. */
   forget(): void {
-    const lines = (this.memory.epilogue?.entries ?? []).slice(-3).map((e) => e.text);
+    const written = (this.memory.epilogue?.entries ?? []).slice(-3).map((e) => e.text);
+    // Nothing written: the next Leont still finds something, the first thing that was new.
+    const lines = written.length ? written : [dayEvent(0, 0)];
     if (this.memory.epilogue) writeShard(this.storage, { lines, at: Date.now() });
     clearSave(this.storage);
     location.reload();
@@ -741,6 +773,8 @@ export class Game {
     if (!this.memory.endingsSeen.includes(id)) this.memory.endingsSeen.push(id);
     this.memory.lastEnding = { id, cycle: this.memory.cycle };
     this.phase = 'midnight';
+    // Until Wake is pressed the ending is only shown, not lived through: a reload shows the card again.
+    this.save.cycle.finale = `ending:${id}`;
     this.persist();
     this.modal.show('ending', [
       h('p', { className: 'ending-kicker' }, 'Ending'),

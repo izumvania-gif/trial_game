@@ -27,6 +27,8 @@ EXTERNAL sprint()
 EXTERNAL dawn_hint()
 EXTERNAL wind()
 EXTERNAL ended_last_cycle(id)
+EXTERNAL learned_today(id)
+EXTERNAL last_hour()
 EXTERNAL shard_count()
 EXTERNAL curator_note()
 EXTERNAL true_night()
@@ -84,6 +86,10 @@ INCLUDE curator.ink
 === function wind()
 ~ return 0
 === function ended_last_cycle(id)
+~ return false
+=== function learned_today(id)
+~ return false
+=== function last_hour()
 ~ return false
 === function shard_count()
 ~ return 0

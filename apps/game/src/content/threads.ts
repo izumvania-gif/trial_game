@@ -26,9 +26,9 @@ export const THREADS: Thread[] = [
     steps: ['name_in_stone', 'hall_key', 'spiral_repeats', 'leont_on_every_ring'],
     clues: {
       name_in_stone: 'The star stele stands left of the temple steps. Press E at it and scrape the moss from its corner.',
-      hall_key: "Aristion lies in the doorway of his house, west of the temple. Talk to him before 09:00, while he is lucid, and ask for the key.",
+      hall_key: "Aristion lies in the doorway of his house, west of the temple. Talk to him while he is lucid (early morning; the Book of Strangers says until when) and ask for the key.",
       spiral_repeats: 'The bronze door at the top of the temple steps. With the key, press E and go in.',
-      leont_on_every_ring: 'In the Hall, drag the outer ring round, slowly. On the outer ring and the one inside it the same small scribe with a stylus is carved, looking up. Bring the two into one line and the rings lock.',
+      leont_on_every_ring: 'In the Hall, drag the second ring round, slowly, past a full turn if you must. Bring the scribe with the water jar on the outer ring and the scribe with the knife on the next ring into one line, and the rings lock.',
     },
   },
   {
@@ -38,10 +38,10 @@ export const THREADS: Thread[] = [
     closes: 'last_line',
     steps: ['cleon_repeats', 'aristion_phyllis', 'eion_song', 'last_line'],
     clues: {
-      cleon_repeats: "Cleon speaks in the agora between 12:00 and 13:00. Stand next to him and press E. Hear it once, then come back the next day and hear it again.",
+      cleon_repeats: "Cleon speaks in the agora for one hour (usually from 12:00; the Book of Strangers says when). Stand next to him and press E. Hear it once, then come back the next day and hear it again.",
       aristion_phyllis: 'Before 09:00, ask Aristion why he never went into the Hall himself.',
       eion_song: 'Eion sings for coins in the agora from 14:00, and at the port tavern from 18:00. Listen to him.',
-      last_line: 'At dawn, carve PHYLLIS into the stele. Then go to Eion at the tavern after 18:00: he will hear the name and sing a new verse.',
+      last_line: 'Carve PHYLLIS into the stele (on the dawn card, or at the stele before 07:00). It must be the last word you carved. Then go to Eion at the tavern in the evening: he will hear the name and sing a new verse.',
     },
   },
   {
@@ -52,7 +52,7 @@ export const THREADS: Thread[] = [
     steps: ['registry_three', 'past_attempts'],
     clues: {
       registry_three: 'In the Hall, move the mouse along the rings: over a carved scribe the prompt says "study the carving". Click, read the picture, and choose what he did and how it ended. Three right answers confirm each other.',
-      past_attempts: 'Nine confirmed scribes are needed. Turn the rings to bring more of them into view, the thin inner ring too, and keep naming them (Tab opens the registry).',
+      past_attempts: 'Nine confirmed scribes are needed. Click scribes on every ring, the inner ones too, and keep naming them (Tab opens the registry).',
     },
   },
   {
@@ -74,7 +74,7 @@ export const THREADS: Thread[] = [
     steps: ['kora_debts', 'kora_ally'],
     clues: {
       kora_debts: 'Kora tends the shrine of Demeter in the east until 10:30, then waits in the agora for Cleon. Talk to her.',
-      kora_ally: "Once you know Cleon's speech by heart, find Kora before noon and tell her it is carved on the old stones. She will test you with his words.",
+      kora_ally: "Once you know Cleon's speech by heart, find Kora (the Book of Strangers says where) and tell her it is carved on the old stones. She will test you with his words.",
     },
   },
   {
@@ -84,8 +84,8 @@ export const THREADS: Thread[] = [
     closes: 'debts_settled',
     steps: ['lysimachus_pays', 'debts_settled'],
     clues: {
-      lysimachus_pays: "Be at the port around 15:00, when the priest of Zeus comes to see Lysimachus.",
-      debts_settled: "Three ways to free the port: his ledgers in the villa, his priest, or the assembly on the council steps at 16:00 (it listens only to a face it knows).",
+      lysimachus_pays: "Be at the port between 15:00 and 16:00, when the priest of Zeus comes to see Lysimachus.",
+      debts_settled: "Three ways to free the port: his ledgers in the villa while he dines (after 17:00), his priest, or the assembly on the council steps at 16:00 (it listens only to a face it knows).",
     },
   },
   {
@@ -102,12 +102,22 @@ export const THREADS: Thread[] = [
     },
   },
   {
+    id: 'door',
+    question: 'Tonight the guards will mend the stone. Who can stop them?',
+    opens: ['board_played'],
+    closes: 'aristion_trust',
+    steps: ['aristion_trust'],
+    clues: {
+      aristion_trust: 'Only Aristion can talk the guards down, and only if he trusts you. While he is lucid, finish his sentence (F) when he tells you to go and look at what they called holy. Or carve PHYLLIS and ask him why he never went into the Hall.',
+    },
+  },
+  {
     id: 'mark',
     question: 'A circle with a line through it. What is behind it?',
     opens: ['seam_symbol'],
     closes: 'desk_agent_id',
     steps: ['desk_agent_id'],
-    clues: { desk_agent_id: 'Touch the mark again and hold on to it. Upstairs, close five tickets until the power sign in the title bar lights up, then click it.' },
+    clues: { desk_agent_id: 'Touch the mark again and hold on to it. Upstairs, close five tickets until the power sign in the title bar lights up, then click it. If the queue is too short, let go and come back another day: from the second sprint a ticket about your own session leads there too.' },
   },
   {
     id: 'faces',
@@ -117,7 +127,7 @@ export const THREADS: Thread[] = [
     steps: ['mask_extinguisher', 'song_of_return'],
     clues: {
       mask_extinguisher: 'In the registry, name the scribe with the water jar correctly: his smooth face comes away as a mask.',
-      song_of_return: 'Put on the smooth mask (M) and go to Eion at the tavern after 18:00.',
+      song_of_return: 'Put on the mask with the water jar (M until it reads Mask: Extinguisher) and go to Eion at the tavern in the evening.',
     },
   },
   // The long way. These open once the first night has been played: after it, the chronicle
@@ -143,14 +153,14 @@ export const THREADS: Thread[] = [
     steps: ['shard_well', 'shard_aristion', 'shard_relief', 'shard_registry_18', 'shard_attachment', 'shard_directors', 'shard_board', 'shard_path', 'shard_tavern', 'shards_12'],
     clues: {
       shard_well: 'The well, at noon, when the sun stands straight over it. Look down.',
-      shard_aristion: 'Aristion, after 09:00, in his fever: if he trusts you, take his hand.',
-      shard_relief: 'Put your hand into the deep carving in the Hall and walk to the western edge of the mountain.',
+      shard_aristion: 'Aristion, once the fever has him: if he trusts you, take his hand.',
+      shard_relief: 'In the Hall, click the scribe with the knife and put your hand into the carving. Inside, walk left of the altar to the rim of the mountain.',
       shard_registry_18: 'Keep naming the scribes in the Hall: chips fall out at eighteen, twenty-four, thirty and thirty-six.',
-      shard_attachment: 'Upstairs, the ticket about glyphs on the stele has an attachment. Render it.',
+      shard_attachment: 'Once you have carved a word, the ticket "Persistent write to world geometry" appears upstairs. From the third sprint its attachment can be rendered.',
       shard_directors: 'Upstairs, the minutes of the board of directors. Observe them.',
       shard_board: 'On the singer\'s table there is a well painted. Put someone on it.',
-      shard_path: 'The mountain path, between 21:00 and 22:00, before the procession starts up it.',
-      shard_tavern: "Eion's table at the port tavern, after 23:00, when he has gone down to the sea.",
+      shard_path: 'The mountain path, between 21:00 and 22:00, before the procession starts up it. On a windy day midnight may come before that: keep the day quiet.',
+      shard_tavern: "Eion's table at the port tavern, after 23:00, when he has gone down to the sea. Only a day without wind lasts that long.",
       shards_12: 'Twelve chips. Every four of them teach a word for the stele.',
     },
   },
@@ -164,7 +174,7 @@ export const THREADS: Thread[] = [
       human_notes_seen: 'Upstairs, open the Human Notes tab beside the ticket.',
       curator_chair: 'Upstairs, from the third sprint: when the terminal says you can feel the chair, try to remember it.',
       board_of_directors: 'Upstairs, the ticket with the minutes of the board of directors.',
-      curator_awake: 'Upstairs, the sprint after the minutes: Human Notes, the USER NOTE field. Copy one line into it, or write your own.',
+      curator_awake: 'Upstairs, on a later day than the minutes: Human Notes, the USER NOTE field. Copy one line into it, or write your own.',
     },
   },
 ];

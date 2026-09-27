@@ -19,7 +19,7 @@ test('every place is reachable from every other', () => {
 
 test('residents follow their schedule and walk between places', () => {
   assert.deepEqual([residentAt(kora, 0, []).x, residentAt(kora, 0, []).z], [PLACES.shrine.x, PLACES.shrine.z]);
-  const walking = residentAt(kora, at(10, 40), []);
+  const walking = residentAt(kora, at(10, 15), []);
   assert.equal(walking.walking, true);
   const arrived = residentAt(kora, at(12), []);
   assert.equal(arrived.walking, false);
@@ -29,4 +29,16 @@ test('residents follow their schedule and walk between places', () => {
 test('a patch changes the day: cleon_early moves the speech to 11:00', () => {
   assert.equal(residentAt(cleon, at(11, 30), []).entryIndex, 0);
   assert.equal(residentAt(cleon, at(11, 30), ['cleon_early']).entryIndex, 1);
+});
+
+test('everyone is where the Book says at the time it says: the schedule is of arrivals', () => {
+  for (const r of RESIDENTS) {
+    const entries = r.schedule([]);
+    entries.forEach((e, i) => {
+      if (i === 0) return;
+      const s = residentAt(r, e.from, []);
+      assert.equal(s.entryIndex, i, `${r.id} ${e.place}`);
+      assert.equal(s.walking, false, `${r.id} is still walking to ${e.place} at the time the Book gives`);
+    });
+  }
 });

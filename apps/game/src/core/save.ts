@@ -59,6 +59,10 @@ export interface CycleState {
   lost: Mechanic[];
   /** How the planned night went on the board; null until it is played. */
   night: { citySilent: boolean; hallClear: boolean; shoreClear: boolean; rollbackAvoided?: boolean } | null;
+  /** Anomalies already noticed today: each kind raises the wind once a day, however often it recurs. */
+  noticed: string[];
+  /** Where the finale stood when the page was last saved, so a reload resumes it instead of losing it. */
+  finale: string | null;
 }
 
 export interface SaveFile {
@@ -86,7 +90,7 @@ export function freshMemory(): LoopMemory {
 export function freshCycle(): CycleState {
   return {
     minute: 0, stage: 'town', player: { x: 0, z: 6, facing: Math.PI }, storyState: null,
-    wind: 0, wornMask: null, lost: [], night: null,
+    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null,
   };
 }
 

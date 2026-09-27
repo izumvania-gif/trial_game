@@ -81,7 +81,7 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'assembly', stage: 'town', requires: ['kora_debts', 'mask_orator'], gives: ['debts_reformed', 'debts_settled'] },
     { id: 'board', stage: 'board', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'], gives: ['board_played'] },
     // Shards: town spots, registry milestones, the Desk, the relief, the board.
-    { id: 'well_at_noon', stage: 'town', requires: ['aristion_phyllis'], gives: ['shard_well'] },
+    { id: 'well_at_noon', stage: 'town', requires: [], gives: ['shard_well'] },
     { id: 'tavern_after_eion', stage: 'town', requires: ['eion_song'], gives: ['shard_tavern'] },
     { id: 'path_before_procession', stage: 'town', requires: ['rain_at_midnight'], gives: ['shard_path'] },
     { id: 'aristion_fist', stage: 'town', requires: ['aristion_trust'], gives: ['shard_aristion'] },
@@ -119,9 +119,11 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'curator_missing', title: 'Awaiting Curator', requires: ['last_line', 'hall_key', 'past_attempts', 'sea_absent'] },
     {
       id: 'diary_without_dates', title: 'Diary Without Dates', trueEnding: true,
+      // What Game.trueNightMissing checks, and what the night needs: Kora for the priest, Aristion for
+      // the guards, FIRST (from the twelve shards) carved last, the Curator awake for the rollback lane.
       requires: [
-        'last_line', 'past_attempts', 'sea_absent', 'kora_ally', 'aristion_trust', 'desk_agent_id', 'reset_by_user',
-        'sea_differs', 'debts_settled', 'board_played', 'registry_all', 'shards_12', 'curator_awake',
+        'last_line', 'past_attempts', 'sea_absent', 'hall_key', 'kora_ally', 'aristion_trust',
+        'debts_settled', 'board_played', 'registry_all', 'shards_12', 'curator_awake',
       ],
     },
     { id: 'prophet', title: 'Prophet', requires: ['registry_all', 'shards_12', 'curator_awake', 'board_played'] },

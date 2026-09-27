@@ -47,9 +47,10 @@ export class SeaStage implements Stage {
   enter(entry?: string): void {
     this.onResize();
     // After the strikes Leont comes down to the sea in the dark, with the knife.
-    this.final = entry === 'final';
-    this.shore.showGlaucus(this.final);
-    this.host.interact(this.final ? 'sea_final' : 'shore');
+    // 'after': the same night, resumed after the finale's dialogue (the Wake test, the hut).
+    this.final = entry === 'final' || entry === 'after';
+    this.shore.showGlaucus(entry === 'final');
+    if (entry !== 'after') this.host.interact(this.final ? 'sea_final' : 'shore');
   }
 
   private final = false;

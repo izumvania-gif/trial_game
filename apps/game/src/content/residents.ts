@@ -57,7 +57,7 @@ export const RESIDENTS: Resident[] = [
     schedule: () => [
       { from: 0, place: 'shrine', note: '06:00 · tends the shrine of Demeter.' },
       { from: at(10, 30), place: 'agora', note: '10:30 · waits for Cleon\'s speech with her arms crossed.' },
-      { from: at(13), place: 'shrine', note: '13:00 · back at the shrine, counting something.' },
+      { from: at(13, 30), place: 'shrine', note: '13:30 · back at the shrine, counting something.' },
       { from: at(18), place: 'tavern', note: '18:00 · drinks with the dockworkers at the port tavern.' },
       { from: at(22), place: 'mountain', note: '22:00 · walks up the mountain with the procession.' },
     ],
@@ -74,7 +74,7 @@ export const RESIDENTS: Resident[] = [
       return [
         { from: 0, place: 'council', note: '06:00 · rehearses on the council house steps.' },
         { from: speech, place: 'agora', note: `${String(6 + speech / 60).padStart(2, '0')}:00 · the speech to the people, in the agora.` },
-        { from: speech + 60, place: 'center', note: 'After the speech · shakes hands in the square.' },
+        { from: speech + 75, place: 'center', note: 'After the speech · shakes hands in the square.' },
         { from: at(20), place: 'mountain', note: '20:00 · goes up the mountain early, to be seen.' },
       ];
     },
@@ -102,9 +102,9 @@ export const RESIDENTS: Resident[] = [
     trouble: { fact: 'lysimachus_pays', text: 'He pays the priest of Zeus to keep the ritual on time. Every Silver Age he is the first man in Eferon to own anything.' },
     schedule: () => [
       { from: 0, place: 'villa', note: '06:00 · counts his ledgers on the porch of his villa.' },
-      { from: at(9), place: 'agora', note: '09:00 · buys up the stallholders\' stock at the agora, cheap. Nobody will need it tomorrow.' },
+      { from: at(10), place: 'agora', note: '10:00 · buys up the stallholders\' stock at the agora, cheap. Nobody will need it tomorrow.' },
       { from: at(13), place: 'port', note: '13:00 · at the port, writing down which boats did not sail.' },
-      { from: at(17), place: 'villa', note: '17:00 · hosts a dinner for the archons at his villa. The counting room is empty.' },
+      { from: at(18), place: 'villa', note: '18:00 · hosts a dinner for the archons at his villa. The counting room is empty.' },
       { from: at(22), place: 'mountain', note: '22:00 · climbs the mountain in a litter.' },
     ],
   },
@@ -118,7 +118,7 @@ export const RESIDENTS: Resident[] = [
     schedule: () => [
       { from: 0, place: 'zeus', note: '06:00 · sharpens the sacrificial knife in the temple of Zeus.' },
       { from: at(11), place: 'council', note: '11:00 · speaks quietly with Cleon on the council steps.' },
-      { from: at(15), place: 'villa', note: '15:00 · visits Lysimachus. Leaves heavier than he came.' },
+      { from: at(15), place: 'port', note: '15:00 · visits Lysimachus at the port. Leaves heavier than he came.' },
       { from: at(18), place: 'zeus', note: '18:00 · back at the temple of Zeus, rehearsing the formula.' },
       { from: at(21), place: 'mountain', note: '21:00 · goes up the mountain ahead of the procession.' },
     ],
