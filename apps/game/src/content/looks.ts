@@ -6,7 +6,7 @@ import type { FigureLook } from '../stages/figures.ts';
 export const LOOKS: Record<string, FigureLook> = {
   // The player: a red cloak on the back (what the camera sees most) and the wax tablets.
   leont: { cape: true, props: ['tablet'] },
-  aristion: { bent: true, beard: 'white', head: 'laurel', props: ['staff'] },
+  aristion: { bent: true, beard: 'white', head: 'laurel', himation: true, props: ['staff'] },
   kora: { whiteFace: true, head: 'veil', props: ['wheat'] },
   cleon: { beard: 'dark', head: 'fillet', arm: 'raised' },
   eion: { head: 'blindfold', beard: 'dark', props: ['lyre'] },
@@ -15,7 +15,7 @@ export const LOOKS: Record<string, FigureLook> = {
   glaucus: { hair: 'wild', beard: 'dark', props: ['trident'] },
   maskseller: { head: 'hood', props: ['masks'] },
   xenos: { head: 'hood' },
-  talia: { whiteFace: true, hair: 'bun', head: 'fillet', props: ['net'] },
+  talia: { whiteFace: true, hair: 'bun', head: 'fillet', props: ['net', 'basket'] },
   crier: { head: 'petasos', props: ['kerykeion'] },
 };
 

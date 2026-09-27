@@ -135,11 +135,38 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     for (const [cid, el] of cardEls) {
       el.classList.toggle('selected', cid === id);
       el.setAttribute('aria-pressed', String(cid === id));
+      el.tabIndex = cid === id ? 0 : -1;
     }
-    detail.replaceChildren(...detailOf(byId.get(id)!, knows, text, memory, fresh, hooks, () => { const el = cardEls.get(id); el?.classList.add('understood'); if (!pendingOn(id)) el?.querySelector('.cmap-conclude')?.remove(); show(id); }));
+    const links = linksOf(id).map(({ to, how }) => {
+      const b = h('button', { type: 'button', className: 'cmap-link' }, `${how === 'to' ? '→' : '←'} ${nameOf(to)}`);
+      b.title = how === 'to' ? 'What this led to' : 'What led here';
+      b.addEventListener('click', () => { show(to); focusCard(to); });
+      return b;
+    });
+    detail.replaceChildren(...detailOf(byId.get(id)!, knows, text, memory, fresh, hooks, links, () => { const el = cardEls.get(id); el?.classList.add('understood'); if (!pendingOn(id)) el?.querySelector('.cmap-conclude')?.remove(); show(id); }));
     cardEls.get(id)?.classList.remove('new');
   };
 
+  // Keyboard: one card in the Tab order (the open one); arrows walk the map from card to card.
+  const focusCard = (id: string) => {
+    for (const [cid, el] of cardEls) el.tabIndex = cid === id ? 0 : -1;
+    cardEls.get(id)?.focus();
+  };
+  const nearest = (from: string, dx: number, dy: number): string | null => {
+    const a = place(from);
+    let best: string | null = null;
+    let bestScore = Infinity;
+    for (const id of cardEls.keys()) {
+      if (id === from) continue;
+      const b = place(id);
+      const along = (b.x - a.x) * dx + ((b.y - a.y) * dy * H) / 100;
+      if (along <= 0.5) continue;
+      const across = Math.abs((b.x - a.x) * dy) + Math.abs(((b.y - a.y) * dx * H) / 100);
+      const score = along + across * 2;
+      if (score < bestScore) { bestScore = score; best = id; }
+    }
+    return best;
+  };
   const pendingOn = (id: string) => deductionsFor(id).some((d) => d.requires.every(knows) && !memory.deductions.includes(d.id));
   const halfW = (CARD_W / W) * 50;
   const halfH = (CARD_H / H) * 50;
@@ -159,6 +186,10 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
 
   // What a screen reader says for a card: what it is, how far along, its marks, and where its arrows go.
   const nameOf = (id: string) => (byId.get(id)!.state === 'rumour' ? 'a rumour' : byId.get(id)!.subject.name);
+  const linksOf = (id: string) => [
+    ...map.arrows.filter((a) => a.from === id || (a.both && a.to === id)).map((a) => ({ to: a.from === id ? a.to : a.from, how: 'to' as const })),
+    ...map.arrows.filter((a) => a.to === id && !a.both).map((a) => ({ to: a.from, how: 'from' as const })),
+  ];
   const spoken = (card: Card, total: number, marks: { more: boolean; pending: boolean; isNew: boolean }) => {
     const id = card.subject.id;
     const heardFrom = [...new Set(map.arrows.filter((a) => a.to === id || (a.both && a.from === id)).map((a) => (a.to === id ? a.from : a.to)))].map(nameOf);
@@ -170,7 +201,7 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       marks.pending ? 'a conclusion to draw' : '',
       marks.isNew ? 'new' : '',
       card.state !== 'rumour' && leadsTo.length ? `leads to ${leadsTo.join(', ')}` : '',
-      'arrow keys move it',
+      'Shift and arrow keys move it',
     ].filter(Boolean).join('; ');
   };
 
@@ -221,16 +252,22 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       redraw();
     });
     // Arrow keys move a focused card too (Shift for a longer step); the game does not see them.
+    // Arrow keys go to the nearest card that way; with Shift they move this card instead.
+    // The game never sees them.
     el.addEventListener('keydown', (e) => {
-      const step = e.shiftKey ? 6 : 2;
-      const d = ({ ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] } as Record<string, number[]>)[e.key];
+      const d = ({ ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] } as Record<string, number[]>)[e.key];
       if (!d) return;
       e.preventDefault();
       e.stopPropagation();
       const now = place(card.subject.id);
-      moveTo(card.subject.id, el, (now.x / W) * 100 + d[0]!, now.y + d[1]!);
-      redraw();
-      hooks.onLayout();
+      if (e.shiftKey) {
+        moveTo(card.subject.id, el, now.x + d[0]! * 2, now.y + d[1]! * 2);
+        redraw();
+        hooks.onLayout();
+        return;
+      }
+      const next = nearest(card.subject.id, d[0]!, d[1]!);
+      if (next) focusCard(next);
     });
     // The click that ends a drag is not a click; every other one (mouse, Enter, Space, a screen reader) opens the card.
     const end = () => {
@@ -267,14 +304,42 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   });
 
   const legend = h('span', { className: 'cmap-legend' }, h('b', {}, '!'), ' more to find · ✎ a conclusion · ? heard of · ', h('b', {}, '❦'), ' complete · ● a fact');
-  const hint = h('p', { className: 'cmap-drag-hint' }, 'Drag the cards (or arrow keys) to arrange them. ', tidy, legend);
-  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, board, hint), detail);
+  const hint = h('p', { className: 'cmap-drag-hint' }, 'Drag the cards (or Shift + arrows) to arrange them. ', tidy, legend);
+  // Where next: every card with something to do, in turn — a conclusion first, then more to find, then a rumour.
+  const todo = () => [
+    ...visible.filter((c) => c.state !== 'rumour' && pendingOn(c.subject.id)),
+    ...visible.filter((c) => c.state === 'explored' && nextOnCard(c.subject, knows)),
+    ...visible.filter((c) => c.state === 'rumour'),
+  ].map((c) => c.subject.id).filter((id, i, all) => all.indexOf(id) === i);
+  const nextBtn = h('button', { type: 'button', className: 'cmap-next' }, 'Where next?');
+  nextBtn.title = 'Open the next card that has something to do';
+  const nextNote = h('span', { className: 'cmap-next-note' });
+  nextNote.setAttribute('role', 'status');
+  nextBtn.addEventListener('click', () => {
+    const ids = todo();
+    if (!ids.length) {
+      nextNote.textContent = 'Nothing points anywhere new. Walk the city at another hour.';
+      return;
+    }
+    const at = ids.indexOf(selected ?? '');
+    const id = ids[(at + 1) % ids.length]!;
+    nextNote.textContent = `${ids.length} with something to do`;
+    show(id);
+    focusCard(id);
+  });
+  const bar = h('p', { className: 'cmap-toolbar' }, nextBtn, nextNote);
+  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, bar, board, hint), detail);
   if (selected) show(selected);
+  // Opening the chronicle puts the keyboard on the open card, so arrows and Enter work at once.
+  if (selected) {
+    const id = selected;
+    window.setTimeout(() => { if (root.isConnected) cardEls.get(id)?.focus({ preventScroll: true }); }, 0);
+  }
   return root;
 }
 
 function detailOf(card: Card, knows: (id: string) => boolean, text: (id: string) => string, memory: LoopMemory, fresh: Set<string>,
-  hooks: MapHooks, rerender: () => void): (Node | string)[] {
+  hooks: MapHooks, links: HTMLElement[], rerender: () => void): (Node | string)[] {
   const out: (Node | string)[] = [];
   const next = nextOnCard(card.subject, knows);
   if (card.state === 'rumour') {
@@ -289,6 +354,8 @@ function detailOf(card: Card, knows: (id: string) => boolean, text: (id: string)
     else if (!next) out.push(h('p', { className: 'cmap-kicker' }, 'There is more here. Something elsewhere has to come first.'));
   }
   if (next) out.push(hintLine(next.clue, `map:${next.fact}`, memory.hintsShown));
+  // The arrows, in words and as buttons: the way to follow a thread without the mouse.
+  if (links.length) out.push(h('div', { className: 'cmap-links' }, h('span', { className: 'cmap-kicker' }, 'Connected: '), ...links));
   if (card.state !== 'rumour') {
     for (const d of deductionsFor(card.subject.id)) {
       if (!d.requires.every(knows)) continue;

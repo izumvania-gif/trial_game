@@ -495,7 +495,7 @@ button.cmap-tab.on { background: var(--lacquer); color: var(--bone); }
 .cmap-body { flex: 1; min-height: 0; }
 .cmap { display: flex; gap: 1.2rem; height: 100%; }
 .cmap-frame { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
-.cmap-board { position: relative; width: min(100%, calc((100vh - 12.5rem) * 5 / 3)); aspect-ratio: 5 / 3; }
+.cmap-board { position: relative; width: min(100%, calc((100vh - 15rem) * 5 / 3)); aspect-ratio: 5 / 3; }
 .cmap-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .cmap-arrow { fill: none; stroke: var(--lacquer); stroke-width: 0.34; stroke-linecap: round; }
 .cmap-arrow.to-rumour { stroke-dasharray: 0.9 0.8; }
@@ -647,3 +647,11 @@ html.reduced-motion button.cmap-card:hover, html.reduced-motion button.cmap-card
 html.large-text .cmap-face { height: 2em; width: 2em; }
 html.large-text button.cmap-card { letter-spacing: 0; }
 html.large-text button.cmap-card.has-face { gap: 0.2rem; padding-left: 0.3rem; }
+/* Where next, and the connected cards in the open card. */
+.cmap-toolbar { display: flex; align-items: center; gap: 0.7rem; margin: 0 0 0.4rem; align-self: flex-start; }
+button.cmap-next { background: var(--lacquer); color: var(--bone); border: 2px solid var(--lacquer); padding: 0.3rem 1rem; font-size: 0.8rem; letter-spacing: 0.16em; }
+button.cmap-next:hover { background: var(--added-red); border-color: var(--added-red); }
+.cmap-next-note:not(:empty) { padding: 0.1rem 0.6rem; background: var(--bone); color: var(--lacquer); font-style: italic; font-size: 0.85rem; border-radius: 2px; }
+.cmap-links { margin-top: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
+button.cmap-link { background: transparent; color: var(--lacquer); border: 1px solid var(--lacquer); padding: 0.15rem 0.6rem; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: none; }
+button.cmap-link:hover { background: var(--lacquer); color: var(--bone); }

@@ -43,8 +43,10 @@ export interface FigureLook {
   hair?: 'bun' | 'wild';
   head?: 'laurel' | 'fillet' | 'blindfold' | 'veil' | 'hood' | 'petasos' | 'oak';
   cape?: boolean;
+  /** A white mantle across the body, front and back (the old man's himation). */
+  himation?: boolean;
   arm?: 'raised';
-  props?: ('staff' | 'tablet' | 'wheat' | 'lyre' | 'purse' | 'trident' | 'masks' | 'net' | 'kerykeion')[];
+  props?: ('staff' | 'tablet' | 'wheat' | 'lyre' | 'purse' | 'trident' | 'masks' | 'net' | 'kerykeion' | 'basket')[];
 }
 
 export const BONE = '#f2ead6';
@@ -105,6 +107,10 @@ export function dressFigure(g: THREE.Group, look: FigureLook, height = 1.7): voi
   }
   // The robe is about 0.17 h in radius at the back: things worn on the back sit outside it.
   if (look.cape) add(new THREE.BoxGeometry(h * 0.42, h * 0.52, h * 0.05), red, 0, h * 0.5, -h * 0.2, -0.14);
+  if (look.himation) {
+    // A mantle thrown over one shoulder: a white band across the chest and across the back.
+    for (const side of [1, -1]) add(new THREE.BoxGeometry(h * 0.2, h * 0.5, h * 0.04), bone, h * 0.02, h * 0.55, side * h * 0.19, 0, 0, side * 0.45);
+  }
   if (look.arm === 'raised') {
     add(new THREE.CylinderGeometry(h * 0.05, h * 0.06, h * 0.5, 5), dark, h * 0.22, h * 0.95, h * 0.05, 0.2, 0, -0.4);
     add(new THREE.IcosahedronGeometry(h * 0.07, 0), dark, h * 0.32, h * 1.19, h * 0.1);
@@ -124,15 +130,18 @@ export function dressFigure(g: THREE.Group, look: FigureLook, height = 1.7): voi
       case 'wheat': // a sheaf over the shoulder
         add(new THREE.ConeGeometry(h * 0.11, h * 0.55, 5), bone, -h * 0.16, h * 0.85, -h * 0.06, 0.4, 0, 0.45);
         break;
-      case 'lyre': { // on the back: two arms and a bar
-        // Its arms stand up over the shoulders, so the lyre shows even as a silhouette.
-        const arm = new THREE.BoxGeometry(h * 0.06, h * 0.42, h * 0.06);
-        add(arm, bone, -h * 0.11, h * 0.82, -h * 0.22, 0, 0, 0.2);
-        add(arm, bone, h * 0.11, h * 0.82, -h * 0.22, 0, 0, -0.2);
-        add(new THREE.BoxGeometry(h * 0.36, h * 0.06, h * 0.06), bone, 0, h * 1.02, -h * 0.22);
-        add(new THREE.BoxGeometry(h * 0.24, h * 0.16, h * 0.08), bone, 0, h * 0.6, -h * 0.23);
+      case 'lyre': { // held at his side, face out, so it shows from the front, the back and the side
+        const x = h * 0.28;
+        const arm = new THREE.BoxGeometry(h * 0.1, h * 0.44, h * 0.08);
+        add(arm, bone, x, h * 0.74, -h * 0.1, 0.22, 0, 0);
+        add(arm, bone, x, h * 0.74, h * 0.14, -0.22, 0, 0);
+        add(new THREE.BoxGeometry(h * 0.1, h * 0.07, h * 0.4), bone, x, h * 0.95, h * 0.02);
+        add(new THREE.BoxGeometry(h * 0.14, h * 0.2, h * 0.32), bone, x, h * 0.5, h * 0.02);
         break;
       }
+      case 'basket': // a white basket on the hip
+        add(new THREE.CylinderGeometry(h * 0.13, h * 0.1, h * 0.15, 7), bone, h * 0.26, h * 0.42, 0);
+        break;
       case 'purse': // fat, red, at the belt
         add(new THREE.IcosahedronGeometry(h * 0.1, 0), bone, h * 0.22, h * 0.45, h * 0.08);
         break;
@@ -146,7 +155,7 @@ export function dressFigure(g: THREE.Group, look: FigureLook, height = 1.7): voi
         for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(h * 0.16, h * 0.2, h * 0.04), bone, h * 0.15, h * (0.92 - i * 0.1), -h * (0.2 + i * 0.13));
         break;
       case 'net': // a red bundle of net over the shoulder
-        add(new THREE.IcosahedronGeometry(h * 0.15, 0), red, -h * 0.13, h * 0.7, -h * 0.12).scale.set(1, 0.8, 1.3);
+        add(new THREE.IcosahedronGeometry(h * 0.17, 0), red, -h * 0.25, h * 0.55, 0).scale.set(0.8, 1.1, 1.3);
         break;
     }
   }
