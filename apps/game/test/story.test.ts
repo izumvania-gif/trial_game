@@ -122,3 +122,21 @@ test('no knot runs out of content, however often it is entered in one day', () =
   }
   assert.deepEqual([...problems], []);
 });
+
+test('narration does not wear a speaker nameplate', () => {
+  // "Cleon sees your face…" or "His face is…" are the narrator's, not the speaker's: a line tagged
+  // with a speaker must not describe that speaker in the third person.
+  const problems: string[] = [];
+  for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
+    for (const line of readFileSync(resolve(storyDir, file), 'utf8').split('\n')) {
+      const m = /#speaker:(\w+)/.exec(line);
+      if (!m) continue;
+      const text = line.replace(/#.*$/, '').replace(/^[\s\-*+]*(\[[^\]]*\])?\s*/, '').trim();
+      const name = m[1]!;
+      if (new RegExp(`^${name} [a-z]`).test(text) || /^(His|Her) [a-z]+ (is|are|was)\b/.test(text) || /^(He|She) (relaxes|laughs|looks|takes|stands|sees|is quiet)\b/.test(text)) {
+        problems.push(`${file}: ${text.slice(0, 60)}`);
+      }
+    }
+  }
+  assert.deepEqual(problems, []);
+});

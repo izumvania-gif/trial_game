@@ -391,7 +391,7 @@ export class BoardStage implements Stage {
       h('li', {}, 'The Hall is top centre, the Mountain top right, the Shore bottom centre, the tavern bottom left.'),
       h('li', {}, 'Black lines: where each of them will walk tonight.'),
       h('li', {}, 'An ally standing on a route stops whoever they can talk to.'),
-      h('li', {}, 'Guards listen only to Aristion. Nobody listens to a blind singer about the ritual. Talia can only talk down the merchant.'),
+      h('li', {}, 'Guards listen only to Aristion; the priest of Zeus only to Kora. Lysimachus stops for anyone who knows him.'),
       h('li', {}, 'Stop the priest before the Mountain, the guards before the Hall, Lysimachus before the Shore.'));
     const missing = (['kora', 'aristion', 'talia'] as AllyId[]).filter((a) => !avail.includes(a)).map((a) => ALLY_NAMES[a]);
 

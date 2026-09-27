@@ -85,12 +85,12 @@ There are many Leonts in Eferon. You tell yourself that twice.
 - patched("hall_guard") and hour() < 10 and wearing() == "Killer":
     The new guard at the bronze door looks at your face and takes one step to the side, and then another. He does not know why. His hands do.
 - patched("hall_guard") and hour() < 10:
-    A temple guard you have never seen stands at the bronze door, very straight, very new. #speaker:Guard
+    A temple guard you have never seen stands at the bronze door, very straight, very new.
     Not before the fifth hour, scribe. New orders. #speaker:Guard #mood:anger
     Whose orders, he doesn't say. He doesn't seem to know.
     -> DONE
 }
-The door to the Hall of Anamnesis. Aristion's key is warm from your hand.
+The door to the Hall of Anamnesis. Every morning Aristion's key is back on his belt, and every morning it is in your hand; the lock does not ask how.
 + [Go in]
     ~ notice("hall_access", 0.1)
     The hall is cold. Something in the middle of it is very large and very white. #stage:spiral
@@ -102,7 +102,8 @@ The door to the Hall of Anamnesis. Aristion's key is warm from your hand.
     Citizens! Tonight at midnight, on the holy mountain, the Iron Age ends as the stars have written! #speaker:Crier #mood:joy
     Bring nothing. Owe nothing. Tomorrow is gold! #speaker:Crier #mood:joy
 - else:
-    The crier is hoarse. Up the mountain, citizens. Up the mountain. #speaker:Crier #mood:sorrow
+    The crier is hoarse.
+    Up the mountain, citizens. Up the mountain. #speaker:Crier #mood:sorrow
 }
 {knows("rain_at_midnight"): You mouth the words with him. You didn't mean to.}
 {patched("crier_louder"): He is louder than yesterday. Nobody else seems to notice.}

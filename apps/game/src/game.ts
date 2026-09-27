@@ -11,7 +11,7 @@ import { MASKS } from './content/masks.ts';
 import { SHARD_WORDS, SHARDS } from './content/shards.ts';
 import { VOICES } from './content/voices.ts';
 import { PAST_LEONTS } from './content/leonts.ts';
-import { DayClock, endMinuteForWind } from './core/clock.ts';
+import { DAWN_HOUR, DayClock, endMinuteForWind } from './core/clock.ts';
 import { Knowledge } from './core/knowledge.ts';
 import {
   browserStorage, clearSave, freshCycle, hashContent, importTablet, loadSave, readShard, writeSave, writeShard,
@@ -179,7 +179,13 @@ export class Game {
 
   notice(anomaly: string, wind: number): void {
     if (!this.memory.anomalies.some((a) => a.id === anomaly)) this.memory.anomalies.push({ id: anomaly, cycle: this.memory.cycle });
+    const before = endMinuteForWind(this.save.cycle.wind);
     this.save.cycle.wind = Math.min(1, this.save.cycle.wind + wind);
+    const after = endMinuteForWind(this.save.cycle.wind);
+    // A gust is easy to miss in the chip: say it, the moment midnight moves.
+    if (after < before && !this.lost('clock')) {
+      this.hud.toast(`Midnight will come at ${DAWN_HOUR + after / 60}:00 today.`, 'The wind rises');
+    }
   }
 
   private host(): StageHost {

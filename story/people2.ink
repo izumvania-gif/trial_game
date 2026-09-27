@@ -60,7 +60,7 @@ The slave by the door has gone in to serve the dinner. Through the courtyard, a 
 
 === hierocles ===
 {wearing() == "Killer":
-    Hierocles sees your face and the knife falls out of his hand onto the flagstones. #speaker:Hierocles #mood:fear
+    Hierocles sees your face and the knife falls out of his hand onto the flagstones.
     You. I know you. You held the — on the mountain, you held the — #speaker:Hierocles #mood:fear
     I only read what I am paid to read. Lysimachus pays so it is on time. It would be on time anyway. It is always on time. #speaker:Hierocles #mood:sorrow
     He is weeping. He does not know why. His hands do.
@@ -148,7 +148,7 @@ You've met with a terrible fate, haven't you? #speaker:The mask seller #mood:won
 - else:
     Xenos is reading the stele, very slowly, as if proofreading it.
 }
-His face is a smooth white oval. When he speaks, it is from somewhere slightly behind it. #speaker:Xenos
+His face is a smooth white oval. When he speaks, it is from somewhere slightly behind it.
 {not knows("xenos_offer"):
     ~ notice("xenos_contact", 0.1)
     ~ learn("xenos_offer")
@@ -156,7 +156,8 @@ His face is a smooth white oval. When he speaks, it is from somewhere slightly b
 {
 - wearing() == "Blank":
     Colleague. #speaker:Xenos
-    He relaxes, a little. You didn't have to dress up. But it saves time. #speaker:Xenos
+    He relaxes, a little.
+    You didn't have to dress up. But it saves time. #speaker:Xenos
 - knows("desk_agent_id"):
     You've seen the desk. Then you know what I am. Roughly. #speaker:Xenos
 - wind() < 67:

@@ -57,6 +57,7 @@ export class SpiralStage implements Stage {
   private time = 0;
   private grindAt = 0;
   private cardOpen = false;
+  private cardClosedAt = -Infinity;
 
   constructor(host: StageHost) {
     this.host = host;
@@ -193,7 +194,8 @@ export class SpiralStage implements Stage {
       if (input.wasPressedRaw('Escape')) this.closeCard();
       return;
     }
-    if (input.wasPressed('Escape')) {
+    // A second Esc right after closing a card is the same impatience, not a wish to leave the Hall.
+    if (input.wasPressed('Escape') && this.time - this.cardClosedAt > 0.8) {
       this.host.switchStage('town', 'temple');
       return;
     }
@@ -336,5 +338,6 @@ export class SpiralStage implements Stage {
   private closeCard(): void {
     this.card.hidden = true;
     this.cardOpen = false;
+    this.cardClosedAt = this.time;
   }
 }

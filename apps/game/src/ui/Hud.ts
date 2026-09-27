@@ -142,7 +142,7 @@ export class Hud {
   setWind(wind: number, hidden: boolean): void {
     this.windEl.hidden = hidden;
     const gusts = Math.min(3, Math.floor(wind * 3 + 1e-9));
-    this.windEl.textContent = `wind ${'≋'.repeat(gusts)}${'·'.repeat(3 - gusts)}`;
+    this.windEl.textContent = `wind ${'≋'.repeat(gusts)}${'·'.repeat(3 - gusts)}${gusts ? ` · midnight at ${24 - gusts}:00` : ''}`;
     this.windEl.title = gusts ? `Midnight comes ${gusts} hour${gusts > 1 ? 's' : ''} early` : 'Still air';
   }
 

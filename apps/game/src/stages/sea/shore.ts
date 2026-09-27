@@ -8,6 +8,7 @@ import { lambert, makeFigure } from '../figures.ts';
 
 /** The sand ends here and the water begins. */
 export const WATERLINE = -7;
+const GLAUCUS_Z = WATERLINE - 3.2;
 const SAND_Y = 0.25;
 
 const FOAM_VERTEX = /* glsl */ `
@@ -200,7 +201,9 @@ export class Shore {
 
     // Glaucus, in the water up to his knees, for the last scene only.
     this.glaucus = makeFigure('#2b2a2c', 1.85);
-    this.glaucus.position.set(1.2, -0.95, WATERLINE - 7);
+    // Close enough to be a man and not a post: the last face of the game should read as one.
+    this.glaucus.position.set(1.2, -0.95, GLAUCUS_Z);
+    this.glaucus.scale.setScalar(1.35);
     this.glaucus.visible = false;
     scene.add(this.glaucus);
   }
@@ -279,10 +282,10 @@ export class Shore {
 
     if (this.glaucus.visible) {
       // Standing in the swell: the water lifts and lowers him a little.
-      if (this.glaucusLeaving) this.glaucusSink = Math.min(2.4, this.glaucusSink + dt * 0.35);
+      if (this.glaucusLeaving) this.glaucusSink = Math.min(3.2, this.glaucusSink + dt * 0.35);
       this.glaucus.position.y = -0.95 + Math.sin(this.time * 0.9) * 0.05 - this.glaucusSink;
-      this.glaucus.position.z = WATERLINE - 7 - this.glaucusSink * 2;
-      if (this.glaucusSink >= 2.4) this.glaucus.visible = false;
+      this.glaucus.position.z = GLAUCUS_Z - this.glaucusSink * 2;
+      if (this.glaucusSink >= 3.2) this.glaucus.visible = false;
     }
   }
 }

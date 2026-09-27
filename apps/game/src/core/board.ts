@@ -30,7 +30,8 @@ export interface Enemy {
 
 export const ENEMIES: Enemy[] = [
   {
-    id: 'priest', name: 'Priest of Zeus', goal: 'mountain', stoppedBy: ['kora', 'aristion'],
+    // The priest of Zeus will not stop for a priest of Apollo: only Kora can shout him down.
+    id: 'priest', name: 'Priest of Zeus', goal: 'mountain', stoppedBy: ['kora'],
     path: [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1], [5, 1], [6, 1], [6, 0]],
   },
   {

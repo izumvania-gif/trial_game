@@ -16,6 +16,8 @@ interface Voice {
 
 const WALK = 3.2;
 const TURN = 1.8;
+/** How far from the centre the ground is still lit enough to read. */
+const EDGE = 7.2;
 
 export class ReliefStage implements Stage {
   readonly id = 'relief' as const;
@@ -32,6 +34,8 @@ export class ReliefStage implements Stage {
   private caption = h('div', { className: 'relief-caption' });
   /** The voice whose caption is showing. */
   private heard: Voice | null = null;
+  /** What cannot be walked through: the altar and its fire, and everyone standing still. */
+  private solids: { x: number; z: number; r: number }[] = [];
 
   constructor(host: StageHost) {
     this.host = host;
@@ -51,7 +55,7 @@ export class ReliefStage implements Stage {
     key.shadow.mapSize.set(1024, 1024);
     s.add(key);
 
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(9, 11, 1, 9), lambert('#8f8a82'));
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(13, 15, 1, 11), lambert('#8f8a82'));
     top.position.y = -0.5;
     top.receiveShadow = true;
     s.add(top);
@@ -63,6 +67,7 @@ export class ReliefStage implements Stage {
     const fire = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.9, 5), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
     fire.position.set(0, 1.45, -3);
     s.add(fire);
+    this.solids.push({ x: 0, z: -3, r: 1.05 }, { x: 0.3, z: -1.9, r: 0.5 }, { x: 0.9, z: -0.8, r: 0.45 });
 
     // The priest, falling backwards, stopped halfway.
     const priest = makeFigure('#1a1614', 1.8);
@@ -89,6 +94,7 @@ export class ReliefStage implements Stage {
       const stone = new THREE.Mesh(new THREE.IcosahedronGeometry(0.16, 0), stoneMat);
       stone.position.set(0.25, 1.95, 0);
       person.add(stone);
+      this.solids.push({ x: person.position.x, z: person.position.z, r: 0.45 });
       s.add(person);
     }
 
@@ -97,7 +103,10 @@ export class ReliefStage implements Stage {
     const pts: number[] = [];
     for (let i = 0; i < 300; i++) pts.push((Math.sin(i * 12.9) * 0.5) * 16, 0.2 + ((i * 7) % 30) / 10, (Math.cos(i * 4.1) * 0.5) * 16);
     dust.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
-    s.add(new THREE.Points(dust, new THREE.PointsMaterial({ color: '#ffffff', size: 0.04 })));
+    // One low-resolution pixel each, however close: up close a sized point turns into a square.
+    const motes = new THREE.Points(dust, new THREE.PointsMaterial({ color: '#ffffff', size: 1, sizeAttenuation: false, depthWrite: false }));
+    motes.userData.noOutline = true;
+    s.add(motes);
 
     // A chip of the spiral hanging in the stopped air, at the very edge of the mountain.
     this.chip = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: '#ffffff' }));
@@ -151,8 +160,21 @@ export class ReliefStage implements Stage {
     const p = this.camera.position;
     p.x -= Math.sin(this.yaw) * move * WALK * dt;
     p.z -= Math.cos(this.yaw) * move * WALK * dt;
+    // The moment ends where the stone ends: keep well inside the lit ground, and out of the figures.
+    for (const o of this.solids) {
+      const dx = p.x - o.x;
+      const dz = p.z - o.z;
+      const d = Math.hypot(dx, dz);
+      if (d < o.r && d > 1e-4) {
+        p.x = o.x + (dx / d) * o.r;
+        p.z = o.z + (dz / d) * o.r;
+      }
+    }
     const r = Math.hypot(p.x, p.z);
-    if (r > 8) p.multiplyScalar(8 / r).setY(1.6);
+    if (r > EDGE) {
+      p.x *= EDGE / r;
+      p.z *= EDGE / r;
+    }
     this.camera.rotation.set(0, this.yaw, 0, 'YXZ');
 
     this.chip.visible = !this.host.knowledge.knows('shard_relief');

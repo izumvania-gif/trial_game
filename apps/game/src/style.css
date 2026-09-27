@@ -263,7 +263,8 @@ select { font: inherit; background: var(--lacquer); color: var(--bone); border: 
   position: absolute; left: 50%; bottom: 4rem; transform: translateX(-50%); width: min(46rem, 92vw);
   font-size: 1.15rem; line-height: 1.5; background: var(--panel); border: 1px solid var(--rule); box-shadow: var(--shadow); padding: 0.9rem 1.3rem;
 }
-.strike-caption { text-align: center; }
+/* The strikes' caption sits above the stone, clear of the clock ring it is talking about. */
+.strike-caption { text-align: center; bottom: auto; top: 4.5rem; }
 .relief-caption { display: flex; align-items: center; gap: 1.1rem; }
 .relief-caption .speaker { display: block; font-variant: small-caps; letter-spacing: 0.1em; color: var(--muted); font-size: 0.95rem; }
 .relief-face canvas { width: 144px; height: 144px; image-rendering: pixelated; display: block; margin: -2.2rem 0 -0.6rem -0.4rem; }

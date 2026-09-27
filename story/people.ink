@@ -57,9 +57,11 @@ Look at it. Look at all of it. And then, I beg you, leave it as it is. My wife i
 -> DONE
 
 = after_key
-You have the key. What more do you want from a sick old man? #speaker:Aristion #mood:anger
 {knows("aristion_trust"):
-    ...If it is tonight, I will get up. I can still hold a door against two boys with spears. #speaker:Aristion #mood:anger
+    Go on, then. Look at all of it. #speaker:Aristion #mood:sorrow
+    ...And if it is tonight, I will get up. I can still hold a door against two boys with spears. #speaker:Aristion #mood:anger
+- else:
+    You have the key. What more do you want from a sick old man? #speaker:Aristion #mood:anger
 }
 -> DONE
 
@@ -83,9 +85,9 @@ Phyllis. Is it the well already? Is it gold already? Wait for me at the well, Ph
 }
 {
 - hour() >= 22: Kora climbs towards the mountain with the procession, a torch in her fist, looking at nobody.
-- hour() >= 18: At the tavern Kora is buying a round for the dockworkers. Nobody drinks more than one. Nobody pays.
-- hour() >= 13: Kora is back at the shrine of Demeter, counting something on her fingers.
-- hour() >= 10: Kora stands at the edge of the agora with her arms crossed, waiting for Cleon.
+- hour() >= 18: Tonight Kora buys the dockworkers' round at the port tavern. Nobody drinks more than one. Nobody pays.
+- hour() >= 13: Kora counts something on her fingers. The agora is done with her; the shrine of Demeter is waiting.
+- hour() >= 10: Kora has her arms crossed already. She is waiting for Cleon, and she wants him to see it.
 - else: Kora is sweeping the shrine of Demeter as if it had personally offended her.
 }
 {not knows("kora_debts"):
@@ -121,8 +123,19 @@ Then tell me what he says after "Citizens of Eferon, we have been told that iron
 + ["I say: iron is the metal of free men!"] -> wrong
 
 = right
+~ temp speech = 12
+{patched("cleon_early"):
+    ~ speech = 11
+}
 She is quiet for a while. #spend:15
-He said that to me at noon, word for word. You weren't there. You were at the temple, I saw you. #speaker:Kora #mood:fear
+{
+- hour() > speech:
+    He said that in the agora today, word for word. And you didn't hear it there. You had it from the stones. #speaker:Kora #mood:fear
+- hour() == speech:
+    That is what he is shouting in the agora right now. Word for word. And you were here, with me. #speaker:Kora #mood:fear
+- else:
+    He hasn't said it yet. He'll say it at the {speech == 11: sixth| seventh} hour, and I'll be standing there, and I'll know it before he does. #speaker:Kora #mood:fear
+}
 All right, scribe. If the circle is a machine, machines can be jammed. I'll be on the mountain tonight. #speaker:Kora #mood:joy
 ~ learn("kora_ally")
 -> DONE
@@ -153,7 +166,7 @@ Go away, scribe. I have real work. #speaker:Kora #mood:anger
 
 = speech_time
 {wearing() == "Orator":
-    Cleon sees your face before he starts, and stops with one foot on the step. #speaker:Cleon #mood:fear
+    Cleon sees your face before he starts, and stops with one foot on the step.
     Take that off. That is — that's my — no. It's yours. Isn't it. It was always yours. #speaker:Cleon #mood:fear
 }
 The agora is full. Cleon climbs onto the steps and lifts one arm.
@@ -204,7 +217,7 @@ The same verses as every night. You could sing them with him. You nearly do.
 The song stops in the middle of a word. Eion turns his blind face to you.
 I know that face. I wore it, once. Or the one before me did. #speaker:Eion #mood:wonder
 You want to know how to fold the day shut. Everybody does, around the third time. #speaker:Eion #mood:joy
-He takes your hands and puts them on the strings. Down, left, up. Down, left, up. #speaker:Eion
+He takes your hands and puts them on the strings. Down, left, up. Down, left, up.
 The Song of Return. Play it and the morning comes early. Don't ask whose morning. #speaker:Eion #mood:sorrow
 R — raise the lyre. Arrow keys pluck the strings. #hint
 ~ learn("song_of_return")

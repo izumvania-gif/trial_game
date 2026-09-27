@@ -1,5 +1,6 @@
 // The Book of Strangers (Bombers' Notebook): who does what, when — as far as Leont has watched.
-import { RESIDENTS } from '../content/residents.ts';
+import { RESIDENTS, WALK_SPEED, type ScheduleEntry } from '../content/residents.ts';
+import { pathLength, route } from '../core/streets.ts';
 import { DAWN_HOUR } from '../core/clock.ts';
 import { isOpen, threadView, THREADS } from '../content/threads.ts';
 import type { Knowledge } from '../core/knowledge.ts';
@@ -20,6 +21,14 @@ function clockLabel(minute: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
+/** When someone gets there, not when they set off: "there by 10:45" once the walk takes a while. */
+function arrival(entries: ScheduleEntry[], i: number): string {
+  if (i === 0) return '';
+  const walk = pathLength(route(entries[i - 1]!.place, entries[i]!.place)) / WALK_SPEED;
+  if (walk < 5) return '';
+  return ` (there by ~${clockLabel(Math.ceil((entries[i]!.from + walk) / 5) * 5)})`;
+}
+
 /**
  * Who was where, and when. What someone does at an hour is written only once the player has
  * seen it; for the hours not yet seen the book still says when and where, so they can be found.
@@ -35,8 +44,8 @@ export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patche
     const notes = entries.map((e, i) => {
       const now = i === current ? h('span', { className: 'book-now' }, 'now') : '';
       return memory.seen.includes(`${r.id}:${i}`)
-        ? h('li', { className: i === current ? 'current' : '' }, e.note, now)
-        : h('li', { className: `unknown${i === current ? ' current' : ''}` }, `${clockLabel(e.from)} · ${PLACE_NAMES[e.place] ?? 'somewhere'} — not seen yet`, now);
+        ? h('li', { className: i === current ? 'current' : '' }, e.note, arrival(entries, i), now)
+        : h('li', { className: `unknown${i === current ? ' current' : ''}` }, `${clockLabel(e.from)} · ${PLACE_NAMES[e.place] ?? 'somewhere'}${arrival(entries, i)} — not seen yet`, now);
     });
     return h('section', { className: 'book-entry' },
       h('h3', {}, r.name, h('span', {}, ` — ${r.epithet}`)),

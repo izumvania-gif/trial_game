@@ -37,3 +37,8 @@ test('Talia can stop the merchant but not the priest', () => {
   assert.equal(simulate({ talia: [2, 3] }).outcome.shoreClear, true);
   assert.equal(simulate({ talia: [2, 1] }).outcome.citySilent, false);
 });
+
+test('the priest of Zeus does not stop for Aristion: one tile under the Hall no longer solves two goals', () => {
+  const { outcome } = simulate({ aristion: [3, 1], eion: [3, 3] });
+  assert.deepEqual(outcome, { citySilent: false, hallClear: true, shoreClear: true });
+});

@@ -179,8 +179,12 @@ export class StrikesStage implements Stage {
     if (!input.wasClicked()) return;
     const { mouse } = input;
     this.raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), this.camera);
-    const hit = this.raycaster.intersectObjects(this.sectors.filter((s) => s.visible && !s.userData.falling))[0];
+    const hit = this.raycaster.intersectObjects(this.sectors.filter((s) => s.visible))[0];
     if (!hit) return;
+    if (hit.object.userData.falling) {
+      this.say('That part is already falling. Strike what is still standing.');
+      return;
+    }
     const age = hit.object.userData.age as number;
     this.hits[age]! += 1;
     if (!this.host.reducedMotion()) this.shake = 1;

@@ -11,7 +11,7 @@ The path down is dark, and then it isn't: the sea has its own light.
 - else:
     Lysimachus is on the rocks with a lamp, watching the water. Let him watch.
 }
-Glaucus, the priest of Poseidon, the one who keeps no calendar, is standing in the water up to his knees. #speaker:Glaucus
+Glaucus, the priest of Poseidon, the one who keeps no calendar, is standing in the water up to his knees.
 It's dangerous to go on alone. Take this. #speaker:Glaucus
 He puts a knife in your hand, handle first.
 + [Cut your palm]
