@@ -37,7 +37,7 @@ const CAPTIONS: Record<string, string> = {
   sea: '[the sea, never the same]',
   desk: '[fans humming]',
   rain: '[rain]',
-  storm: '[a quick stormy waltz on the lyre, and thunder]',
+  storm: '[the Song of Storms on the lyre, and thunder]',
   lyre: '[the lyre]',
   align: '[the rings lock, and the hall rings with it]',
   freeze: '[the day sets into stone]',
@@ -55,6 +55,8 @@ export class AudioEngine {
   private master!: GainNode;
   private music!: GainNode;
   private sfx!: GainNode;
+  /** The recorded storm song (see `stormWaltz`), decoded once; null until it loads or if it never does. */
+  private stormTrack: { buffer: AudioBuffer; start: number } | null = null;
   private noise!: AudioBuffer;
   private windGain!: GainNode;
   private windFilter!: BiquadFilterNode;
@@ -105,6 +107,7 @@ export class AudioEngine {
     this.music.connect(this.master);
     this.sfx.connect(this.master);
     this.applyVolumes();
+    void this.loadStormTrack(ctx);
 
     // Two seconds of white noise, reused by every noise-based layer.
     this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -365,11 +368,41 @@ export class AudioEngine {
   }
 
   /**
+   * The only recorded sound in the game: the author's own arrangement of the Song of Storms
+   * (Koji Kondo), played on a harp. Fetched once the audio is unlocked; if it cannot be fetched
+   * or decoded, the synthesized waltz below plays instead. Leading silence is skipped, so the song
+   * answers the last string at once.
+   */
+  private async loadStormTrack(ctx: AudioContext): Promise<void> {
+    try {
+      const res = await fetch(`${import.meta.env.BASE_URL}audio/song-of-storms.mp3`);
+      if (!res.ok) return;
+      const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
+      const data = buffer.getChannelData(0);
+      let first = 0;
+      while (first < data.length && Math.abs(data[first]!) < 0.01) first++;
+      this.stormTrack = { buffer, start: Math.max(0, first / buffer.sampleRate - 0.02) };
+    } catch {
+      // No file, no decoder: the lyre plays its own waltz.
+    }
+  }
+
+  /**
    * The storm waltz: an original tune for the lyre in D minor, in three, with an oom-pah-pah
    * under it — a nod to a certain song about storms, not a copy of it. Returns its length.
    */
   stormWaltz(): number {
     if (!this.ctx) return 0;
+    if (this.stormTrack) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = this.stormTrack.buffer;
+      const g = this.ctx.createGain();
+      g.gain.value = 0.85;
+      src.connect(g).connect(this.sfx);
+      src.start(this.ctx.currentTime, this.stormTrack.start);
+      this.caption('storm');
+      return this.stormTrack.buffer.duration - this.stormTrack.start;
+    }
     const step = STORM_WALTZ.step;
     STORM_WALTZ.bars.forEach(([chord, melody], bar) => {
       const [root, third, fifth] = STORM_CHORDS[chord]!;
