@@ -21,7 +21,7 @@ export class ResetScreen {
    * The last frame freezes, becomes a relief and sinks into the spiral. Resolves when the
    * spiral has it. Without a frame (a stage with no 3D view) there is nothing to carve.
    */
-  freeze(frame: HTMLCanvasElement | null, reducedMotion: boolean, onSink?: () => void): Promise<void> {
+  freeze(frame: HTMLCanvasElement | null, reducedMotion: boolean, onSink?: () => void, onRelief?: (url: string) => void): Promise<void> {
     if (!frame) return Promise.resolve();
     const w = frame.width;
     const hgt = frame.height;
@@ -36,6 +36,16 @@ export class ResetScreen {
     reliefCanvas.width = w;
     reliefCanvas.height = hgt;
     reliefCanvas.getContext('2d')!.putImageData(relief, 0, 0);
+    // The day's relief, small enough to keep: it becomes the player's own carving in the registry.
+    if (onRelief) {
+      const thumb = document.createElement('canvas');
+      thumb.width = 96;
+      thumb.height = Math.max(1, Math.round((96 * hgt) / w));
+      const tc = thumb.getContext('2d')!;
+      tc.imageSmoothingEnabled = false;
+      tc.drawImage(reliefCanvas, 0, 0, thumb.width, thumb.height);
+      onRelief(thumb.toDataURL('image/png'));
+    }
     const spiral = ctx.createImageData(w, hgt);
     const mixed = ctx.createImageData(w, hgt);
     this.root.replaceChildren(canvas);
@@ -102,7 +112,7 @@ export class ResetScreen {
   }
 
   /** Without onWake: waiting for the server. With it: ready. */
-  show(cycleRun: number | null, onWake?: () => void, quiet = 'The rain has stopped. It is morning, and it is the same morning.'): void {
+  show(cycleRun: number | null, onWake?: () => void, quiet = 'The rain has stopped. It is morning, and it is the same morning.', carved?: string): void {
     const run = cycleRun === null ? '····' : String(cycleRun);
     const wake = h('button', { type: 'button', disabled: !onWake }, 'Wake');
     wake.addEventListener('click', () => {
@@ -112,6 +122,7 @@ export class ResetScreen {
     this.root.replaceChildren(
       h('p', { className: 'log' }, 'RESET COMPLETED SUCCESSFULLY'),
       h('p', { className: 'log' }, `LOG: CYCLE RUN #${run}`),
+      ...(carved ? [h('p', { className: 'log reset-carved' }, 'CARVED ON THE SPIRAL'), h('p', { className: 'reset-day' }, carved)] : []),
       h('p', { className: 'reset-quiet' }, quiet),
       wake,
     );

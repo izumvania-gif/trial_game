@@ -14,6 +14,8 @@ export interface StageHost {
   aspect(): number;
   /** Height of the low-resolution image in pixels: stages snap their cameras to it to stop the dither swimming. */
   lowResHeight(): number;
+  /** Eferon's last frame before going upstairs, as the Curator's terminal shows it. */
+  lastFrame(): string | null;
   /** Run an ink knot in the dialogue box; `args` for a knot that takes parameters. */
   interact(knot: string, args?: string[]): void;
   switchStage(id: StageId, entry?: string): void;

@@ -592,4 +592,19 @@ button.cmap-carve { margin-top: 0.5rem; background: var(--lacquer); color: var(-
 .regline-cell b { font-weight: normal; font-size: 0.72rem; letter-spacing: 0.05em; }
 .regline-cell.seen { border-color: var(--ember); }
 .regline-cell.known { background: var(--bone); color: var(--lacquer); border-color: var(--bone); }
-.regline-cell.you { border: 1px dashed var(--ember); color: var(--ember); grid-column: 1 / -1; min-height: 0; flex-direction: row; justify-content: center; gap: 0.5rem; }
+.regline-cell.you { border: 1px dashed var(--ember); color: var(--ember); }
+/* The player's own days on the registry's last ring: small reliefs of each day's last frame. */
+.regline-cell.mine { padding: 0; overflow: hidden; border-color: var(--bone); }
+.regline-cell.mine img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; image-rendering: pixelated; display: block; }
+.regline-cell.mine small { padding: 0.1rem 0; }
+.regline-last { margin: 0.2rem 0 0; font-size: 0.82rem; font-style: italic; color: var(--muted); }
+.reset-carved { margin-top: 1.4rem; }
+.reset-day { max-width: 34rem; margin: 0.3rem auto 0; font-style: italic; color: var(--bone); }
+.diary-object { font-size: 0.85rem; font-style: italic; opacity: 0.75; margin-bottom: 1.2rem; }
+/* The feed on the Curator's terminal: Eferon, small, in the terminal's own colour. */
+.desk-feed { margin: 0.8rem 0; }
+.desk-feed img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; image-rendering: pixelated; display: block; border: 1px solid var(--terminal); filter: grayscale(1) sepia(1) hue-rotate(80deg) saturate(0.55) brightness(0.9); }
+.desk-feed figcaption { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.12em; color: var(--terminal); margin-top: 0.25rem; }
+.layer-zoom { position: fixed; z-index: 60; object-fit: cover; image-rendering: pixelated; pointer-events: none; transition: left 1s cubic-bezier(.6,0,.3,1), top 1s cubic-bezier(.6,0,.3,1), width 1s cubic-bezier(.6,0,.3,1), height 1s cubic-bezier(.6,0,.3,1), filter 1s, opacity 1s; }
+.layer-zoom.up { filter: grayscale(1) sepia(1) hue-rotate(80deg) saturate(0.55) brightness(0.9); }
+.layer-zoom.down { opacity: 0; }

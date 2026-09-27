@@ -53,8 +53,18 @@ export function registryTimeline(memory: LoopMemory): HTMLElement {
       cell.title = e?.locked ? `Leont ${roman(n)}: ${tried}, and ${FATES[l.fate]}` : `Leont ${roman(n)}: not yet named`;
       return cell;
     }))));
+  // Then the player's own ring: every day already lived, carved from its last frame, and today.
+  const mine = memory.days.slice(-8).map((d) => {
+    const cell = h('span', { className: 'regline-cell mine' },
+      d.relief ? h('img', { src: d.relief, alt: '' }) : '', h('small', {}, `day ${d.cycle}`));
+    cell.title = `Day ${d.cycle}. ${d.summary}`;
+    return cell;
+  });
+  const last = memory.days[memory.days.length - 1];
   return h('div', { className: 'regline' }, ...groups,
-    h('div', { className: 'regline-group' }, h('span', { className: 'regline-ring' }, 'now'), h('div', { className: 'regline-cells' }, h('span', { className: 'regline-cell you' }, h('b', {}, 'You'), h('small', {}, 'Leont')))));
+    h('div', { className: 'regline-group' }, h('span', { className: 'regline-ring' }, 'you · your own days'),
+      h('div', { className: 'regline-cells' }, ...mine, h('span', { className: 'regline-cell you' }, h('b', {}, 'Today'), h('small', {}, `day ${memory.cycle}`)))),
+    last ? h('p', { className: 'regline-last' }, `Yesterday's carving: ${last.summary}`) : '');
 }
 
 export function registryOverview(memory: LoopMemory, inspected: string[], onChange: () => void): (Node | string)[] {

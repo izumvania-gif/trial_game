@@ -5,6 +5,8 @@ import { ENDINGS } from './content/endings.ts';
 import { STAGE_CONTROLS, STAGE_GUIDES, TIPS } from './content/guides.ts';
 import { isOpen, threadView, THREADS, UNLOCKS } from './content/threads.ts';
 import { KNOWLEDGE } from './content/knowledge.ts';
+import { DAYS_KEPT, daySummary, type DayRecord } from './content/days.ts';
+import { maskVoice } from './content/maskVoices.ts';
 import { dayEvent } from './content/epilogue.ts';
 import { pickHint } from './content/hints.ts';
 import { LEXICON } from './content/lexicon.ts';
@@ -204,6 +206,7 @@ export class Game {
       overlay: this.overlay,
       aspect: () => this.renderer.aspect,
       lowResHeight: () => this.renderer.lowResHeight,
+      lastFrame: () => this.feedFrame,
       interact: (knot, args) => this.interact(knot, args),
       switchStage: (id, entry) => this.switchStage(id, entry),
       prompt: (label) => this.hud.prompt(this.dialogue.open ? null : label),
@@ -331,6 +334,11 @@ export class Game {
     // Down the steps into the Hall, or back up into the day: the passage covers the seam.
     const from = this.current?.id;
     const passage = from === 'town' && id === 'spiral' ? 'down' : from === 'spiral' && id === 'town' ? 'up' : null;
+    // Up to the Desk and back: the city's frame shrinks into the Curator's monitor, or grows out of it.
+    const layer = id === 'desk' && (from === 'town' || from === 'spiral') ? 'up' : from === 'desk' && (id === 'town' || id === 'spiral') ? 'down' : null;
+    if (layer === 'up' && this.current?.scene && this.current.camera) {
+      this.feedFrame = this.renderer.snapshot(this.current.scene, this.current.camera)?.toDataURL() ?? null;
+    }
     if (passage && this.phase === 'playing') {
       const { scene, camera } = this.current;
       this.passage.play(scene && camera ? this.renderer.snapshot(scene, camera) : null, passage, this.settings.value.reducedMotion);
@@ -346,7 +354,37 @@ export class Game {
     this.save.cycle.stage = id;
     if (id === 'sea' && entry === 'final') this.save.cycle.finale = 'sea';
     this.current.enter(entry);
+    if (layer && this.feedFrame && !this.settings.value.reducedMotion) this.zoomLayer(layer);
   }
+
+  /** The last frame of Eferon before the Curator's terminal took over the screen. */
+  private feedFrame: string | null = null;
+
+  /**
+   * The layers, shown (after Inscryption's pull-back from the table): going up, the city's frame
+   * shrinks into the feed on the Curator's terminal; coming down, it grows out of it again.
+   */
+  private zoomLayer(dir: 'up' | 'down'): void {
+    const feed = document.querySelector<HTMLElement>('.desk-feed img');
+    const live = feed?.getBoundingClientRect();
+    const rect = live && live.width > 0 ? live : this.feedRect;
+    if (dir === 'up' && rect) this.feedRect = rect;
+    if (!rect || !this.feedFrame) return;
+    const img = h('img', { className: 'layer-zoom', src: this.feedFrame, alt: '' });
+    const full = { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight };
+    const small = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    const [a, b] = dir === 'up' ? [full, small] : [small, full];
+    const place = (r: typeof full) => Object.assign(img.style, { left: `${r.left}px`, top: `${r.top}px`, width: `${r.width}px`, height: `${r.height}px` });
+    place(a);
+    document.body.append(img);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      img.classList.add(dir);
+      place(b);
+    }));
+    window.setTimeout(() => img.remove(), 1300);
+  }
+
+  private feedRect: DOMRect | null = null;
 
   switchStage(id: StageId, entry?: string): void {
     if (this.dialogue.open) {
@@ -365,6 +403,14 @@ export class Game {
     }
     this.hud.prompt(null);
     if (knot === 'spiral_seam' || knot === 'desk_profile') this.audio.play('seam');
+    // The worn face has been here before, and says so under its breath: once a day per place.
+    const mask = this.lost('masks') ? null : this.save.cycle.wornMask;
+    const said = `voice:${mask}:${knot}`;
+    const voice = maskVoice(mask, knot);
+    if (voice && !this.save.cycle.noticed.includes(said)) {
+      this.save.cycle.noticed.push(said);
+      this.hud.toast(voice, `${mask}, under your breath`, true);
+    }
     this.heardBefore = new Set(this.memory.heard);
     this.story.enter(knot, args);
     this.dialogue.run(this.story, (line) => this.onLine(line), () => this.afterDialogue(), {
@@ -591,6 +637,7 @@ export class Game {
       current ? h('p', { className: 'desk-note' }, `Already in the stone: ${current}`) : '',
       h('div', { className: 'carve-words' }, ...words.map((w) => button(w.word, () => {
         this.memory.steleWords.push(w.word);
+        this.save.cycle.carved = w.word;
         this.notice('stele_carved', 0.05);
         this.modal.close();
         this.persist();
@@ -808,21 +855,37 @@ export class Game {
     this.raining = false;
     this.hud.clearToasts();
     for (const stage of Object.values(this.stages)) stage.exit();
+    // What this Leont did before the day came back, carved with the day's last frame.
+    const day = this.memory.cycle;
+    const record: DayRecord = {
+      cycle: day,
+      summary: daySummary({
+        learned: Object.entries(this.memory.learnedOn).filter(([, c]) => c === day).map(([f]) => f),
+        carved: this.save.cycle.carved,
+        reason,
+        ending: reason === 'ending' && this.memory.lastEnding?.cycle === day ? this.memory.lastEnding.id : null,
+      }),
+    };
+    this.memory.days = [...this.memory.days.filter((d) => d.cycle !== day), record].slice(-DAYS_KEPT);
+    const carvedLine = `Day ${day}. ${record.summary}`;
     // The cycle state dies here; only loop memory survives.
     this.memory.cycle += 1;
     this.save.cycle = freshCycle();
     this.persist(false);
     const quiet = reason === 'song' ? 'You play the song. The world folds along a crease it already had.' : undefined;
     const reported = reportReset();
-    await this.resetScreen.freeze(frame, this.settings.value.reducedMotion, () => this.audio.play('freeze'));
-    this.resetScreen.show(null, undefined, quiet);
+    await this.resetScreen.freeze(frame, this.settings.value.reducedMotion, () => this.audio.play('freeze'), (url) => {
+      record.relief = url;
+      this.persist(false);
+    });
+    this.resetScreen.show(null, undefined, quiet, carvedLine);
     const run = await reported;
     if (run !== null) {
       this.cycleRun = run;
       this.memory.lastCycleRun = run;
       this.persist(false);
     }
-    this.resetScreen.show(this.cycleRun, () => this.beginCycle(true), quiet);
+    this.resetScreen.show(this.cycleRun, () => this.beginCycle(true), quiet, carvedLine);
   }
 
   /** Saves memory + current cycle. `captureCycle` false when the cycle was just replaced. */

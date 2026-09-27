@@ -48,6 +48,8 @@ export interface LoopMemory {
   mapSeen: string[];
   /** Conclusions carved in the chronicle (content/deductions.ts). */
   deductions: string[];
+  /** The player's own days, carved at each reset (content/days.ts). */
+  days: { cycle: number; summary: string; relief?: string }[];
 }
 
 export interface CycleState {
@@ -67,6 +69,8 @@ export interface CycleState {
   noticed: string[];
   /** Where the finale stood when the page was last saved, so a reload resumes it instead of losing it. */
   finale: string | null;
+  /** The word cut into the stele today, for the day's record. */
+  carved: string | null;
 }
 
 export interface SaveFile {
@@ -87,14 +91,14 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [],
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [], days: [],
   };
 }
 
 export function freshCycle(): CycleState {
   return {
     minute: 0, stage: 'town', player: { x: 0, z: 6, facing: Math.PI }, storyState: null,
-    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null,
+    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null, carved: null,
   };
 }
 

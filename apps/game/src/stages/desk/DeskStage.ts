@@ -198,6 +198,9 @@ export class DeskStage implements Stage {
             ...(knowledge.knows('desk_agent_id') ? [h('dt', {}, 'AGENT_ID'), h('dd', {}, 'CURATOR_P7'), h('dt', {}, 'BODY'), h('dd', {}, 'NONE')] : []),
             ...(knowledge.knows('curator_awake') ? [h('dt', {}, 'STATUS'), h('dd', {}, 'AWAKE (unclassified)')] : [])),
           h('p', { className: 'desk-note' }, 'Esc — let go of the mark'),
+          // The module under study, as the Curator sees it: the frame Leont was standing in.
+          ...(this.host.lastFrame() ? [h('figure', { className: 'desk-feed' }, h('img', { src: this.host.lastFrame()!, alt: 'Eferon, the last frame before you looked up' }),
+            h('figcaption', {}, 'MODULE FEED · LEONT_ASTRO_ASSIST · paused'))] : []),
           // A window onto a morning that does not move.
           h('div', { className: 'desk-window', ariaHidden: 'true' }),
           h('p', { className: 'desk-weather' }, 'Outside: 21°C, overcast. Updated 09:14.')),
