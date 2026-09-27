@@ -40,6 +40,7 @@ INCLUDE people2.ink
 INCLUDE spiral.ink
 INCLUDE desk.ink
 INCLUDE sea.ink
+INCLUDE curator.ink
 
 -> DONE
 

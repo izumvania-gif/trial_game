@@ -60,7 +60,7 @@ interface Face {
 interface Spec {
   skin: 'fig' | 'white';
   face?: Partial<Face>;
-  hair?: 'short' | 'curls' | 'long' | 'bun' | 'bald' | 'wild';
+  hair?: 'short' | 'curls' | 'long' | 'bun' | 'bald' | 'wild' | 'crop';
   hairTone?: Tone;
   beard?: 'short' | 'pointed' | 'long' | 'wild';
   beardTone?: Tone;
@@ -68,11 +68,15 @@ interface Spec {
   crownTone?: Tone;
   cover?: 'veil' | 'helmet' | 'hood' | 'petasos';
   eye?: 'open' | 'closed';
+  /** Dark glasses, at any hour. */
+  shades?: boolean;
+  /** Turned to face the viewer: on a cup where everyone else is in profile, only one is. */
+  frontal?: boolean;
   /** Mouth drawn open even at rest (the demagogue, the herald). */
   speaking?: boolean;
   smooth?: boolean;
   age?: number;
-  garment?: 'chiton' | 'himation' | 'armour';
+  garment?: 'chiton' | 'himation' | 'armour' | 'shirt';
   prop?: 'lyre' | 'trident' | 'mask' | 'kerykeion' | 'stylus' | 'wheat' | 'net' | 'coins' | 'knife' | 'spear';
   crowd?: boolean;
   /** Set per line, not per person. */
@@ -96,6 +100,8 @@ const SPECS: Record<string, Spec> = {
   woman: { skin: 'white', hair: 'long', crown: 'fillet', garment: 'chiton', face: { nose: 0.2 } },
   boy: { skin: 'fig', hair: 'short', garment: 'chiton', face: { nose: 0, chin: -0.3 } },
   crowd: { skin: 'fig', crowd: true },
+  // Upstairs, come down: a cropped head, dark glasses at night, a work shirt over a dark T-shirt.
+  curator: { skin: 'fig', hair: 'crop', shades: true, garment: 'shirt', frontal: true },
 };
 
 export interface PortraitInfo {
@@ -111,6 +117,7 @@ const EXTRA: Record<string, [string, string]> = {
   crowd: ['Eferon', 'ten thousand voices'],
   woman: ['A woman in the crowd', 'carved in the stone'],
   boy: ['A boy', 'carved in the stone'],
+  curator: ['Curator P-7', 'body: none'],
 };
 
 const ALIASES: Record<string, string> = {
@@ -135,6 +142,11 @@ export function portraitFor(speaker: string | null): PortraitInfo | null {
 }
 
 export const PORTRAIT_IDS = Object.keys(SPECS);
+
+/** Painted facing the viewer rather than in profile. */
+export function facesViewer(id: string): boolean {
+  return !!SPECS[id]?.frontal;
+}
 
 const cache = new Map<string, HTMLCanvasElement>();
 
@@ -172,6 +184,7 @@ function render(spec: Spec, theme: PortraitTheme, open: boolean): HTMLCanvasElem
   ctx.arc(50, 50, 41.5, 0, Math.PI * 2);
   ctx.clip();
   if (spec.crowd) drawCrowd(d);
+  else if (spec.frontal) drawFrontal(d, spec, open);
   else drawBust(d, spec, open);
   ctx.restore();
   drawFrame(d);
@@ -275,14 +288,14 @@ function lightMask(s: Spec, open: boolean): HTMLCanvasElement {
   c.arc(92, 4, 74, 0, Math.PI * 2, true);
   c.fill('evenodd');
   c.beginPath();
-  spline(c, [[56, 71], [63, 71.5], [60, 78], [57, 82], [52, 79], [50, 73]], true);
+  spline(c, s.frontal ? [[44, 68], [56, 68], [55.4, 76], [44.6, 76]] : [[56, 71], [63, 71.5], [60, 78], [57, 82], [52, 79], [50, 73]], true);
   c.fill();
   // The bust's shadow on the ground of the cup, thrown down and back, away from the light.
   c.fillStyle = '#00ff00';
   c.save();
   c.translate(-4.2, 3.2);
   c.beginPath();
-  spline(c, bustOutline(f, open), true);
+  spline(c, s.frontal ? FRONT_BUST : bustOutline(f, open), true);
   c.fill();
   c.restore();
   // The lit edge: the top of the head and the whole profile, forehead to chin.
@@ -290,7 +303,7 @@ function lightMask(s: Spec, open: boolean): HTMLCanvasElement {
   c.lineWidth = 2.4;
   c.lineJoin = 'round';
   c.beginPath();
-  spline(c, [[42, 19], [52, 16.5], ...faceProfile(f, open).slice(0, 13)], false);
+  spline(c, s.frontal ? FRONT_HEAD.slice(6, 14) : [[42, 19], [52, 16.5], ...faceProfile(f, open).slice(0, 13)], false);
   c.stroke();
   return canvas;
 }
@@ -453,6 +466,8 @@ function drawFace(d: Draw, s: Spec, f: Face, skin: Tone, cut: Tone, talking: boo
   if (s.eye === 'closed') {
     d.line(cut, 1, [[57, 39.5], [61, 41], [65, 39.6]]);
     d.line(cut, 0.6, [[58, 42.5], [61, 43.4], [63.5, 42.6]]);
+  } else if (s.shades) {
+    drawShades(d);
   } else if (s.cover !== 'helmet') {
     const e = EYES[mood];
     d.fill(skin === WHITE ? WHITE : CUT, (c) => {
@@ -543,6 +558,12 @@ function drawHairCap(d: Draw, s: Spec, skin: Tone): void {
     case 'bald':
       d.shape(tone, [[34, 40], [30.6, 44], [30, 51], [33, 58], [36, 57], [34.4, 50], [35.4, 43]]);
       return;
+    case 'crop':
+      // Cut close: a thin cap that stops short of the temple, and a few short strokes.
+      d.shape(tone, [[59.6, 21], [52, 15.8], [40, 16.2], [30.4, 23], [27, 34], [28, 45], [31.4, 49], [34, 44.6], [33.6, 36], [38, 27], [47, 21], [56, 22.8]]);
+      for (let i = 0; i < 6; i++) d.line(cut, 0.5, [[54 - i * 4.4, 18.4 + i * 1.2], [52 - i * 4.6, 21.6 + i * 1.6]]);
+      if (skin === tone) d.line(cut, 0.8, [[59.6, 21], [56, 22.8], [47, 21], [38, 27], [33.6, 36], [34, 44.6], [31.4, 49]]);
+      return;
     case 'bun':
       d.shape(FIG, [[60, 21], [52, 15.4], [40, 16], [30, 23], [26.4, 36], [28, 48], [34, 56], [39, 52], [41, 44], [47, 37], [54, 31], [59, 26]]);
       d.disc(26, 30, 7.8, FIG);
@@ -608,6 +629,18 @@ function drawGarment(d: Draw, s: Spec, skin: Tone): void {
       d.line(cut, 0.6, [[30, 80], [52, 88], [76, 100]]);
       d.line(cut, 0.6, [[48, 82], [70, 90], [88, 100]]);
       break;
+    case 'shirt':
+      // A work shirt, open at the neck over a dark T-shirt: collar points, a placket, one pocket.
+      d.shape(FIG, [[2, 104], [8, 88], [19, 80], [33, 76], [46, 80], [60, 82], [72, 86], [86, 91], [98, 104]]);
+      d.line(CUT, 0.8, [[33, 76], [40, 86], [47, 82.6]]);
+      d.line(CUT, 0.8, [[60, 82], [63.4, 90], [71, 86.4]]);
+      d.line(CUT, 0.7, [[47, 82.6], [53, 88], [60, 82]]);
+      d.line(CUT, 0.6, [[53, 88], [53.6, 104]]);
+      for (const y of [93, 99]) d.disc(55.2, y, 0.8, CUT);
+      d.line(CUT, 0.6, [[62, 95], [74, 96], [73.4, 104]], false);
+      d.line(RED, 1.4, [[65, 96.8], [68.6, 97]]);
+      d.line(CUT, 0.55, [[18, 86], [22, 104]]);
+      break;
     case 'armour':
       d.shape(FIG, [[2, 104], [8, 88], [20, 79], [34, 76], [48, 79], [62, 80], [74, 85], [88, 91], [98, 104]]);
       d.line(CUT, 0.8, [[34, 77], [48, 80], [62, 81], [74, 86]]);
@@ -617,6 +650,84 @@ function drawGarment(d: Draw, s: Spec, skin: Tone): void {
       break;
     default:
       break;
+  }
+}
+
+/** Dark glasses in profile: one lens over the eye, a glint of the lamp, the arm back to the ear. */
+function drawShades(d: Draw): void {
+  const lens: Pt[] = [[55.4, 37.2], [61, 36.4], [66.8, 36.8], [66.4, 41.2], [62.6, 43.8], [57.4, 43.2]];
+  // On a black figure a dark lens has to be cut out of it: the clay shows through like a mirror.
+  d.shape(CUT, lens);
+  d.line(FIG, 0.8, [...lens, lens[0]!], false);
+  d.line(WHITE, 0.7, [[62.4, 38.4], [64.6, 40.8]]);
+  d.line(CUT, 0.8, [[55.4, 38.4], [51, 40.2], [47.8, 41.6]]);
+  d.line(CUT, 0.6, [[66.8, 37.4], [67.6, 38.6]]);
+}
+
+// ─── Facing out of the cup ───────────────────────────────────────────────────
+
+/** The head seen from the front, from the left jaw over the top to the chin. */
+const FRONT_HEAD: Pt[] = [[45.5, 69.5], [40, 64], [35.5, 55], [33.2, 45], [32.5, 34], [34, 23], [40, 15.5], [50, 13], [60, 15.5], [66, 23], [67.5, 34], [66.8, 45], [64.5, 55], [60, 64], [54.5, 69.5], [50, 70.5]];
+const FRONT_BUST: Pt[] = [[2, 104], [6, 90], [16, 82], [32, 77], [42, 76], [43, 66], ...FRONT_HEAD.slice(1, 14), [57, 66], [58, 76], [68, 77], [84, 82], [94, 90], [98, 104]];
+
+/** Brows over the glasses, the viewer's left one; the other is its mirror. */
+const FRONT_BROWS: Record<Mood, Pt[]> = {
+  neutral: [[37.6, 33], [42.6, 32], [47.6, 33]],
+  joy: [[37.6, 32.6], [42.6, 31.2], [47.6, 32.4]],
+  anger: [[37.6, 31.8], [42.6, 32.4], [47.8, 34.6]],
+  sorrow: [[37.6, 34], [42.6, 33], [47.8, 31.6]],
+  fear: [[37.6, 31.6], [42.6, 30.2], [47.6, 31.2]],
+  wonder: [[37.6, 32], [42.6, 30.4], [47.6, 31.6]],
+};
+
+const mirror = (pts: Pt[]): Pt[] => pts.map(([x, y]) => [100 - x, y]);
+
+/** The Curator: the only face on the cup that turns round and looks back at you. */
+function drawFrontal(d: Draw, s: Spec, open: boolean): void {
+  const mood = s.mood ?? 'neutral';
+  d.shape(FIG, FRONT_BUST);
+  // Ears, and the cropped hair with its line along the forehead.
+  for (const x of [32.4, 67.6]) {
+    d.ellipse(x, 44, 2.6, 5.2, 0, FIG);
+    d.line(CUT, 0.55, [[x + (x < 50 ? 0.6 : -0.6), 41], [x + (x < 50 ? -0.8 : 0.8), 44], [x + (x < 50 ? 0.4 : -0.4), 47.4]]);
+  }
+  d.line(CUT, 0.8, [[33.6, 30], [37, 24], [43, 20.5], [50, 19.6], [57, 20.5], [63, 24], [66.4, 30]]);
+  for (let i = 0; i < 7; i++) d.line(CUT, 0.5, [[38 + i * 4, 17.6 + Math.abs(3 - i) * 0.9], [38.6 + i * 4, 20.4 + Math.abs(3 - i) * 0.7]]);
+  // A work shirt open over a dark T-shirt: both collar points, the placket, a pocket.
+  d.line(CUT, 0.8, [[42, 76], [36, 86], [46, 84.4], [50, 90]]);
+  d.line(CUT, 0.8, mirror([[42, 76], [36, 86], [46, 84.4], [50, 90]]));
+  d.line(CUT, 0.6, [[44, 79.6], [50, 82.6], [56, 79.6]]);
+  d.line(CUT, 0.6, [[50, 90], [50, 104]]);
+  for (const y of [95, 101]) d.disc(51.6, y, 0.8, CUT);
+  d.line(CUT, 0.6, [[58.6, 93], [69, 93], [69, 104]], false);
+  d.line(RED, 1.4, [[60.6, 95], [63.8, 95]]);
+  // Dark glasses: two lenses of bare clay, a glint of the lamp in each, the arms back to the ears.
+  for (const cx of [43, 57]) {
+    d.ellipse(cx, 39.4, 5.6, 3.9, 0, CUT);
+    d.line(WHITE, 0.6, [[cx + 1.4, 37.6], [cx + 3, 39.4]]);
+  }
+  d.line(CUT, 0.8, [[48.4, 38.2], [50, 37.6], [51.6, 38.2]]);
+  d.line(CUT, 0.7, [[37.4, 38.4], [33.6, 39.6]]);
+  d.line(CUT, 0.7, [[62.6, 38.4], [66.4, 39.6]]);
+  d.line(CUT, 1, FRONT_BROWS[mood]);
+  d.line(CUT, 1, mirror(FRONT_BROWS[mood]));
+  // The nose from the front, the folds beside it, the chin.
+  d.line(CUT, 0.6, [[50.6, 42], [49.6, 48.6], [47.8, 51.2], [50, 52.4], [52.2, 51.2]]);
+  d.line(CUT, 0.5, [[45.4, 51.4], [44.6, 56]]);
+  d.line(CUT, 0.5, mirror([[45.4, 51.4], [44.6, 56]]));
+  d.line(CUT, 0.5, [[47, 65.4], [50, 66.4], [53, 65.4]]);
+  const talking = open || !!s.speaking;
+  if (talking) {
+    d.fill(CUT, (c) => c.ellipse(50, 59, mood === 'joy' ? 3.8 : 3, mood === 'fear' || mood === 'wonder' ? 2.2 : 1.6, 0, 0, Math.PI * 2));
+    return;
+  }
+  switch (mood) {
+    case 'joy': d.line(CUT, 0.8, [[45.4, 57.6], [50, 59.6], [54.6, 57.6]]); break;
+    case 'anger': d.line(CUT, 0.9, [[45.6, 59.6], [50, 58.2], [54.4, 59.6]]); break;
+    case 'sorrow': d.line(CUT, 0.8, [[45.6, 60], [50, 58.6], [54.4, 60]]); break;
+    case 'fear': d.fill(CUT, (c) => c.ellipse(50, 59, 1.8, 1.6, 0, 0, Math.PI * 2)); break;
+    case 'wonder': d.fill(CUT, (c) => c.ellipse(50, 59, 1.3, 1.1, 0, 0, Math.PI * 2)); break;
+    default: d.line(CUT, 0.8, [[46, 58.6], [54, 58.6]]);
   }
 }
 

@@ -402,6 +402,7 @@ export class Game {
     else if (action === 'carve_now') this.openCarving(true);
     else if (action === 'stele_lines') void this.openSteleLines();
     else if (action === 'board') this.switchStage('board');
+    else if (action === 'epilogue') this.beginEpilogue('true');
     else if (action.startsWith('ending:')) this.ending(action.slice('ending:'.length));
   }
 
@@ -686,7 +687,9 @@ export class Game {
       if (left-- <= 0) {
         window.clearInterval(timer);
         this.modal.close();
-        this.beginEpilogue(mode);
+        // Nobody pressed it. On the true path somebody is waiting in the hut before the diary.
+        if (mode === 'true') this.interact('curator_meeting');
+        else this.beginEpilogue(mode);
       }
     };
     const timer = window.setInterval(tick, 1000);

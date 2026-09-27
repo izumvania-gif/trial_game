@@ -157,6 +157,10 @@ h1 { margin: 0; font-size: 4.2rem; letter-spacing: 0.6em; margin-right: -0.6em; 
 .dialogue.quiet .dialogue-box { background: radial-gradient(closest-side, rgba(6, 18, 24, 0.72), rgba(6, 18, 24, 0)); border: none; box-shadow: none; text-align: center; padding: 2.2rem 3rem; }
 .dialogue.quiet .line { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9), 0 0 14px rgba(0, 0, 0, 0.6); font-size: 1.25rem; }
 .dialogue.quiet .dialogue-plate { position: static; display: inline-flex; margin-bottom: 0.6rem; }
+/* The one face that looks out of the cup: above the words, not beside them. */
+.dialogue.quiet.has-portrait { flex-direction: column; align-items: center; }
+.dialogue.quiet.has-portrait .dialogue-portrait { margin: 0 0 -1.2rem; width: 180px; height: 180px; }
+.dialogue.quiet.has-portrait .dialogue-box { padding-left: 3rem; width: 100%; }
 
 /* Midnight rain and the reset */
 #overlay.raining::before {

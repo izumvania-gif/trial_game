@@ -7,7 +7,7 @@
 import type { Mood } from '../content/moods.ts';
 import type { StoryChoice, StoryLine } from '../engine/story.ts';
 import { h } from './dom.ts';
-import { portrait, portraitFor, type PortraitTheme } from './portraits.ts';
+import { facesViewer, portrait, portraitFor, type PortraitTheme } from './portraits.ts';
 
 export interface DialogueSource {
   next(): StoryLine | null;
@@ -162,7 +162,8 @@ export class Dialogue {
 
   private setSpeaker(line: StoryLine): void {
     const info = line.style === 'log' || line.style === 'hint' ? null : portraitFor(line.speaker);
-    this.root.classList.toggle('has-portrait', !!info && !this.opts.quiet);
+    // By the sea the lines have no faces, except one: whoever turns round to look at you.
+    this.root.classList.toggle('has-portrait', !!info && (!this.opts.quiet || facesViewer(info.id)));
     this.plate.replaceChildren();
     this.plate.hidden = !line.speaker;
     if (line.speaker) {
