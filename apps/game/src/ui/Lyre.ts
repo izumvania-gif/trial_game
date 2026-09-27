@@ -4,6 +4,8 @@ import { LYRE_NOTES } from '../engine/audio.ts';
 import { h } from './dom.ts';
 
 export const SONG_OF_RETURN = ['ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowUp'];
+/** A traveller's tune Eion hums between verses: right, down, up, twice (the shape of a certain song about storms). */
+export const SONG_OF_STORMS = ['ArrowRight', 'ArrowDown', 'ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowUp'];
 const GLYPH: Record<string, string> = { ArrowUp: '▲', ArrowDown: '▼', ArrowLeft: '◀', ArrowRight: '▶' };
 
 export class Lyre {
@@ -12,6 +14,7 @@ export class Lyre {
   private status = h('p', { className: 'lyre-status' });
   private notes: string[] = [];
   private onSong: (() => void) | null = null;
+  private onStorm: (() => void) | null = null;
   private onPluck: (semis: number) => void;
 
   constructor(parent: HTMLElement, onPluck: (semis: number) => void = () => {}) {
@@ -35,9 +38,10 @@ export class Lyre {
     return !this.root.hidden;
   }
 
-  show(knowsSong: boolean, onSong: () => void): void {
+  show(knowsSong: boolean, onSong: () => void, onStorm?: () => void): void {
     this.notes = [];
     this.onSong = onSong;
+    this.onStorm = onStorm ?? null;
     this.status.textContent = knowsSong ? 'You remember a song. Six notes, falling and climbing.' : 'You do not know any songs. The strings are cold.';
     this.render();
     this.root.hidden = false;
@@ -51,12 +55,22 @@ export class Lyre {
     this.onPluck(LYRE_NOTES[code] ?? 0);
     this.notes.push(code);
     const n = this.notes.length;
-    const matches = SONG_OF_RETURN.slice(0, n).every((c, i) => c === this.notes[i]);
+    const fits = (song: string[]) => song.slice(0, n).every((c, i) => c === this.notes[i]);
+    const matches = fits(SONG_OF_RETURN) || (!!this.onStorm && fits(SONG_OF_STORMS));
     this.render();
     if (!matches) {
       this.status.textContent = 'The strings buzz against each other.';
       this.notes = [];
       window.setTimeout(() => this.render(), 400);
+      return;
+    }
+    if (n === SONG_OF_STORMS.length && this.onStorm && fits(SONG_OF_STORMS)) {
+      this.status.textContent = 'A song of storms.';
+      const cb = this.onStorm;
+      window.setTimeout(() => {
+        this.close();
+        cb();
+      }, 500);
       return;
     }
     if (n === SONG_OF_RETURN.length) {

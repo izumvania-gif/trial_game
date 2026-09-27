@@ -14,7 +14,7 @@ import { MASKS } from './content/masks.ts';
 import { SHARD_WORDS, SHARDS } from './content/shards.ts';
 import { VOICES } from './content/voices.ts';
 import { PAST_LEONTS } from './content/leonts.ts';
-import { DAWN_HOUR, DayClock, endMinuteForWind } from './core/clock.ts';
+import { at, DAWN_HOUR, DayClock, endMinuteForWind } from './core/clock.ts';
 import { Knowledge } from './core/knowledge.ts';
 import {
   browserStorage, clearSave, freshCycle, hashContent, importTablet, loadSave, readShard, writeSave, writeShard,
@@ -95,6 +95,9 @@ export class Game {
   private guides: Guides;
   readonly audio: AudioEngine;
   private raining = false;
+  /** A short shower called down by the storm song (not the midnight rain). */
+  private shower = false;
+  private showerTimer = 0;
   /** Set at a new dawn: show what yesterday taught once the player is free. */
   private recapDue = false;
   private place = 'streets';
@@ -407,7 +410,7 @@ export class Game {
     // Only where the HUD shows (the Desk and the sea hide it, and a line nobody sees is not used up).
     const mask = this.lost('masks') || this.current.hideHud ? null : this.save.cycle.wornMask;
     const said = `voice:${mask}:${knot}`;
-    const voice = maskVoice(mask, knot, { evening: this.clock.minute >= 18 * 60, lastHour: this.clock.minute >= this.clock.endMinute - 60 });
+    const voice = maskVoice(mask, knot, { evening: this.clock.minute >= at(18), lastHour: this.clock.minute >= this.clock.endMinute - 60 });
     if (voice && !this.save.cycle.noticed.includes(said)) {
       this.save.cycle.noticed.push(said);
       this.hud.toast(voice, `${mask}, under your breath`, true);
@@ -500,7 +503,7 @@ export class Game {
       stage: this.phase === 'reset' ? 'reset' : this.current.id,
       progress: this.clock.progress,
       wind: this.save.cycle.wind,
-      raining: this.raining,
+      raining: this.raining || this.shower,
       sea: this.current.id === 'sea' || this.current.id === 'diary' ? 1 : this.current.id === 'town' && town ? Math.max(0, Math.min(1, (town.z - 4) / 16)) : 0,
       place: this.musicPlace(town),
     });
@@ -595,7 +598,7 @@ export class Game {
     if (i.wasPressed('KeyM') && this.current.id === 'town') this.toggleMask();
     if (i.wasPressed('KeyR') && this.current.id === 'town') {
       if (!this.knowledge.knows('song_of_return')) this.hud.toast('You have no lyre, and no song to play on it.');
-      else this.lyre.show(true, () => this.playSongOfReturn());
+      else this.lyre.show(true, () => this.playSongOfReturn(), () => this.playSongOfStorms());
     }
   }
 
@@ -706,6 +709,30 @@ export class Game {
     this.audio.caption('rain');
     this.story.enter('midnight');
     this.dialogue.run(this.story, () => {}, () => void this.resetCycle('midnight'), this.dialogueLook());
+  }
+
+  /**
+   * The storm song (a nod to Ocarina of Time): a stormy waltz on the lyre, thunder, and a short
+   * shower over the city at whatever hour. Nothing in the day changes; the sky just answers.
+   */
+  private playSongOfStorms(): void {
+    if (this.phase !== 'playing' || this.shower) return;
+    const length = this.audio.stormWaltz();
+    this.audio.play('thunder');
+    this.shower = true;
+    this.overlay.classList.add('raining');
+    const first = !this.save.cycle.noticed.includes('song:storms');
+    if (first) {
+      this.save.cycle.noticed.push('song:storms');
+      this.hud.toast(this.clock.minute >= at(18)
+        ? 'Rain, before midnight. Zeus will want a word with whoever taught Eion that.'
+        : 'Rain, in broad daylight. Zeus will want a word with whoever taught Eion that.', 'In the margin', true);
+    }
+    window.clearTimeout(this.showerTimer);
+    this.showerTimer = window.setTimeout(() => {
+      this.shower = false;
+      if (!this.raining) this.overlay.classList.remove('raining');
+    }, Math.max(12, length + 6) * 1000);
   }
 
   private playSongOfReturn(): void {
@@ -859,6 +886,8 @@ export class Game {
     this.phase = 'reset';
     this.overlay.classList.remove('raining');
     this.raining = false;
+    this.shower = false;
+    window.clearTimeout(this.showerTimer);
     this.hud.clearToasts();
     for (const stage of Object.values(this.stages)) stage.exit();
     // Yesterday's view of the city is not today's feed.

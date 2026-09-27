@@ -37,6 +37,7 @@ const CAPTIONS: Record<string, string> = {
   sea: '[the sea, never the same]',
   desk: '[fans humming]',
   rain: '[rain]',
+  storm: '[a quick stormy waltz on the lyre, and thunder]',
   lyre: '[the lyre]',
   align: '[the rings lock, and the hall rings with it]',
   freeze: '[the day sets into stone]',
@@ -333,8 +334,8 @@ export class AudioEngine {
     src.stop(t + 0.2);
   }
 
-  /** Karplus–Strong pluck, cached per pitch. `semis` above A3 (220 Hz). */
-  pluck(semis: number, volume = 0.6, bus?: AudioNode): void {
+  /** Karplus–Strong pluck, cached per pitch. `semis` above A3 (220 Hz); `at` seconds from now. */
+  pluck(semis: number, volume = 0.6, bus?: AudioNode, at = 0): void {
     if (!this.ctx) return;
     const key = Math.round(semis * 100);
     let buf = this.plucks.get(key);
@@ -360,7 +361,33 @@ export class AudioEngine {
     const g = this.ctx.createGain();
     g.gain.value = volume;
     src.connect(g).connect(bus ?? this.sfx);
-    src.start();
+    src.start(this.ctx.currentTime + at);
+  }
+
+  /**
+   * The storm waltz: an original tune for the lyre in D minor, in three, with an oom-pah-pah
+   * under it — a nod to a certain song about storms, not a copy of it. Returns its length.
+   */
+  stormWaltz(): number {
+    if (!this.ctx) return 0;
+    const step = STORM_WALTZ.step;
+    STORM_WALTZ.bars.forEach(([chord, melody], bar) => {
+      const [root, third, fifth] = STORM_CHORDS[chord]!;
+      const t0 = bar * 6 * step;
+      this.pluck(root - 12, 0.5, undefined, t0);
+      for (const beat of [2, 4]) {
+        this.pluck(third, 0.22, undefined, t0 + beat * step);
+        this.pluck(fifth, 0.22, undefined, t0 + beat * step);
+      }
+      melody.forEach((n, i) => {
+        if (n !== null) this.pluck(n, 0.62, undefined, t0 + i * step);
+      });
+    });
+    const end = STORM_WALTZ.bars.length * 6 * step;
+    // The last word: the whole chord, and the sky answering.
+    for (const n of [-7, 5, 8, 12, 17]) this.pluck(n, 0.4, undefined, end);
+    this.caption('storm');
+    return end + 1.5;
   }
 
   /** One-shot sounds by name. */
@@ -559,3 +586,31 @@ export class AudioEngine {
 
 /** Lyre strings: arrow keys → semitones above A3 (the Song of Return is down-left-up twice). */
 export const LYRE_NOTES: Record<string, number> = { ArrowDown: 0, ArrowLeft: 3, ArrowUp: 7, ArrowRight: 10 };
+
+/** Chords of the storm waltz: root, third, fifth, in semitones above A3. */
+const STORM_CHORDS: Record<string, [number, number, number]> = {
+  Dm: [5, 8, 12], Bb: [1, 5, 8], A: [0, 4, 7], Gm: [-2, 1, 5], F: [-4, 0, 3], C: [3, 7, 10],
+};
+
+/** Sixteen bars in three, one eighth per step: [chord, melody per eighth (semitones above A3, null = hold)]. */
+export const STORM_WALTZ: { step: number; bars: [string, (number | null)[]][] } = {
+  step: 0.16,
+  bars: [
+    ['Dm', [12, null, 12, 10, 8, null]],
+    ['Dm', [7, 8, 10, 12, null, null]],
+    ['Bb', [17, 15, 13, null, 12, null]],
+    ['A', [10, 8, 7, null, 4, null]],
+    ['Dm', [5, 8, 12, 17, null, null]],
+    ['Gm', [17, 13, 10, 13, 17, 15]],
+    ['A', [16, null, 12, 10, 7, null]],
+    ['Dm', [5, null, null, null, null, null]],
+    ['F', [15, null, 12, 8, 12, 15]],
+    ['C', [19, null, 17, 15, null, 10]],
+    ['Dm', [20, 19, 17, 12, 8, 5]],
+    ['A', [7, 10, 16, 19, null, null]],
+    ['Bb', [20, null, 17, 13, 17, 20]],
+    ['Gm', [22, 20, 19, 17, null, 13]],
+    ['A', [24, null, 19, 16, 12, null]],
+    ['Dm', [17, null, null, null, null, null]],
+  ],
+};

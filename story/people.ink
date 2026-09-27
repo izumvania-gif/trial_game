@@ -224,6 +224,23 @@ The tavern is loud and Eion sings through it without raising his voice.
 {knows("last_line") and knows("hall_key") and knows("past_attempts") and knows("sea_absent"): -> plan}
 Iron rusts, the gods are just, the flood is kind, the gold comes back. #speaker:Eion
 The same verses as every night. You could sing them with him. You nearly do.
+{knows("song_of_return"):
+    Between two verses his fingers wander off into another tune, quick, in three, and come back as if nothing happened.
+    + [Ask about the other tune]
+        -> storm_tune
+    + [Let him sing]
+        -> DONE
+}
+-> DONE
+
+= storm_tune
+Eion grins.
+That one? A traveller taught me. Years ago, or this morning. #speaker:Eion #mood:joy
+A boy in green, with a sword too big for him and a little clay pipe. He played it in a mill on a hill, over and over, faster and faster. #speaker:Eion
+The sky came down on the whole valley for a week. The miller still curses him, somewhere. #speaker:Eion #mood:joy
+He takes your hand and walks it over the strings. Right, down, up. Right, down, up.
+Don't play it indoors. And don't tell Zeus where you learned it. #speaker:Eion #mood:joy
+R — raise the lyre · ▶ ▼ ▲ ▶ ▼ ▲ — the other tune #hint
 -> DONE
 
 = masked
