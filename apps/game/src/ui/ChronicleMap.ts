@@ -87,6 +87,10 @@ export function chronicleTabs(map: () => HTMLElement, questions: () => (Node | s
 /** Which card is open, kept between openings of the chronicle within a day (a new day opens on what to do next). */
 let selected: string | null = null;
 let selectedOn = -1;
+/** How close the map is drawn, and what it is searched for: kept between openings. */
+const ZOOMS = [1, 1.25, 1.5, 2, 2.5];
+let zoomAt = 0;
+let query = '';
 
 export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text: string }[], memory: LoopMemory, hooks: MapHooks): HTMLElement {
   const hintsShown = memory.hintsShown;
@@ -176,12 +180,14 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     });
     detail.replaceChildren(...detailOf(byId.get(id)!, nameOf(id), knows, text, memory, fresh, hooks, links, () => { const el = cardEls.get(id); el?.classList.add('understood'); if (!pendingOn(id)) el?.querySelector('.cmap-conclude')?.remove(); show(id); }));
     cardEls.get(id)?.classList.remove('new');
+    markIn(detail, query);
   };
 
   // Keyboard: one card in the Tab order (the open one); arrows walk the map from card to card.
   const focusCard = (id: string) => {
     for (const [cid, el] of cardEls) el.tabIndex = cid === id ? 0 : -1;
-    cardEls.get(id)?.focus();
+    cardEls.get(id)?.focus({ preventScroll: true });
+    cardEls.get(id)?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   };
   // The way back: the opposite arrow returns to the card the last step came from.
   let lastStep: { from: string; to: string; dx: number; dy: number } | null = null;
@@ -385,11 +391,95 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     detail.querySelector<HTMLButtonElement>('.hint-button')?.click();
     focusCard(id);
   });
-  const bar = h('p', { className: 'cmap-toolbar' }, nextBtn, nextNote);
+  // Zoom: the board grows inside a window that scrolls; card labels grow with it.
+  const viewport = h('div', { className: 'cmap-viewport' });
+  const zoomLabel = h('span', { className: 'cmap-zoom-level' });
+  const zoomOut = h('button', { type: 'button', className: 'cmap-zoom', title: 'Zoom out (−)' }, '−');
+  const zoomIn = h('button', { type: 'button', className: 'cmap-zoom', title: 'Zoom in (+)' }, '+');
+  zoomOut.setAttribute('aria-label', 'Zoom out');
+  zoomIn.setAttribute('aria-label', 'Zoom in');
+  const zoom = (to: number, keep?: string) => {
+    zoomAt = Math.max(0, Math.min(ZOOMS.length - 1, to));
+    board.style.width = `${ZOOMS[zoomAt]! * 100}%`;
+    zoomLabel.textContent = `${Math.round(ZOOMS[zoomAt]! * 100)}%`;
+    zoomOut.disabled = zoomAt === 0;
+    zoomIn.disabled = zoomAt === ZOOMS.length - 1;
+    viewport.classList.toggle('zoomed', zoomAt > 0);
+    // Keep the card being looked at in view.
+    const id = keep ?? selected;
+    if (id) requestAnimationFrame(() => cardEls.get(id)?.scrollIntoView({ block: 'center', inline: 'center' }));
+  };
+  zoomOut.addEventListener('click', () => zoom(zoomAt - 1));
+  zoomIn.addEventListener('click', () => zoom(zoomAt + 1));
+  // Ctrl + wheel zooms (as a map does); a plain wheel scrolls the zoomed map.
+  viewport.addEventListener('wheel', (e) => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    zoom(zoomAt + (e.deltaY < 0 ? 1 : -1));
+  }, { passive: false });
+
+  // Find: cards whose name, or whose written facts, hold the words light up; the rest step back.
+  const find = h('input', { type: 'search', className: 'cmap-find', placeholder: 'Find… (/)', value: query });
+  find.setAttribute('aria-label', 'Find in the chronicle');
+  const found = h('span', { className: 'cmap-found' });
+  found.setAttribute('role', 'status');
+  const matchesOf = (q: string) => {
+    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!words.length) return null;
+    return visible.filter((c) => {
+      const hay = [c.state === 'rumour' ? nameOf(c.subject.id) : c.subject.name, ...(c.state === 'rumour' ? c.heard : c.found).map(text)].join(' ').toLowerCase();
+      return words.every((w) => hay.includes(w));
+    }).map((c) => c.subject.id);
+  };
+  const applyFind = () => {
+    query = find.value;
+    const hits = matchesOf(query);
+    board.classList.toggle('finding', !!hits);
+    for (const [id, el] of cardEls) el.classList.toggle('match', !!hits?.includes(id));
+    found.textContent = hits ? (hits.length ? `${hits.length} ${hits.length === 1 ? 'card' : 'cards'}` : 'Not written anywhere') : '';
+    if (selected) markIn(detail, query);
+    return hits;
+  };
+  find.addEventListener('input', () => { applyFind(); });
+  find.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      // Enter opens the next card that matches.
+      const hits = applyFind() ?? [];
+      if (!hits.length) return;
+      const id = hits[(hits.indexOf(selected ?? '') + 1) % hits.length]!;
+      show(id);
+      focusCard(id);
+      e.preventDefault();
+    } else if (e.key === 'Escape' && find.value) {
+      // Esc empties the box first; a second Esc closes the chronicle.
+      e.stopPropagation();
+      find.value = '';
+      applyFind();
+    }
+  });
+  // From anywhere on the map: / to find, + and − to zoom.
+  const onKeys = (e: KeyboardEvent) => {
+    if (e.target === find) return;
+    if (e.key === '/') { e.preventDefault(); e.stopPropagation(); find.focus(); find.select(); }
+    else if (e.key === '+' || e.key === '=') { e.stopPropagation(); zoom(zoomAt + 1); }
+    else if (e.key === '-' || e.key === '_') { e.stopPropagation(); zoom(zoomAt - 1); }
+  };
+
+  const bar = h('div', { className: 'cmap-toolbar' }, nextBtn, nextNote, h('span', { className: 'cmap-tools' }, find, found, zoomOut, zoomLabel, zoomIn));
   board.setAttribute('role', 'group');
   board.setAttribute('aria-label', `Map of subjects, ${visible.length} cards`);
   board.setAttribute('aria-describedby', 'cmap-keys');
-  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, bar, board, hint), detail, opened);
+  viewport.append(board);
+  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, bar, viewport, hint), detail, opened);
+  // Heard from anywhere while the map is on screen (focus may still be on the page itself).
+  const winKeys = (e: KeyboardEvent) => {
+    if (!root.isConnected) return window.removeEventListener('keydown', winKeys, true);
+    if (!root.offsetParent || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    onKeys(e);
+  };
+  window.addEventListener('keydown', winKeys, true);
+  zoom(zoomAt);
+  applyFind();
   if (selected) show(selected);
   // Opening the chronicle puts the keyboard on the open card, so arrows and Enter work at once.
   if (selected) {
@@ -479,4 +569,16 @@ function conclusion(d: Deduction, memory: LoopMemory, hooks: MapHooks, rerender:
   line.setAttribute('aria-label', d.sentence.replace(/___/g, 'blank'));
   box.append(h('p', { className: 'cmap-kicker' }, 'A conclusion to draw'), line, carve, status);
   return box;
+}
+
+/** Mark the searched words in the open card's facts. */
+function markIn(detail: HTMLElement, q: string): void {
+  const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+  for (const li of detail.querySelectorAll<HTMLElement>('li')) {
+    const text = (li.dataset.text ??= li.textContent ?? '');
+    li.replaceChildren();
+    if (!words.length) { li.append(text); continue; }
+    const re = new RegExp(`(${words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'gi');
+    for (const part of text.split(re)) li.append(part && words.includes(part.toLowerCase()) ? h('mark', {}, part) : part);
+  }
 }

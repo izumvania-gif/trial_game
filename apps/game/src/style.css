@@ -694,3 +694,20 @@ div.cmap-drag-hint .cmap-legend { margin: 0; padding: 0; background: none; font-
 .desk-body > * { min-height: 0; overflow-y: auto; }
 /* Over a centred card (the registry, a modal), news drops to the bottom so the card's top stays readable. */
 #overlay:has(.spiral-card:not([hidden])) .hud-toast, #overlay:has(.modal:not([hidden])) .hud-toast { top: auto; bottom: 1rem; }
+/* Zoom and find. The window keeps the map's old place; the board inside can grow and scroll. */
+.cmap-viewport { position: relative; width: min(100%, calc((100vh - 20rem) * 5 / 3)); aspect-ratio: 5 / 3; flex: none; overflow: hidden; margin: 0.9rem 0 0.4rem; padding: 1.2rem 1rem 1.8rem; box-sizing: content-box; }
+.cmap-viewport.zoomed { overflow: auto; outline: 2px solid var(--lacquer); outline-offset: -2px; background: rgba(13, 11, 9, 0.06); }
+.cmap-viewport .cmap-board { width: 100%; margin: 0; }
+.cmap-toolbar { display: flex; align-items: center; gap: 0.6rem; flex-wrap: wrap; width: 100%; }
+.cmap-tools { margin-left: auto; display: flex; align-items: center; gap: 0.35rem; }
+input.cmap-find { font: inherit; font-size: 0.9rem; width: 12rem; padding: 0.3rem 0.6rem; background: var(--bone); color: var(--lacquer); border: 2px solid var(--lacquer); border-radius: 2px; }
+input.cmap-find:focus-visible { outline: 3px dashed var(--lacquer); outline-offset: 2px; }
+.cmap-found:not(:empty) { padding: 0.1rem 0.5rem; background: var(--bone); color: var(--lacquer); font-style: italic; font-size: 0.85rem; border-radius: 2px; }
+button.cmap-zoom { width: 2rem; height: 2rem; padding: 0; background: var(--bone); color: var(--lacquer); border: 2px solid var(--lacquer); font-size: 1.1rem; letter-spacing: 0; line-height: 1; }
+button.cmap-zoom:hover:not(:disabled) { background: var(--lacquer); color: var(--bone); }
+.cmap-zoom-level { min-width: 3rem; text-align: center; padding: 0.1rem 0.3rem; background: var(--bone); color: var(--lacquer); font-size: 0.8rem; border-radius: 2px; }
+/* Finding: what matches stays, the rest steps back. */
+.cmap-board.finding button.cmap-card:not(.match) { opacity: 0.35; }
+.cmap-board.finding button.cmap-card.match { outline: 3px solid var(--lacquer); outline-offset: 2px; }
+.cmap-board.finding .cmap-arrow { opacity: 0.2; }
+.cmap-detail mark { background: none; color: inherit; border-bottom: 3px solid var(--added-red); }
