@@ -70,7 +70,9 @@ export class Guides {
       h('div', { className: 'guide-foot' }, ok, h('span', { className: 'guide-note' }, h('kbd', {}, 'Enter'), ' to continue')),
     );
     this.card.hidden = false;
-    ok.focus();
+    // Focus without scrolling: a long card opens at its title, not at its button.
+    ok.focus({ preventScroll: true });
+    this.card.scrollTop = 0;
   }
 
   close(): void {

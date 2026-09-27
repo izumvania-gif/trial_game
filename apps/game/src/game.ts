@@ -215,6 +215,7 @@ export class Game {
       aspect: () => this.renderer.aspect,
       lowResHeight: () => this.renderer.lowResHeight,
       lastFrame: () => this.feedFrame,
+      setControls: (text) => this.hud.setControls(text ?? STAGE_CONTROLS[this.current.id] ?? null),
       interact: (knot, args) => this.interact(knot, args),
       switchStage: (id, entry) => this.switchStage(id, entry),
       prompt: (label) => this.hud.prompt(this.dialogue.open ? null : label),

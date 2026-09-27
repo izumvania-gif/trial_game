@@ -348,6 +348,8 @@ export class BoardStage implements Stage {
     if (!this.sprint || !this.awaitingCurator) return;
     this.sprint = sprintTurn(this.sprint, action);
     this.turn += 1;
+    // Once the rollback is approved the Curator has nothing left to answer: the night plays out.
+    if (rolledBack(this.sprint)) this.turn = NIGHT_TURNS;
     this.awaitingCurator = false;
     this.renderSprint();
   }

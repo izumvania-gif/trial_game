@@ -688,3 +688,9 @@ div.cmap-drag-hint p { margin: 0; }
 div.cmap-drag-hint .cmap-legend { margin: 0; padding: 0; background: none; font-style: normal; font-size: 0.8rem; }
 /* Cards near the edge hang half outside the board: leave them room above the hint. */
 .cmap-board { margin-bottom: 1.8rem; width: min(100%, calc((100vh - 20rem) * 5 / 3)); }
+/* A tip never sits over the full-screen chronicle. */
+#overlay:has(.chronicle.wide:not([hidden])) .guide-tip { display: none; }
+/* The Desk fits a 720-line screen: each column scrolls on its own. */
+.desk-body > * { min-height: 0; overflow-y: auto; }
+/* Over a centred card (the registry, a modal), news drops to the bottom so the card's top stays readable. */
+#overlay:has(.spiral-card:not([hidden])) .hud-toast, #overlay:has(.modal:not([hidden])) .hud-toast { top: auto; bottom: 1rem; }

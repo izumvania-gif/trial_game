@@ -49,7 +49,8 @@ const PLACE_BIAS = 0.4;
 const PLACES_TO_TALK: Interactable[] = [
   { x: -4.5, z: -10, radius: 1.8, knot: 'stele', label: 'Star stele' },
   { x: 0, z: -13.2, radius: 1.6, knot: 'temple_door', label: 'Bronze door' },
-  { x: 10.5, z: 2.4, radius: 1.8, knot: 'agora_crier', label: 'Listen to the crier' },
+  // On the crier himself, and small: Cleon stands on the steps just north of him at dawn.
+  { x: 10.8, z: 2.8, radius: 1.5, knot: 'agora_crier', label: 'Listen to the crier' },
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'The path to the shore' },
   // The foot of the path, on the town side of where the early climbers stand.
   { x: 10, z: -21, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },

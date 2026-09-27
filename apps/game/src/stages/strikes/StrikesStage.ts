@@ -179,7 +179,8 @@ export class StrikesStage implements Stage {
     if (!input.wasClicked()) return;
     const { mouse } = input;
     this.raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), this.camera);
-    const hit = this.raycaster.intersectObjects(this.sectors.filter((s) => s.visible))[0];
+    // Not recursive: the cracks drawn into a wedge are its children and carry no age.
+    const hit = this.raycaster.intersectObjects(this.sectors.filter((s) => s.visible), false)[0];
     if (!hit) return;
     if (hit.object.userData.falling) {
       this.say('That part is already falling. Strike what is still standing.');
@@ -211,6 +212,7 @@ export class StrikesStage implements Stage {
     });
     this.host.overlay.append(button);
     this.carry = { left: CARRY_SECONDS, button };
+    this.host.setControls('Click the button — carry the tablets out · Wait — go down to the sea');
     this.say('The hall is burning. Your chronicle is on the floor, the wax running. The sea is down the path.');
   }
 }
