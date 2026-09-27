@@ -8,7 +8,7 @@ import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
 import { distanceToStreets, PLACES, STREET_EDGES } from '../../core/streets.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
-import { amphora, bob, cypress, dressFigure, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
+import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { Stage, StageHost } from '../types.ts';
 import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
@@ -676,6 +676,7 @@ export class TownStage implements Stage {
     const dusk = THREE.MathUtils.smoothstep(progress, 0.68, 0.8);
     this.dusk = dusk;
     this.windowLit.emissiveIntensity = dusk * 1.6;
+    dimPaint(night);
     // The last hours: gusts off the mountain (sooner if the player has raised the wind), and eyes up.
     const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);
     this.torches.update(this.streetTime, dusk, gust);

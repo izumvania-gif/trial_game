@@ -52,17 +52,31 @@ export interface FigureLook {
 export const BONE = '#f2ead6';
 export const RED = '#8a3322';
 
+/**
+ * Added white and added red, as the vase painters laid them on: flat and unlit, so they keep their
+ * tone through the dither (the robes stay lit: they are the figure, the accents are paint). Shared
+ * by every figure, and dimmed with the town's night so they do not glow in the dark.
+ */
+const PAINT = {
+  bone: new THREE.MeshBasicMaterial({ color: '#e8e2d0' }),
+  red: new THREE.MeshBasicMaterial({ color: '#6e2a1c' }),
+};
+const PAINT_DAY = { bone: new THREE.Color('#e8e2d0'), red: new THREE.Color('#6e2a1c') };
+const PAINT_NIGHT = new THREE.Color('#1a120d');
+
+/** 0 by day, 1 at night: the painted accents go down with the light. */
+export function dimPaint(night: number): void {
+  PAINT.bone.color.copy(PAINT_DAY.bone).lerp(PAINT_NIGHT, night * 0.8);
+  PAINT.red.color.copy(PAINT_DAY.red).lerp(PAINT_NIGHT, night * 0.8);
+}
+
 /** Dress a figure made by `makeFigure` in its look. Every part is a direct child, so it bobs and x-rays with the rest. */
 export function dressFigure(g: THREE.Group, look: FigureLook, height = 1.7): void {
   const h = height;
   const [body, head, back] = g.children as THREE.Mesh[];
   const dark = body!.material as THREE.Material;
-  // Added white and added red, as the vase painters laid them on: flat, unlit, always in their own
-  // tone. The robes stay lit (they are the figure), the accents are paint.
-  const bone = new THREE.MeshBasicMaterial({ color: '#e8e2d0' });
-  const red = new THREE.MeshBasicMaterial({ color: '#6e2a1c' });
-  const robeBone = lambert(BONE);
-  const robeRed = lambert(RED);
+  const bone = PAINT.bone;
+  const red = PAINT.red;
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => {
     const m = new THREE.Mesh(geo, mat);
     m.position.set(x, y, z);
@@ -71,7 +85,7 @@ export function dressFigure(g: THREE.Group, look: FigureLook, height = 1.7): voi
     g.add(m);
     return m;
   };
-  if (look.robe) body!.material = look.robe === 'bone' ? robeBone : robeRed;
+  if (look.robe) body!.material = lambert(look.robe === 'bone' ? BONE : RED);
   if (look.wide) body!.scale.x = body!.scale.z = body!.scale.y * 1.35;
   if (look.whiteFace || look.beard === 'white') head!.material = bone;
   if (look.bent) {

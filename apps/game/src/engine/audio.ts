@@ -57,6 +57,9 @@ export class AudioEngine {
   private sfx!: GainNode;
   /** The recorded storm song (see `stormWaltz`), decoded once; null until it loads or if it never does. */
   private stormTrack: { buffer: AudioBuffer; start: number } | null = null;
+  private stormLoading = false;
+  /** Everything the storm song is playing right now goes through this, so it can be hushed at once. */
+  private stormBus: GainNode | null = null;
   private noise!: AudioBuffer;
   private windGain!: GainNode;
   private windFilter!: BiquadFilterNode;
@@ -107,7 +110,6 @@ export class AudioEngine {
     this.music.connect(this.master);
     this.sfx.connect(this.master);
     this.applyVolumes();
-    void this.loadStormTrack(ctx);
 
     // Two seconds of white noise, reused by every noise-based layer.
     this.noise = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
@@ -373,6 +375,22 @@ export class AudioEngine {
    * or decoded, the synthesized waltz below plays instead. Leading silence is skipped, so the song
    * answers the last string at once.
    */
+  /** Fetch and decode the recording ahead of the first storm song (when the lyre is raised), once. */
+  prepareStorm(): void {
+    if (!this.ctx || this.stormTrack || this.stormLoading) return;
+    this.stormLoading = true;
+    void this.loadStormTrack(this.ctx);
+  }
+
+  /** Hush the storm song (midnight, a reset, leaving the town). */
+  stopStorm(): void {
+    const bus = this.stormBus;
+    if (!bus || !this.ctx) return;
+    this.stormBus = null;
+    bus.gain.setTargetAtTime(0, this.ctx.currentTime, 0.15);
+    window.setTimeout(() => bus.disconnect(), 1200);
+  }
+
   private async loadStormTrack(ctx: AudioContext): Promise<void> {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}audio/song-of-storms.mp3`);
@@ -393,12 +411,16 @@ export class AudioEngine {
    */
   stormWaltz(): number {
     if (!this.ctx) return 0;
+    this.stopStorm();
+    // It is music: the music volume governs it.
+    const bus = this.ctx.createGain();
+    bus.connect(this.music);
+    this.stormBus = bus;
     if (this.stormTrack) {
       const src = this.ctx.createBufferSource();
       src.buffer = this.stormTrack.buffer;
-      const g = this.ctx.createGain();
-      g.gain.value = 0.85;
-      src.connect(g).connect(this.sfx);
+      bus.gain.value = 0.85;
+      src.connect(bus);
       src.start(this.ctx.currentTime, this.stormTrack.start);
       this.caption('storm');
       return this.stormTrack.buffer.duration - this.stormTrack.start;
@@ -407,18 +429,18 @@ export class AudioEngine {
     STORM_WALTZ.bars.forEach(([chord, melody], bar) => {
       const [root, third, fifth] = STORM_CHORDS[chord]!;
       const t0 = bar * 6 * step;
-      this.pluck(root - 12, 0.5, undefined, t0);
+      this.pluck(root - 12, 0.5, bus, t0);
       for (const beat of [2, 4]) {
-        this.pluck(third, 0.22, undefined, t0 + beat * step);
-        this.pluck(fifth, 0.22, undefined, t0 + beat * step);
+        this.pluck(third, 0.22, bus, t0 + beat * step);
+        this.pluck(fifth, 0.22, bus, t0 + beat * step);
       }
       melody.forEach((n, i) => {
-        if (n !== null) this.pluck(n, 0.62, undefined, t0 + i * step);
+        if (n !== null) this.pluck(n, 0.62, bus, t0 + i * step);
       });
     });
     const end = STORM_WALTZ.bars.length * 6 * step;
     // The last word: the whole chord, and the sky answering.
-    for (const n of [-7, 5, 8, 12, 17]) this.pluck(n, 0.4, undefined, end);
+    for (const n of [-7, 5, 8, 12, 17]) this.pluck(n, 0.4, bus, end);
     this.caption('storm');
     return end + 1.5;
   }

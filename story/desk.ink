@@ -5,7 +5,7 @@ Good morning, Curator. Sprint {sprint()}. Your queue has been refreshed. #log
     It is 09:14. It was 09:14 last sprint as well. You make a note to mention it to someone, and the note is already there.
 }
 // Things that are on both sides of the glass.
-{sprint() >= 2 and not knows("desk_agent_id"):
+{sprint() >= 2 and knows("seam_symbol") and not knows("desk_agent_id"):
     The power sign in the corner of your title bar is a small circle with a line through it. You have seen it before, cut into white stone. You cannot think where.
 }
 {has_mask("Extinguisher"):

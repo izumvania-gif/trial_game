@@ -19,6 +19,7 @@ export class Hud {
   private arcEl: SVGCircleElement;
   private timeEl = h('div', { className: 'hud-time' });
   private toastTimer = 0;
+  private toastGap = 0;
   /** Toasts wait their turn: a fact, then what it opened, then a new question. */
   private toastQueue: { text: string; kicker?: string; quiet?: boolean }[] = [];
   private openPanelId: string | null = null;
@@ -101,6 +102,7 @@ export class Hud {
   clearToasts(): void {
     this.toastQueue = [];
     window.clearTimeout(this.toastTimer);
+    window.clearTimeout(this.toastGap);
     this.toastEl.classList.remove('show');
   }
 
@@ -114,7 +116,7 @@ export class Hud {
     this.toastTimer = window.setTimeout(() => {
       this.toastEl.classList.remove('show');
       // A short gap so two toasts read as two.
-      window.setTimeout(() => {
+      this.toastGap = window.setTimeout(() => {
         if (!this.toastQueue.length) return;
         this.toastQueue.shift();
         this.nextToast();

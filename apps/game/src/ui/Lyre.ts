@@ -15,6 +15,8 @@ export class Lyre {
   private notes: string[] = [];
   private onSong: (() => void) | null = null;
   private onStorm: (() => void) | null = null;
+  /** Called whenever the lyre is lowered. */
+  onClose: () => void = () => {};
   private onPluck: (semis: number) => void;
 
   constructor(parent: HTMLElement, onPluck: (semis: number) => void = () => {}) {
@@ -48,7 +50,9 @@ export class Lyre {
   }
 
   close(): void {
+    if (this.root.hidden) return;
     this.root.hidden = true;
+    this.onClose();
   }
 
   private pluck(code: string): void {

@@ -120,6 +120,11 @@ export class Game {
     this.hud = new Hud(overlay);
     this.dialogue = new Dialogue(overlay);
     this.lyre = new Lyre(overlay, (note) => this.audio.pluck(note, 0.7));
+    // The R that lowers the lyre must not raise it again on the next frame.
+    this.lyre.onClose = () => {
+      this.input.flush();
+      window.setTimeout(() => this.input.flush(), 0);
+    };
     this.modal = new Modal(overlay);
     this.resetScreen = new ResetScreen(overlay);
     this.passage = new Passage(overlay);
@@ -334,6 +339,13 @@ export class Game {
   }
 
   private activate(id: StageId, entry?: string): void {
+    // The storm song's shower belongs to the town's sky: the Hall and the Desk have their own weather.
+    if (id !== 'town' && this.shower) {
+      this.shower = false;
+      window.clearTimeout(this.showerTimer);
+      if (!this.raining) this.overlay.classList.remove('raining');
+      this.audio.stopStorm();
+    }
     // Down the steps into the Hall, or back up into the day: the passage covers the seam.
     const from = this.current?.id;
     const passage = from === 'town' && id === 'spiral' ? 'down' : from === 'spiral' && id === 'town' ? 'up' : null;
@@ -503,7 +515,7 @@ export class Game {
       stage: this.phase === 'reset' ? 'reset' : this.current.id,
       progress: this.clock.progress,
       wind: this.save.cycle.wind,
-      raining: this.raining || this.shower,
+      raining: this.raining || (this.shower && this.current.id === 'town'),
       sea: this.current.id === 'sea' || this.current.id === 'diary' ? 1 : this.current.id === 'town' && town ? Math.max(0, Math.min(1, (town.z - 4) / 16)) : 0,
       place: this.musicPlace(town),
     });
@@ -598,7 +610,10 @@ export class Game {
     if (i.wasPressed('KeyM') && this.current.id === 'town') this.toggleMask();
     if (i.wasPressed('KeyR') && this.current.id === 'town') {
       if (!this.knowledge.knows('song_of_return')) this.hud.toast('You have no lyre, and no song to play on it.');
-      else this.lyre.show(true, () => this.playSongOfReturn(), () => this.playSongOfStorms());
+      else {
+        this.audio.prepareStorm();
+        this.lyre.show(true, () => this.playSongOfReturn(), () => this.playSongOfStorms());
+      }
     }
   }
 
@@ -705,6 +720,8 @@ export class Game {
     if (this.current.id !== 'town') this.activate('town', this.current.id === 'sea' ? 'shore' : 'temple');
     this.overlay.classList.add('raining');
     this.raining = true;
+    this.shower = false;
+    this.audio.stopStorm();
     this.audio.play('thunder');
     this.audio.caption('rain');
     this.story.enter('midnight');
@@ -716,7 +733,11 @@ export class Game {
    * shower over the city at whatever hour. Nothing in the day changes; the sky just answers.
    */
   private playSongOfStorms(): void {
-    if (this.phase !== 'playing' || this.shower) return;
+    if (this.phase !== 'playing') return;
+    if (this.shower) {
+      this.hud.toast('The sky is still answering the last time.', undefined, true);
+      return;
+    }
     const length = this.audio.stormWaltz();
     this.audio.play('thunder');
     this.shower = true;
@@ -732,6 +753,7 @@ export class Game {
     this.showerTimer = window.setTimeout(() => {
       this.shower = false;
       if (!this.raining) this.overlay.classList.remove('raining');
+      this.audio.stopStorm();
     }, Math.max(12, length + 6) * 1000);
   }
 
@@ -885,6 +907,7 @@ export class Game {
     const frame = scene && camera ? this.renderer.snapshot(scene, camera) : null;
     this.phase = 'reset';
     this.overlay.classList.remove('raining');
+    this.audio.stopStorm();
     this.raining = false;
     this.shower = false;
     window.clearTimeout(this.showerTimer);

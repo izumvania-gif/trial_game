@@ -277,6 +277,8 @@ Eion puts the lyre down.
 }
 + [Plan the night] #action:board
     -> DONE
++ {knows("song_of_return")} [Ask about the other tune he hums]
+    -> storm_tune
 + [Not tonight] -> DONE
 
 = shore_talk
