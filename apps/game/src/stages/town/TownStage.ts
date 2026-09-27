@@ -8,7 +8,8 @@ import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
 import { distanceToStreets, PLACES, STREET_EDGES } from '../../core/streets.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
-import { amphora, bob, cypress, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
+import { amphora, bob, cypress, dressFigure, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
+import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { Stage, StageHost } from '../types.ts';
 import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
@@ -112,6 +113,7 @@ export class TownStage implements Stage {
     // A worn mask shows on the figure: a pale face on a black silhouette.
     this.mask.position.set(0, 1.47, 0.2);
     this.player.add(this.mask);
+    dressFigure(this.player, LOOKS.leont!);
     this.addXray();
     this.scene.add(this.player);
     this.marker.scale.set(1, 1.6, 1);
@@ -119,7 +121,10 @@ export class TownStage implements Stage {
     this.scene.add(this.marker);
     for (const resident of RESIDENTS) {
       if (resident.appears && !resident.appears((f) => host.knowledge.knows(f))) continue;
-      const figure = makeFigure(resident.color, resident.id === 'cleon' ? 1.85 : resident.id === 'talia' ? 1.45 : 1.7);
+      const height = HEIGHTS[resident.id] ?? 1.7;
+      const figure = makeFigure(resident.color, height);
+      const look = LOOKS[resident.id];
+      if (look) dressFigure(figure, look, height);
       if (resident.id === 'xenos') {
         // A smooth white oval where a face should be.
         const face = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: '#f4efe4' }));
@@ -286,6 +291,7 @@ export class TownStage implements Stage {
   private buildAgora(): void {
     this.addBox(12.8, 0.5, 4, 3, 1.4, '#efe6cf'); // council house steps
     const crier = makeFigure('#1a1410', 1.8);
+    dressFigure(crier, LOOKS.crier!, 1.8);
     crier.position.set(10.8, 0, 2.8);
     crier.rotation.y = -Math.PI / 2;
     this.scene.add(crier);

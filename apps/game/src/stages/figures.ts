@@ -27,6 +27,131 @@ export function makeFigure(color = '#1a1410', height = 1.7): THREE.Group {
   return g;
 }
 
+/**
+ * What makes a named figure recognisable across the square: the black-figure painter's tricks —
+ * women's faces in white, added red for wreaths, veils and cloaks, a white beard for age — and
+ * one prop each, big enough to survive the low resolution as a shape. Follows `ui/portraits.ts`.
+ */
+export interface FigureLook {
+  /** White face and hands: the vase painters' women. */
+  whiteFace?: boolean;
+  /** The robe in another tone (the priest in white, the merchant in red). */
+  robe?: 'bone' | 'red';
+  bent?: boolean;
+  wide?: boolean;
+  beard?: 'white' | 'dark';
+  hair?: 'bun' | 'wild';
+  head?: 'laurel' | 'fillet' | 'blindfold' | 'veil' | 'hood' | 'petasos' | 'oak';
+  cape?: boolean;
+  arm?: 'raised';
+  props?: ('staff' | 'tablet' | 'wheat' | 'lyre' | 'purse' | 'trident' | 'masks' | 'net' | 'kerykeion')[];
+}
+
+export const BONE = '#f2ead6';
+export const RED = '#8a3322';
+
+/** Dress a figure made by `makeFigure` in its look. Every part is a direct child, so it bobs and x-rays with the rest. */
+export function dressFigure(g: THREE.Group, look: FigureLook, height = 1.7): void {
+  const h = height;
+  const [body, head, back] = g.children as THREE.Mesh[];
+  const dark = body!.material as THREE.Material;
+  // Added white and added red, as the vase painters laid them on: flat, unlit, always in their own
+  // tone. The robes stay lit (they are the figure), the accents are paint.
+  const bone = new THREE.MeshBasicMaterial({ color: '#e8e2d0' });
+  const red = new THREE.MeshBasicMaterial({ color: '#6e2a1c' });
+  const robeBone = lambert(BONE);
+  const robeRed = lambert(RED);
+  const add = (geo: THREE.BufferGeometry, mat: THREE.Material, x: number, y: number, z: number, rx = 0, ry = 0, rz = 0) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(x, y, z);
+    m.rotation.set(rx, ry, rz);
+    m.castShadow = true;
+    g.add(m);
+    return m;
+  };
+  if (look.robe) body!.material = look.robe === 'bone' ? robeBone : robeRed;
+  if (look.wide) body!.scale.x = body!.scale.z = body!.scale.y * 1.35;
+  if (look.whiteFace || look.beard === 'white') head!.material = bone;
+  if (look.bent) {
+    body!.rotation.x = 0.14;
+    for (const m of [head!, back!]) {
+      m.position.z += h * 0.07;
+      m.position.y -= h * 0.04;
+    }
+  }
+  const hy = head!.position.y;
+  const hz = head!.position.z;
+  const r = h * 0.1;
+  if (look.beard) add(new THREE.ConeGeometry(r * (look.beard === 'white' ? 0.9 : 0.6), h * (look.beard === 'white' ? 0.24 : 0.16), 5), look.beard === 'white' ? bone : dark, 0, hy - r * 1.2, hz + r * 0.5, Math.PI + 0.35);
+  if (look.hair === 'bun') add(new THREE.IcosahedronGeometry(r * 0.6, 0), dark, 0, hy + r * 0.7, hz - r * 0.8);
+  if (look.hair === 'wild') back!.scale.setScalar(1.8);
+  switch (look.head) {
+    case 'laurel': case 'fillet': case 'oak': case 'blindfold': {
+      const ring = new THREE.TorusGeometry(r * 1.05, r * (look.head === 'fillet' ? 0.3 : 0.45), 4, 8);
+      add(ring, look.head === 'blindfold' ? bone : look.head === 'fillet' ? bone : red, 0, hy + (look.head === 'blindfold' ? 0 : r * 0.35), hz, Math.PI / 2 - (look.head === 'blindfold' ? 0 : 0.15));
+      break;
+    }
+    case 'veil': // red, over the head and down to the shoulders
+      add(new THREE.ConeGeometry(r * 2.6, h * 0.5, 6), red, 0, hy - r * 2.2, hz - r * 0.6);
+      add(new THREE.IcosahedronGeometry(r * 1.15, 0), red, 0, hy + r * 0.15, hz - r * 0.35);
+      break;
+    case 'hood':
+      add(new THREE.ConeGeometry(r * 1.5, h * 0.42, 6), dark, 0, hy + r * 1.1, hz - r * 0.3, -0.25);
+      break;
+    case 'petasos': // the traveller's broad hat
+      add(new THREE.CylinderGeometry(r * 2.4, r * 2.4, r * 0.25, 10), dark, 0, hy + r * 0.8, hz);
+      add(new THREE.CylinderGeometry(r * 0.8, r, r * 0.8, 8), dark, 0, hy + r * 1.2, hz);
+      break;
+  }
+  // The robe is about 0.17 h in radius at the back: things worn on the back sit outside it.
+  if (look.cape) add(new THREE.BoxGeometry(h * 0.42, h * 0.52, h * 0.05), red, 0, h * 0.5, -h * 0.2, -0.14);
+  if (look.arm === 'raised') {
+    add(new THREE.CylinderGeometry(h * 0.05, h * 0.06, h * 0.5, 5), dark, h * 0.22, h * 0.95, h * 0.05, 0.2, 0, -0.4);
+    add(new THREE.IcosahedronGeometry(h * 0.07, 0), dark, h * 0.32, h * 1.19, h * 0.1);
+  }
+  for (const prop of look.props ?? []) {
+    switch (prop) {
+      case 'staff': // an old man's stick, taller than he is
+        add(new THREE.CylinderGeometry(h * 0.035, h * 0.035, h * 1.15, 5), dark, h * 0.24, h * 0.57, h * 0.14, 0.08, 0, -0.08);
+        break;
+      case 'kerykeion': // the herald's staff, with its twined head
+        add(new THREE.CylinderGeometry(h * 0.035, h * 0.035, h * 1.2, 5), dark, h * 0.24, h * 0.6, h * 0.1);
+        add(new THREE.TorusGeometry(h * 0.08, h * 0.035, 4, 8), dark, h * 0.24, h * 1.25, h * 0.1, 0, Math.PI / 2);
+        break;
+      case 'tablet': // the scribe's wax tablets, under the arm
+        add(new THREE.BoxGeometry(h * 0.08, h * 0.26, h * 0.2), bone, h * 0.22, h * 0.5, h * 0.02, 0, 0, 0.15);
+        break;
+      case 'wheat': // a sheaf over the shoulder
+        add(new THREE.ConeGeometry(h * 0.11, h * 0.55, 5), bone, -h * 0.16, h * 0.85, -h * 0.06, 0.4, 0, 0.45);
+        break;
+      case 'lyre': { // on the back: two arms and a bar
+        // Its arms stand up over the shoulders, so the lyre shows even as a silhouette.
+        const arm = new THREE.BoxGeometry(h * 0.06, h * 0.42, h * 0.06);
+        add(arm, bone, -h * 0.11, h * 0.82, -h * 0.22, 0, 0, 0.2);
+        add(arm, bone, h * 0.11, h * 0.82, -h * 0.22, 0, 0, -0.2);
+        add(new THREE.BoxGeometry(h * 0.36, h * 0.06, h * 0.06), bone, 0, h * 1.02, -h * 0.22);
+        add(new THREE.BoxGeometry(h * 0.24, h * 0.16, h * 0.08), bone, 0, h * 0.6, -h * 0.23);
+        break;
+      }
+      case 'purse': // fat, red, at the belt
+        add(new THREE.IcosahedronGeometry(h * 0.1, 0), bone, h * 0.22, h * 0.45, h * 0.08);
+        break;
+      case 'trident':
+        add(new THREE.CylinderGeometry(h * 0.035, h * 0.035, h * 1.4, 5), dark, h * 0.24, h * 0.7, h * 0.08);
+        for (const dx of [-1, 0, 1]) add(new THREE.BoxGeometry(h * 0.04, h * 0.2, h * 0.04), dark, h * 0.24 + dx * h * 0.08, h * 1.47, h * 0.08);
+        add(new THREE.BoxGeometry(h * 0.2, h * 0.04, h * 0.04), dark, h * 0.24, h * 1.38, h * 0.08);
+        break;
+      case 'masks': // a pole over the shoulder with white faces hanging from it
+        add(new THREE.CylinderGeometry(h * 0.03, h * 0.03, h * 1.0, 5), dark, h * 0.15, h * 1.0, -h * 0.1, 0.75, 0, 0);
+        for (let i = 0; i < 3; i++) add(new THREE.BoxGeometry(h * 0.16, h * 0.2, h * 0.04), bone, h * 0.15, h * (0.92 - i * 0.1), -h * (0.2 + i * 0.13));
+        break;
+      case 'net': // a red bundle of net over the shoulder
+        add(new THREE.IcosahedronGeometry(h * 0.15, 0), red, -h * 0.13, h * 0.7, -h * 0.12).scale.set(1, 0.8, 1.3);
+        break;
+    }
+  }
+}
+
 /** Walking bob: a small vertical hop per step. `moving` 0..1. */
 export function bob(figure: THREE.Group, time: number, moving: number): void {
   const inner = figure.children;

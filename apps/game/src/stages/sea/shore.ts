@@ -4,7 +4,8 @@
 // their timing from real chance (seaRandom); the sand, the footprints, gulls and sails do not.
 import * as THREE from 'three';
 import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
-import { lambert, makeFigure } from '../figures.ts';
+import { dressFigure, lambert, makeFigure } from '../figures.ts';
+import { LOOKS } from '../../content/looks.ts';
 
 /** The sand ends here and the water begins. */
 export const WATERLINE = -7;
@@ -201,6 +202,7 @@ export class Shore {
 
     // Glaucus, in the water up to his knees, for the last scene only.
     this.glaucus = makeFigure('#2b2a2c', 1.85);
+    dressFigure(this.glaucus, LOOKS.glaucus!, 1.85);
     // Close enough to be a man and not a post: the last face of the game should read as one.
     this.glaucus.position.set(1.2, -0.95, GLAUCUS_Z);
     this.glaucus.scale.setScalar(1.35);
