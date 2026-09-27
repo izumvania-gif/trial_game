@@ -297,7 +297,7 @@ export class Game {
       seen_ending: (id: string) => this.memory.endingsSeen.includes(id),
       // Heard before this conversation began: hearing a line now does not count as having heard it before.
       heard: (id: string) => this.heardBefore.has(id),
-      dawn_hint: () => pickHint((f) => this.knowledge.knows(f)) ?? '',
+      dawn_hint: () => pickHint((f) => this.knowledge.knows(f), this.memory.cycle) ?? '',
       ended_last_cycle: (id: string) => this.memory.lastEnding?.id === id && this.memory.lastEnding.cycle === this.memory.cycle - 1,
       wind: () => Math.round(this.save.cycle.wind * 100),
       sprint: () => this.memory.sprint,
@@ -638,6 +638,16 @@ export class Game {
   }
 
   /** What the true night still lacks; also shown as log lines when the night fails. */
+  /**
+   * The tail of the "Awaiting Curator" log: an asleep Curator approves the rollback itself;
+   * an awake one does not, and then the log names only what really was missing.
+   */
+  private curatorMissingLog(): string[] {
+    const missing = this.trueNightMissing();
+    if (this.knowledge.knows('curator_awake')) return missing;
+    return ['CURATOR_P7: no response', 'ROLLBACK APPROVED BY: CURATOR_P7 (auto)', ...missing.filter((l) => !l.startsWith('CURATOR_P7'))];
+  }
+
   trueNightMissing(): string[] {
     const k = this.knowledge;
     const n = this.save.cycle.night;
@@ -680,6 +690,8 @@ export class Game {
       }
     };
     const timer = window.setInterval(tick, 1000);
+    // Nothing to walk to and nowhere to go back to: the only control left is the button.
+    this.hud.setControls(null);
     this.modal.show('ending wake-test', [
       h('p', {}, 'The wind does not come. Nothing comes. It is very quiet.'),
       h('p', {}, 'Somewhere a button is waiting for you, the way it always has.'),
@@ -731,7 +743,7 @@ export class Game {
       h('p', { className: 'ending-kicker' }, 'Ending'),
       h('h2', {}, card.title),
       ...card.lines.map((l) => h('p', {}, l)),
-      h('div', { className: 'ending-log' }, ...[...card.log, ...(id === 'curator_missing' ? this.trueNightMissing() : [])]
+      h('div', { className: 'ending-log' }, ...[...card.log, ...(id === 'curator_missing' ? this.curatorMissingLog() : [])]
         .map((l) => h('p', { className: 'log' }, l))),
       button('Wake', () => this.modal.close()),
     ], { dismissable: false, onClose: () => (id === 'prophet' ? this.forget() : void this.resetCycle('ending')) });

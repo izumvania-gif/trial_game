@@ -37,7 +37,16 @@ export const HINTS: Hint[] = [
   { when: ['desk_agent_id'], until: 'shard_attachment', text: 'The stele ticket upstairs has an attachment that will not open. Try again in a later sprint.' },
 ];
 
-export function pickHint(knows: (fact: string) => boolean): string | null {
-  const hint = HINTS.find((h) => h.when.every(knows) && !knows(h.until));
-  return hint?.text ?? null;
+/** Where the long way starts in HINTS: past it, the notes take turns instead of queueing. */
+const LONG_WAY = HINTS.findIndex((h) => h.until === 'curator_chair');
+
+/**
+ * The first rule that applies wins, until the long way: its steps can be done in any order, so
+ * the notes take turns from one morning to the next rather than repeating the same one.
+ */
+export function pickHint(knows: (fact: string) => boolean, cycle = 0): string | null {
+  const due = HINTS.filter((h) => h.when.every(knows) && !knows(h.until));
+  if (!due.length) return null;
+  if (HINTS.indexOf(due[0]!) < LONG_WAY) return due[0]!.text;
+  return due[cycle % due.length]!.text;
 }

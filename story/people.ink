@@ -235,8 +235,15 @@ Nobody in the tavern notices that he sang it looking straight at you.
 
 = plan
 Eion puts the lyre down.
-You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion #mood:wonder
-Then it is tonight. Sit. Let's paint it on the table. #speaker:Eion #mood:joy
+{knows("registry_all") and knows("shards_12") and knows("curator_awake") and stele_word() == "FIRST":
+    He runs his fingers over your face, slowly, the way he reads the stones.
+    All of us, named. Every chip back in its place. And something in the stele that was never there before. #speaker:Eion #mood:wonder
+    I carried the tablets out, once. Don't. Whatever burns tonight, let it burn. #speaker:Eion #mood:sorrow
+    Sit. This time the table is the same, and we are not. #speaker:Eion #mood:joy
+- else:
+    You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion #mood:wonder
+    Then it is tonight. Sit. Let's paint it on the table. #speaker:Eion #mood:joy
+}
 + [Plan the night] #action:board
     -> DONE
 + [Not tonight] -> DONE

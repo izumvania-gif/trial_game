@@ -134,12 +134,14 @@ export class SpiralStage implements Stage {
 
   private buildSeam(): THREE.Group {
     const g = new THREE.Group();
-    const mat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.035, 6, 20), mat);
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.24, 0.05), mat);
-    bar.position.y = 0.12;
+    // Cut dark into the white stone, as ⊘ is everywhere else: a ring and one stroke through it.
+    const mat = new THREE.MeshBasicMaterial({ color: '#0d0b09' });
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.045, 6, 24), mat);
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.06), mat);
+    bar.rotation.z = -Math.PI / 4;
     g.add(ring, bar);
-    g.position.set(0, OUTER - BAND + 0.04, 0.25);
+    // Close to the face of the disk, so where it is drawn and where it is clicked agree.
+    g.position.set(0, OUTER - BAND + 0.04, 0.06);
     g.visible = false;
     this.disk.add(g);
     return g;
@@ -206,7 +208,7 @@ export class SpiralStage implements Stage {
 
     const hit = this.pointOnDisk();
     const scribe = this.scribeUnderMouse();
-    const overSeam = this.seam.visible && hit !== null && hit.distanceTo(this.seam.getWorldPosition(new THREE.Vector3())) < 0.4;
+    const overSeam = this.seam.visible && this.raycaster.ray.distanceToPoint(this.seam.getWorldPosition(new THREE.Vector3())) < 0.35;
     this.host.prompt(
       overSeam ? 'Click — the mark' : scribe ? 'Click — study the carving' : null,
     );
@@ -324,7 +326,8 @@ export class SpiralStage implements Stage {
   private onRegistryChange(rerender: () => void): void {
     const locked = confirmEntries(this.host.memory.registry);
     if (locked.length) {
-      this.host.notice('registry_read', 0.1);
+      // Reading is quiet work: twelve confirmations together are about one gust, not the whole evening.
+      this.host.notice('registry_read', 0.03);
       this.host.persist();
       rerender();
       // Tell the story what was confirmed; it hands out facts and masks.

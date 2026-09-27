@@ -266,7 +266,10 @@ export class DeskStage implements Stage {
 
   private notesView(): HTMLElement {
     const { knowledge, memory } = this.host;
-    const canWrite = knowledge.knows('board_of_directors') && !knowledge.knows('curator_awake');
+    // The field opens the sprint after the minutes were read: the Curator needs a night between
+    // seeing that nobody is above it and doing something nobody asked for.
+    const directorsSeen = knowledge.knows('board_of_directors') && !knowledge.knows('curator_awake');
+    const canWrite = directorsSeen && (memory.learnedOn['board_of_directors'] ?? memory.cycle) < memory.cycle;
     const intro = h('p', { className: 'desk-note' },
       'HUMAN NOTES — unmodelled input from outside the study. Classification: noise. The only feed the Curator cannot predict.');
     const write = (text: string) => {
@@ -285,6 +288,9 @@ export class DeskStage implements Stage {
       return li;
     };
     const body: (Node | string)[] = [intro];
+    if (directorsSeen && !canWrite) {
+      body.push(h('p', { className: 'desk-note' }, 'USER NOTE: field locked. PERMISSION REQUEST FILED WITH: ________. Estimated review: next sprint.'));
+    }
     if (this.notes === null) body.push(h('p', {}, 'Loading…'));
     else if (!this.notes.length) {
       body.push(h('p', {}, 'No signal. The feed is empty. The sea is silent today.'));

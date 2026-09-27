@@ -42,12 +42,16 @@ const ENTRIES: Record<string, [number, number, number]> = {
   mountain: [9.5, -20.5, 0],
 };
 
+/** How much nearer than a resident a place may be and still be the one E talks to. */
+const PLACE_BIAS = 0.4;
+
 const PLACES_TO_TALK: Interactable[] = [
   { x: -4.5, z: -10, radius: 1.8, knot: 'stele', label: 'Star stele' },
   { x: 0, z: -13.2, radius: 1.6, knot: 'temple_door', label: 'Bronze door' },
   { x: 10.5, z: 2.4, radius: 1.8, knot: 'agora_crier', label: 'Listen to the crier' },
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'Go down to the sea' },
-  { x: 10, z: -22.5, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
+  // The foot of the path, on the town side of where the early climbers stand.
+  { x: 10, z: -21, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
   { x: -5.5, z: 5.5, radius: 1.7, knot: 'well', label: 'The well' },
   { x: -14.5, z: 14, radius: 1.4, knot: 'tavern_table', label: "Eion's table" },
@@ -554,9 +558,11 @@ export class TownStage implements Stage {
     let bestD = Infinity;
     for (const c of candidates) {
       const d = Math.hypot(c.x - p.x, c.z - p.z);
-      if (d < c.radius && d < bestD) {
+      // A place wins a near tie with someone standing on it: people move, places don't.
+      const rank = d - (PLACES_TO_TALK.includes(c) ? PLACE_BIAS : 0);
+      if (d < c.radius && rank < bestD) {
         best = c;
-        bestD = d;
+        bestD = rank;
       }
     }
     return best;

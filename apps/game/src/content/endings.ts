@@ -102,6 +102,7 @@ export const ENDINGS: Record<string, EndingCard> = {
       'For a long moment nothing happens at all.',
       'Then, very far away, someone who is not a god starts typing.',
     ],
-    log: ['UNHANDLED EVENT: NON-CONFORMANT RITUAL OUTPUT TO RANDOM OCEAN LAYER', 'AUTO-RESET: SUSPENDED — AWAITING CURATOR', 'CURATOR_P7: no response', 'ROLLBACK APPROVED BY: CURATOR_P7 (auto)'],
+    // What else went wrong is appended by the game: Game.curatorMissingLog().
+    log: ['UNHANDLED EVENT: NON-CONFORMANT RITUAL OUTPUT TO RANDOM OCEAN LAYER', 'AUTO-RESET: SUSPENDED — AWAITING CURATOR'],
   },
 };

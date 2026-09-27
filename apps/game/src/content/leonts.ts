@@ -195,7 +195,7 @@ export const PAST_LEONTS: PastLeont[] = [
   },
   {
     id: 'l34', ring: 3, angle: slot(3, 6), attempt: 'wrote_other_line', fate: 'judged_possessed',
-    carving: 'Scratches: a stick man with a rectangle full of marks, holding it up to many stick people. The stick people have their arms around him from behind; one makes a hooked sign with two fingers.',
+    carving: 'Scratches: a stick man on the mountain with a tablet full of marks, holding it up to many stick people; the last row of marks is crossed out and scratched again, bigger. The stick people have their arms around him from behind; one makes a hooked sign with two fingers.',
   },
   {
     id: 'l35', ring: 3, angle: slot(3, 7), attempt: 'burned_stele', fate: 'stoned',

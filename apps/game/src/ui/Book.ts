@@ -21,12 +21,13 @@ function clockLabel(minute: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-/** When someone gets there, not when they set off: "there by 10:45" once the walk takes a while. */
+/** When someone gets there, not when they set off: "there by ~10:45" once the walk takes a while. */
 function arrival(entries: ScheduleEntry[], i: number): string {
   if (i === 0) return '';
   const walk = pathLength(route(entries[i - 1]!.place, entries[i]!.place)) / WALK_SPEED;
-  if (walk < 5) return '';
-  return ` (there by ~${clockLabel(Math.ceil((entries[i]!.from + walk) / 5) * 5)})`;
+  // A few minutes across the square is not worth a note, and "~12:10" for a speech at noon reads as late.
+  if (walk < 10) return '';
+  return ` (there by ~${clockLabel(Math.round((entries[i]!.from + walk) / 5) * 5)})`;
 }
 
 /**

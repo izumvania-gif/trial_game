@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {
   ALLY_NAMES, canPlace, COLS, ENEMIES, enemiesFor, EXTRA_GUARD, LANDMARKS, WELL_TILE, ROWS, sameTile, simulate, type AllyId, type Enemy, type EnemyState, type Tile,
 } from '../../core/board.ts';
-import { ACTION_LABELS, canUse, initialSprint, LANES, rolledBack, sprintTurn, type CuratorAction, type SprintState } from '../../core/sprint.ts';
+import { ACTION_LABELS, ACTION_USES, canUse, initialSprint, LANES, rolledBack, SPRINT_TURNS as NIGHT_TURNS, sprintTurn, type CuratorAction, type SprintState } from '../../core/sprint.ts';
 import { makeSea } from '../../render/sea.ts';
 import { h } from '../../ui/dom.ts';
 import { disposeScene } from '../dispose.ts';
@@ -14,7 +14,6 @@ import type { Stage, StageHost } from '../types.ts';
 const TILE = 2.2;
 const STEP_SECONDS = 0.7;
 /** The Curator's half of the night always lasts this many turns, however quickly Eferon's half ends. */
-const NIGHT_TURNS = 7;
 
 const BOARD_BACK = new THREE.Color('#1c1511');
 
@@ -367,7 +366,7 @@ export class BoardStage implements Stage {
     if (rolledBack(s)) children.push(h('p', { className: 'sprint-bad' }, 'ROLLBACK APPROVED. Whatever happens below, the morning will not know it.'));
     else if (this.awaitingCurator) {
       for (const a of ['wait', 'defer', 'reply', 'noise'] as CuratorAction[]) {
-        const b = h('button', { type: 'button', className: 'ghost', disabled: a !== 'wait' && !canUse(s, a) }, `${ACTION_LABELS[a]}${a === 'wait' ? '' : ` · ${Math.max(0, (a === 'noise' ? 1 : 2) - s.used[a])} left`}`);
+        const b = h('button', { type: 'button', className: 'ghost', disabled: a !== 'wait' && !canUse(s, a) }, `${ACTION_LABELS[a]}${a === 'wait' ? '' : ` · ${Math.max(0, ACTION_USES[a] - s.used[a])} left`}`);
         b.addEventListener('click', () => this.curatorMove(a));
         children.push(b);
       }

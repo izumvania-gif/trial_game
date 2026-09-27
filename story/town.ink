@@ -6,8 +6,10 @@
     Under the window an old man is singing. He sings about a scribe who carried the tablets out of the fire. Don't, he sings. Don't carry them.
 - ended_last_cycle("exception_handled"):
     ACCOUNTED FOR #log
-- ended_last_cycle("curator_missing"):
+- ended_last_cycle("curator_missing") and not knows("curator_awake"):
     ROLLBACK APPROVED BY: CURATOR_P7 (auto) #log
+- ended_last_cycle("curator_missing"):
+    AUTO-RESET: RESUMED. THE CURATOR DID NOT SIGN IT. #log
 }
 {knows("curator_awake") and curator_note() != "":
     Before you open your eyes, a line in the service script, the one you are not supposed to read:
@@ -122,7 +124,7 @@ The path goes down between the rocks to the water.
 
 === mountain_path ===
 {hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
-    The path up the holy mountain, empty for one more hour. Among the pale stones one is paler than the rest, and square-edged.
+    The path up the holy mountain. For one more hour only the early climbers are on it, the ones who want to be seen. Among the pale stones one is paler than the rest, and square-edged.
     It is a chip of the white marble from the Hall. Nobody carried it here. Nobody could have.
     ~ learn("shard_path")
     -> DONE

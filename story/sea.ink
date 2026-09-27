@@ -36,7 +36,7 @@ Up in the Hall there is only dust. Upstairs, in a room with no weather, a ticket
 UNHANDLED EVENT: NON-CONFORMANT RITUAL OUTPUT TO RANDOM OCEAN LAYER #log
 AUTO-RESET: DISABLED #log
 MODE: FREE EVOLUTION #log
-Glaucus is gone. You are standing in the sea on your own. Behind you the city is dark and silent and there, for the first time.
+Glaucus is gone. You are standing in the sea on your own. Behind you the city is dark and silent, and still there. For the first time, still there.
 The criminal who broke the ritual, or the prophet who ended the ages. They will want you to be one of them by morning.
 + [Walk along the shore to the old hut by the water]
     You walk. The sea comes up to your ankles and goes back, differently every time. #action:wake_test:true

@@ -120,6 +120,53 @@ export const THREADS: Thread[] = [
       song_of_return: 'Put on the smooth mask (M) and go to Eion at the tavern after 18:00.',
     },
   },
+  // The long way. These open once the first night has been played: after it, the chronicle
+  // would otherwise have nothing left to ask, and the true night needs all three.
+  {
+    id: 'archive',
+    question: 'Every one of us is in the stone. Can I name all thirty-six?',
+    opens: ['board_played'],
+    closes: 'registry_all',
+    steps: ['shard_registry_18', 'shard_registry_24', 'shard_registry_30', 'registry_all'],
+    clues: {
+      shard_registry_18: 'In the Hall, keep naming the carved scribes (Tab opens the registry). The thin inner rings are rough retellings of the outer ones.',
+      shard_registry_24: 'Keep naming the scribes in the Hall. A reading that did not confirm may still be right: three have to be right at once.',
+      shard_registry_30: 'Keep naming the scribes in the Hall. Look for the ones you have not clicked yet on every ring.',
+      registry_all: 'The last few scribes in the Hall. Compare each scratched one on the inner ring with the carving on an outer ring that shows the same scene.',
+    },
+  },
+  {
+    id: 'shards',
+    question: 'Chips of the spiral keep turning up all over Eferon. What do they spell?',
+    opens: ['board_played'],
+    closes: 'shards_12',
+    steps: ['shard_well', 'shard_aristion', 'shard_relief', 'shard_registry_18', 'shard_attachment', 'shard_directors', 'shard_board', 'shard_path', 'shard_tavern', 'shards_12'],
+    clues: {
+      shard_well: 'The well, at noon, when the sun stands straight over it. Look down.',
+      shard_aristion: 'Aristion, after 09:00, in his fever: if he trusts you, take his hand.',
+      shard_relief: 'Put your hand into the deep carving in the Hall and walk to the western edge of the mountain.',
+      shard_registry_18: 'Keep naming the scribes in the Hall: chips fall out at eighteen, twenty-four, thirty and thirty-six.',
+      shard_attachment: 'Upstairs, the ticket about glyphs on the stele has an attachment. Render it.',
+      shard_directors: 'Upstairs, the minutes of the board of directors. Observe them.',
+      shard_board: 'On the singer\'s table there is a well painted. Put someone on it.',
+      shard_path: 'The mountain path, between 21:00 and 22:00, before the procession starts up it.',
+      shard_tavern: "Eion's table at the port tavern, after 23:00, when he has gone down to the sea.",
+      shards_12: 'Twelve chips. Every four of them teach a word for the stele.',
+    },
+  },
+  {
+    id: 'curator',
+    question: 'The Curator upstairs keeps looking back, like me. Can it wake up?',
+    opens: ['desk_agent_id', 'board_played'],
+    closes: 'curator_awake',
+    steps: ['human_notes_seen', 'curator_chair', 'board_of_directors', 'curator_awake'],
+    clues: {
+      human_notes_seen: 'Upstairs, open the Human Notes tab beside the ticket.',
+      curator_chair: 'Upstairs, from the third sprint: when the terminal says you can feel the chair, try to remember it.',
+      board_of_directors: 'Upstairs, the ticket with the minutes of the board of directors.',
+      curator_awake: 'Upstairs, the sprint after the minutes: Human Notes, the USER NOTE field. Copy one line into it, or write your own.',
+    },
+  },
 ];
 
 export interface ThreadView {
@@ -164,4 +211,6 @@ export const UNLOCKS: Record<string, string> = {
   registry_three: 'Some of those carved faces sat loose in the stone.',
   kora_debts: 'A debt can burn, be forgiven, or be voted away. The flood is not the only way.',
   sea_absent: 'If I know enough before dark, the singer might help me plan the night.',
+  shards_12: 'FIRST. Not again: first. It has to be in the stone before the city wakes, before seven.',
+  curator_awake: 'Whoever sits upstairs sent me a line. Upstairs, the night can be kept from being undone.',
 };
