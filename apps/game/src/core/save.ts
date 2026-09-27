@@ -50,6 +50,8 @@ export interface LoopMemory {
   deductions: string[];
   /** The player's own days, carved at each reset (content/days.ts). */
   days: { cycle: number; summary: string; relief?: string }[];
+  /** Where the player has dragged the chronicle map's cards (percent of the map), by subject. */
+  mapLayout: Record<string, { x: number; y: number }>;
 }
 
 export interface CycleState {
@@ -91,7 +93,7 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [], days: [],
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [], days: [], mapLayout: {},
   };
 }
 

@@ -120,7 +120,7 @@ export const TIPS: Record<string, Guide> = {
     title: 'The chronicle',
     steps: [
       { keys: ['C'], text: 'What you learn is kept here, and survives midnight. It is a map: every card is something you have looked into, arrows show what led where.' },
-      { keys: ['Click'], text: 'Any card, to read it and to see where to look next. A black card with a question mark is something you have only heard of; a red ! means more to find, and the way is open; ✎ is a conclusion to draw.' },
+      { keys: ['Click'], text: 'Any card, to read it and to see where to look next. A black card with a question mark is something you have only heard of; a red ! means more to find, and the way is open; ✎ is a conclusion to draw. Drag the cards to lay the map out your own way.' },
     ],
   },
   book: {

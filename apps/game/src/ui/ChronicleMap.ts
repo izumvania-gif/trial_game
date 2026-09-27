@@ -12,6 +12,8 @@ import { cloneCanvas, portrait } from './portraits.ts';
 export interface MapHooks {
   /** A conclusion carved right: the game writes the margin note and saves. */
   onConclusion(d: Deduction): void;
+  /** A card was moved, or the layout tidied: save it. */
+  onLayout(): void;
 }
 
 /** The map's own coordinates: 100 wide, 60 high; a card is CARD_W × CARD_H of them. */
@@ -20,7 +22,6 @@ const H = 60;
 const CARD_W = 14;
 const CARD_H = 7.4;
 
-const at = (card: Card) => ({ x: card.subject.x, y: (card.subject.y / 100) * H });
 
 /** Where the line from a to b leaves the edge of b's card. */
 function edgePoint(ax: number, ay: number, bx: number, by: number): [number, number] {
@@ -83,26 +84,35 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   const isNew = (c: Card) => (c.state === 'rumour' ? !seen.has(`rumour:${c.subject.id}`) : c.found.some((f) => fresh.has(f)));
   memory.mapSeen = [...knowledge.list(), ...visible.filter((c) => c.state === 'rumour').map((c) => `rumour:${c.subject.id}`)];
 
+  // Where each card is: where the player put it, or where it was painted to begin with.
+  const place = (id: string) => memory.mapLayout[id] ?? { x: byId.get(id)!.subject.x, y: byId.get(id)!.subject.y };
+  const at = (id: string) => ({ x: place(id).x, y: (place(id).y / 100) * H });
+
   const board = h('div', { className: 'cmap-board' });
   const lines = svg('svg', { class: 'cmap-lines', viewBox: `0 0 ${W} ${H}`, 'aria-hidden': 'true' });
   const defs = svg('defs', {});
   const marker = svg('marker', { id: 'cmap-head', viewBox: '0 0 10 10', refX: 8, refY: 5, markerWidth: 5, markerHeight: 5, orient: 'auto-start-reverse' });
   marker.append(svg('path', { d: 'M0,0 L10,5 L0,10 z', class: 'cmap-head' }));
   defs.append(marker);
-  lines.append(defs);
-  for (const a of map.arrows) {
-    const from = at(byId.get(a.from)!);
-    const to = at(byId.get(a.to)!);
-    const [x1, y1] = edgePoint(to.x, to.y, from.x, from.y);
-    const [x2, y2] = edgePoint(from.x, from.y, to.x, to.y);
-    // A painter's line: bowed a little, never ruled.
-    const mx = (x1 + x2) / 2 - (y2 - y1) * 0.12;
-    const my = (y1 + y2) / 2 + (x2 - x1) * 0.12;
-    const rumour = byId.get(a.to)!.state === 'rumour';
-    const path = svg('path', { d: `M${x1},${y1} Q${mx},${my} ${x2},${y2}`, class: `cmap-arrow${rumour ? ' to-rumour' : ''}${a.settled ? ' settled' : ''}`, 'marker-end': 'url(#cmap-head)' });
-    if (a.both) path.setAttribute('marker-start', 'url(#cmap-head)');
-    lines.append(path);
-  }
+  const paths = svg('g', {});
+  lines.append(defs, paths);
+  const drawArrows = () => {
+    paths.replaceChildren();
+    for (const a of map.arrows) {
+      const from = at(a.from);
+      const to = at(a.to);
+      const [x1, y1] = edgePoint(to.x, to.y, from.x, from.y);
+      const [x2, y2] = edgePoint(from.x, from.y, to.x, to.y);
+      // A painter's line: bowed a little, never ruled.
+      const mx = (x1 + x2) / 2 - (y2 - y1) * 0.12;
+      const my = (y1 + y2) / 2 + (x2 - x1) * 0.12;
+      const rumour = byId.get(a.to)!.state === 'rumour';
+      const path = svg('path', { d: `M${x1},${y1} Q${mx},${my} ${x2},${y2}`, class: `cmap-arrow${rumour ? ' to-rumour' : ''}${a.settled ? ' settled' : ''}`, 'marker-end': 'url(#cmap-head)' });
+      if (a.both) path.setAttribute('marker-start', 'url(#cmap-head)');
+      paths.append(path);
+    }
+  };
+  drawArrows();
   board.append(lines);
 
   const detail = h('aside', { className: 'cmap-detail' });
@@ -115,7 +125,7 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   };
 
   for (const card of visible) {
-    const p = at(card);
+    const p = at(card.subject.id);
     const total = card.subject.facts.length;
     const more = card.state === 'explored' && !!nextOnCard(card.subject, knows);
     const pending = card.state !== 'rumour' && deductionsFor(card.subject.id).some((d) => d.requires.every(knows) && !memory.deductions.includes(d.id));
@@ -139,12 +149,64 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     el.style.left = `${(p.x / W) * 100}%`;
     el.style.top = `${(p.y / H) * 100}%`;
     el.setAttribute('aria-label', card.state === 'rumour' ? 'A rumour' : `${card.subject.name}: ${card.found.length} of ${total}`);
-    el.addEventListener('click', () => show(card.subject.id));
+    // Drag to move the card; a press that hardly moves is a click and opens it.
+    let drag: { x: number; y: number; moved: boolean } | null = null;
+    el.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return;
+      drag = { x: e.clientX, y: e.clientY, moved: false };
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      if (!drag.moved && Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 5) return;
+      drag.moved = true;
+      el.classList.add('dragging');
+      const r = board.getBoundingClientRect();
+      const halfW = (CARD_W / W) * 50;
+      const halfH = (CARD_H / H) * 50;
+      const x = Math.min(100 - halfW, Math.max(halfW, ((e.clientX - r.left) / r.width) * 100));
+      const y = Math.min(100 - halfH, Math.max(halfH, ((e.clientY - r.top) / r.height) * 100));
+      memory.mapLayout[card.subject.id] = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+      el.style.left = `${x}%`;
+      el.style.top = `${y}%`;
+      drawArrows();
+    });
+    const end = () => {
+      if (!drag) return;
+      const moved = drag.moved;
+      drag = null;
+      el.classList.remove('dragging');
+      if (moved) hooks.onLayout();
+      else show(card.subject.id);
+    };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', () => { drag = null; el.classList.remove('dragging'); });
+    // Keyboard: Enter or Space opens it, as a button should.
+    el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        show(card.subject.id);
+      }
+    });
     cardEls.set(card.subject.id, el);
     board.append(el);
   }
 
-  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, board), detail);
+  // Back to the cup's own arrangement.
+  const tidy = h('button', { type: 'button', className: 'cmap-tidy', title: 'Put every card back where it was painted' }, 'Tidy up');
+  tidy.addEventListener('click', () => {
+    memory.mapLayout = {};
+    for (const [id, el] of cardEls) {
+      const p = at(id);
+      el.style.left = `${(p.x / W) * 100}%`;
+      el.style.top = `${(p.y / H) * 100}%`;
+    }
+    drawArrows();
+    hooks.onLayout();
+  });
+
+  const hint = h('p', { className: 'cmap-drag-hint' }, 'Drag the cards to arrange them. ', tidy);
+  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, board, hint), detail);
   if (selected) show(selected);
   return root;
 }

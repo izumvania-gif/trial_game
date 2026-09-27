@@ -495,7 +495,7 @@ button.cmap-tab.on { background: var(--lacquer); color: var(--bone); }
 .cmap-body { flex: 1; min-height: 0; }
 .cmap { display: flex; gap: 1.2rem; height: 100%; }
 .cmap-frame { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; }
-.cmap-board { position: relative; width: min(100%, calc((100vh - 10.5rem) * 5 / 3)); aspect-ratio: 5 / 3; }
+.cmap-board { position: relative; width: min(100%, calc((100vh - 12.5rem) * 5 / 3)); aspect-ratio: 5 / 3; }
 .cmap-lines { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .cmap-arrow { fill: none; stroke: var(--lacquer); stroke-width: 0.34; stroke-linecap: round; }
 .cmap-arrow.to-rumour { stroke-dasharray: 0.9 0.8; }
@@ -608,3 +608,11 @@ button.cmap-carve { margin-top: 0.5rem; background: var(--lacquer); color: var(-
 .layer-zoom { position: fixed; z-index: 60; object-fit: cover; image-rendering: pixelated; pointer-events: none; transition: left 1s cubic-bezier(.6,0,.3,1), top 1s cubic-bezier(.6,0,.3,1), width 1s cubic-bezier(.6,0,.3,1), height 1s cubic-bezier(.6,0,.3,1), filter 1s, opacity 1s; }
 .layer-zoom.up { filter: grayscale(1) sepia(1) hue-rotate(80deg) saturate(0.55) brightness(0.9); }
 .layer-zoom.down { opacity: 0; }
+/* Cards can be dragged into whatever order makes the arrows readable. */
+button.cmap-card { touch-action: none; user-select: none; }
+button.cmap-card.dragging { cursor: grabbing; z-index: 2; transform: translate(-50%, -54%) rotate(-1.5deg); box-shadow: inset 0 0 0 3px var(--bone), inset 0 0 0 4px var(--lacquer), 0 10px 0 rgba(13, 11, 9, 0.3); }
+button.cmap-card.rumour.dragging { box-shadow: inset 0 0 0 3px var(--lacquer), inset 0 0 0 4px #c8683a, 0 10px 0 rgba(13, 11, 9, 0.3); }
+.cmap-frame { flex-direction: column; }
+.cmap-drag-hint { margin: 0.4rem 0 0; font-size: 0.8rem; font-style: italic; color: var(--lacquer); }
+button.cmap-tidy { margin-left: 0.4rem; background: transparent; border: 1px solid var(--lacquer); color: var(--lacquer); padding: 0.1rem 0.7rem; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; font-style: normal; }
+button.cmap-tidy:hover { background: var(--lacquer); color: var(--bone); }

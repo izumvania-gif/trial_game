@@ -579,6 +579,7 @@ export class Game {
                   this.audio.play('fact');
                   this.persist();
                 },
+                onLayout: () => this.persist(),
               }),
               () => chronicle(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown))], !burned);
     }
