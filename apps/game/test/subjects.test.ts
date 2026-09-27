@@ -64,3 +64,13 @@ test('every conclusion sits on a real card, needs real facts, and has one word l
     assert.ok(!isRight(d, d.blanks.map((w) => w[1]!)));
   }
 });
+
+test('the chips of the spiral stay quiet on the map until the first night is played', () => {
+  const before = new Set(['other_hand', 'rain_at_midnight', 'eion_song', 'sea_absent']);
+  const map = chronicleMap((id) => before.has(id));
+  assert.equal(map.cards.find((c) => c.subject.id === 'shards')!.state, 'hidden');
+  for (const s of SUBJECTS) {
+    const next = nextOnCard(s, (id) => before.has(id));
+    assert.ok(!next?.fact.startsWith('shard_'), `${s.id} points at ${next?.fact} before the night`);
+  }
+});

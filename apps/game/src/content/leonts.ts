@@ -25,10 +25,10 @@ export const ATTEMPTS: Record<string, string> = {
 
 /** The same attempts in two or three words, for the registry's timeline. */
 export const ATTEMPTS_SHORT: Record<string, string> = {
-  quenched_fire: 'the fire', spoke_first: 'the speech', warned_city: 'a warning', fled_city: 'the hills',
+  quenched_fire: 'the fire', spoke_first: 'the speech', warned_city: 'a warning', fled_city: 'flight',
   killed_priest: 'the knife', moved_date: 'the date', burned_stele: 'the stele', wrote_other_line: 'another line',
-  refused_sacrifice: 'no sacrifice', carried_tablets: 'the tablets', sang_early: 'the song', took_the_offer: 'the offer',
-  hid_in_hall: 'hiding', bribed_priest: 'a bribe', burned_tables: 'the tables', blinded_himself: 'his eyes',
+  refused_sacrifice: 'no sacrifice', carried_tablets: 'the tablets', sang_early: 'the song', took_the_offer: 'the stranger',
+  hid_in_hall: 'hiding', bribed_priest: 'a bribe', burned_tables: 'star tables', blinded_himself: 'his eyes',
   freed_bull: 'the bull', taught_children: 'a new myth',
 };
 
@@ -37,7 +37,7 @@ export const FATES: Record<string, string> = {
   fire: 'the fire came at its hour',
   earthquake: 'the earth opened',
   judged_possessed: 'the crowd judged him possessed',
-  stoned: 'stoned on the mountain',
+  stoned: 'he was stoned on the mountain',
   laughed_at: 'the city laughed, and the day ended as always',
   walked_back: 'walked all day and came back through the other gate',
   made_singer: 'left alive, blind, a singer',

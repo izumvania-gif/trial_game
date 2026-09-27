@@ -14,7 +14,7 @@ export class Input {
 
   constructor(target: HTMLElement) {
     window.addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (!e.repeat) this.pressed.add(e.code);
       this.down.add(e.code);
     });

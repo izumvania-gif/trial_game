@@ -483,7 +483,7 @@ html.reduced-motion .diary-entries li.fresh { animation: none; }
 }
 .chronicle.wide {
   left: 0; width: auto; padding: 1.1rem 1.6rem 0.8rem; display: flex; flex-direction: column; overflow: hidden;
-  background: radial-gradient(ellipse at 50% 45%, #c2602f 0%, var(--terracotta) 55%, #8a3c1e 100%);
+  background: radial-gradient(ellipse at 50% 45%, #cf6c38 0%, #c86a38 55%, #c2602f 100%); /* never darker than 4.5:1 under lacquer text */
   color: var(--lacquer); border-left: none;
 }
 .chronicle.wide h2 { color: var(--lacquer); margin: 0; padding-bottom: 16px; background: var(--meander) repeat-x left bottom / 18px 9px; }
@@ -534,7 +534,7 @@ button.cmap-card:focus-visible { outline: 3px dashed var(--lacquer); outline-off
 .cmap-detail button.hint-button:hover { background: var(--lacquer); color: var(--bone); }
 .cmap-questions { height: 100%; overflow-y: auto; max-width: 46rem; margin: 0 auto; padding: 1rem 1.6rem; background: var(--panel-solid); color: var(--bone); border: 2px solid var(--lacquer); }
 .cmap-detail { align-self: flex-start; max-height: 100%; }
-.cmap-arrow.settled { opacity: 0.22; }
+.cmap-arrow.settled { opacity: 0.4; }
 /* Faces on the cards of people; marks for what is new, what has more, and a conclusion to draw. */
 button.cmap-card.has-face { flex-direction: row; justify-content: flex-start; gap: 0.35rem; padding-left: 0.45rem; }
 .cmap-face { flex: none; height: 78%; aspect-ratio: 1; margin-top: 0.35rem; }
@@ -616,3 +616,34 @@ button.cmap-card.rumour.dragging { box-shadow: inset 0 0 0 3px var(--lacquer), i
 .cmap-drag-hint { margin: 0.4rem 0 0; font-size: 0.8rem; font-style: italic; color: var(--lacquer); }
 button.cmap-tidy { margin-left: 0.4rem; background: transparent; border: 1px solid var(--lacquer); color: var(--lacquer); padding: 0.1rem 0.7rem; font-size: 0.72rem; letter-spacing: 0.14em; text-transform: uppercase; font-style: normal; }
 button.cmap-tidy:hover { background: var(--lacquer); color: var(--bone); }
+/* Polish round 2: focus, chips, overlaps, large text, reduced motion, small type. */
+.chronicle.wide button:not(.cmap-card):focus-visible { outline: 3px dashed var(--lacquer); outline-offset: 2px; }
+.chronicle.wide .cmap-detail button:focus-visible { outline-color: var(--added-red); }
+button.cmap-tab:not(.on) { background: var(--bone); }
+button.cmap-tab:not(.on):hover { background: var(--lacquer); color: var(--bone); }
+.cmap-drag-hint, .chronicle.wide .chronicle-hint { align-self: flex-start; padding: 0.15rem 0.6rem; background: var(--bone); color: var(--lacquer); border-radius: 2px; }
+.cmap-drag-hint { align-self: center; }
+button.cmap-tidy { background: var(--bone); }
+.cmap-legend { margin-left: 0.6rem; font-style: normal; font-size: 0.78rem; }
+.cmap-legend b { color: var(--added-red); }
+/* The map owns the screen: the walking keys do nothing under it, and news sits at the top, between title and page. */
+#overlay:has(.chronicle.wide:not([hidden])) .controls-bar { display: none; }
+#overlay:has(.chronicle.wide:not([hidden])) .hud-toast { left: 0; right: 0; margin: 0 auto; width: fit-content; max-width: min(30rem, 38vw); top: 0.4rem; }
+/* Cards grow to their words rather than spill over their frame. */
+button.cmap-card { height: auto; min-height: 12.3%; }
+.cmap-face { height: 2.6em; width: 2.6em; margin-top: 0.35rem; }
+html.large-text button.cmap-card { font-size: 0.8rem; }
+html.reduced-motion button.cmap-card:hover, html.reduced-motion button.cmap-card.dragging { transform: translate(-50%, -50%); }
+.cmap-new { font-size: 0.7rem; }
+.cmap-detail li.fresh::after { font-size: 0.72rem; }
+.book-scale { font-size: 0.75rem; }
+.book-block { font-size: 0.72rem; }
+.regline-ring { font-size: 0.72rem; }
+.regline-cell { font-size: 0.72rem; }
+.regline-cell b { font-size: 0.8rem; }
+.regline-cell:focus-visible { outline: 2px dashed var(--bone); outline-offset: 1px; }
+.regline-detail { min-height: 1.3em; margin: 0.2rem 0 0; font-size: 0.85rem; color: var(--bone); }
+.desk-feed figcaption { font-size: 0.72rem; }
+html.large-text .cmap-face { height: 2em; width: 2em; }
+html.large-text button.cmap-card { letter-spacing: 0; }
+html.large-text button.cmap-card.has-face { gap: 0.2rem; padding-left: 0.3rem; }

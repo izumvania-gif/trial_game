@@ -91,8 +91,8 @@ export class DiaryStage implements Stage {
 
     // The Curator left them on the table in the hut. They are still here, on the other side of everything.
     const glasses = prophet ? '' : h('p', { className: 'diary-object' }, today === 0
-      ? 'On the shelf, folded, a pair of dark glasses. Nobody in Eferon makes glass like that.'
-      : 'The dark glasses are still on the shelf. You have not tried them on. You are not sure what you would see.');
+      ? 'On the table, folded, a pair of dark glasses. Nobody in Eferon makes glass like that.'
+      : 'The dark glasses are still on the table. You have not tried them on. You are not sure what you would see.');
     const children: (Node | string)[] = [
       glasses,
       h('p', { className: 'diary-event' }, dayEvent(today, today * 7 + ep.entries.length)),

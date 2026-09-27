@@ -1,7 +1,7 @@
 // Conclusions (after The Case of the Golden Idol): at the turns of the story that are easiest to
 // read past, the chronicle asks Leont to put what he knows into one sentence, choosing each missing
-// word. Nothing depends on getting it right except the card's own laurel; it is there so the
-// player knows that they understood, not only that they read.
+// word. Nothing depends on getting it right except the margin note and the card's red border; it
+// is there so the player knows that they understood, not only that they read.
 
 export interface Deduction {
   id: string;
@@ -39,7 +39,7 @@ export const DEDUCTIONS: Deduction[] = [
       ['me', 'a stranger', 'Eion', 'my father'],
       ['kept', 'forgave', 'forgot', 'punished'],
     ],
-    margin: 'Thirty-six ways to fail, and the stone remembers every one. That is what the stone is for.',
+    margin: 'Every way to fail is carved here, and the stone keeps each one. That is what the stone is for.',
   },
   {
     id: 'the_hole',
@@ -50,18 +50,18 @@ export const DEDUCTIONS: Deduction[] = [
       ['the sea', 'the sky', 'the mountain', 'the Hall'],
       ['is never the same twice', 'is holy', 'is forbidden', 'is always there'],
     ],
-    margin: 'Whatever is done at the water cannot be carved. That is the hole in the myth.',
+    margin: 'The stone keeps everything that repeats. The sea never repeats. That is the hole in the myth.',
   },
   {
     id: 'the_other_hand',
     subject: 'hand',
-    requires: ['leont_on_every_ring', 'xenos_offer'],
-    sentence: 'The slanted lines at the bottom of my chronicle are written by ___, in a room where ___ does not reach.',
+    requires: ['other_hand', 'leont_on_every_ring'],
+    sentence: 'The slanted lines at the bottom of my chronicle are in ___ hand, written by someone who ___.',
     blanks: [
-      ['a Leont who said yes to Xenos', 'Aristion', 'a god', 'the Curator'],
-      ['the reset', 'the sea', 'the wind', 'the priest'],
+      ['my own', "Aristion's", "a god's", "the stranger's"],
+      ['has lived this day before', 'can see tomorrow', 'wants me dead', 'lives upstairs'],
     ],
-    margin: 'Somebody before me said yes. His hand is the one that leans.',
+    margin: 'The hand that leans is mine. I have been leaving myself notes for longer than I can remember.',
   },
   {
     id: 'upstairs',
@@ -69,7 +69,7 @@ export const DEDUCTIONS: Deduction[] = [
     requires: ['desk_agent_id'],
     sentence: 'The one who watches the day from upstairs is ___: ___, not a god.',
     blanks: [
-      ['the Curator', 'Zeus', 'the archons', 'Xenos'],
+      ['the Curator', 'Zeus', 'the archons', 'Apollo'],
       ['a process like me', 'a man with a body', 'the city itself', 'a statue'],
     ],
     margin: 'Upstairs is only another desk. Whoever sits at it cannot remember the chair.',
@@ -78,7 +78,7 @@ export const DEDUCTIONS: Deduction[] = [
     id: 'the_button',
     subject: 'desk',
     requires: ['reset_by_user'],
-    sentence: 'The morning comes back because ___.',
+    sentence: 'Under the rain and the formula, the morning comes back because ___.',
     blanks: [
       ['someone presses Wake', 'Zeus sends the rain', 'the stars turn', 'the priest reads the formula'],
     ],

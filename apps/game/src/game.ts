@@ -337,7 +337,7 @@ export class Game {
     // Up to the Desk and back: the city's frame shrinks into the Curator's monitor, or grows out of it.
     const layer = id === 'desk' && (from === 'town' || from === 'spiral') ? 'up' : from === 'desk' && (id === 'town' || id === 'spiral') ? 'down' : null;
     if (layer === 'up' && this.current?.scene && this.current.camera) {
-      this.feedFrame = this.renderer.snapshot(this.current.scene, this.current.camera)?.toDataURL() ?? null;
+      this.feedFrame = this.renderer.snapshot(this.current.scene, this.current.camera).toDataURL();
     }
     if (passage && this.phase === 'playing') {
       const { scene, camera } = this.current;
@@ -404,9 +404,10 @@ export class Game {
     this.hud.prompt(null);
     if (knot === 'spiral_seam' || knot === 'desk_profile') this.audio.play('seam');
     // The worn face has been here before, and says so under its breath: once a day per place.
-    const mask = this.lost('masks') ? null : this.save.cycle.wornMask;
+    // Only where the HUD shows (the Desk and the sea hide it, and a line nobody sees is not used up).
+    const mask = this.lost('masks') || this.current.hideHud ? null : this.save.cycle.wornMask;
     const said = `voice:${mask}:${knot}`;
-    const voice = maskVoice(mask, knot);
+    const voice = maskVoice(mask, knot, { evening: this.clock.minute >= 18 * 60, lastHour: this.clock.minute >= this.clock.endMinute - 60 });
     if (voice && !this.save.cycle.noticed.includes(said)) {
       this.save.cycle.noticed.push(said);
       this.hud.toast(voice, `${mask}, under your breath`, true);
@@ -558,8 +559,10 @@ export class Game {
     }
     if (this.hud.panelOpen && (i.wasPressedRaw('Escape') || i.wasPressedRaw('KeyC') || i.wasPressedRaw('KeyB'))) {
       const which = i.wasPressedRaw('KeyC') ? 'chronicle' : i.wasPressedRaw('KeyB') ? 'book' : null;
+      const was = this.hud.panelId;
       this.hud.closePanel();
-      if (!which) return;
+      // The same key closes its own panel; the other one's key switches to it.
+      if (!which || which === was) return;
     }
     if (i.wasPressedRaw('KeyO') && !this.settingsPanel.open && !this.dialogue.open) {
       this.settingsPanel.show();
@@ -569,6 +572,7 @@ export class Game {
     const inWorld = this.current.id === 'town' || this.current.id === 'spiral';
     if (i.wasPressedRaw('KeyC') && inWorld) {
       const burned = this.lost('chronicle');
+      const seen = this.memory.mapSeen.length || this.knowledge.list().length <= 3 ? [...this.memory.mapSeen] : this.knowledge.list();
       this.hud.togglePanel('chronicle', 'Chronicle', () =>
         burned ? [h('p', {}, 'Ash. The wax has run into the cracks of the floor.')]
           : this.knowledge.list().length === 0 ? [h('p', {}, 'The wax is smooth. Nothing written yet.')]
@@ -580,6 +584,7 @@ export class Game {
                   this.persist();
                 },
                 onLayout: () => this.persist(),
+                seen,
               }),
               () => chronicle(this.knowledge, KNOWLEDGE.facts, this.memory.hintsShown))], !burned);
     }
@@ -856,6 +861,9 @@ export class Game {
     this.raining = false;
     this.hud.clearToasts();
     for (const stage of Object.values(this.stages)) stage.exit();
+    // Yesterday's view of the city is not today's feed.
+    this.feedFrame = null;
+    this.feedRect = null;
     // What this Leont did before the day came back, carved with the day's last frame.
     const day = this.memory.cycle;
     const record: DayRecord = {

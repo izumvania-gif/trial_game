@@ -43,6 +43,7 @@ export class Hud {
     this.hourEl = clock.querySelector('text')!;
     this.arcEl = clock.querySelectorAll('circle')[1] as SVGCircleElement;
     this.clockEl = clock;
+    this.toastEl.setAttribute('role', 'status');
     this.root.append(this.cycleEl, clock, this.windEl, this.maskEl, this.promptEl, this.toastEl);
     parent.append(this.root, this.chronicleEl, this.captionEl, this.controlsEl);
   }
@@ -118,7 +119,7 @@ export class Hud {
         this.toastQueue.shift();
         this.nextToast();
       }, 450);
-    }, 4500);
+    }, Math.max(4500, 2000 + t.text.length * 45)); // long lines (the masks) stay long enough to read
   }
 
   /** Side panels: the chronicle (C), the Book of Strangers (B). One at a time. */
@@ -138,6 +139,11 @@ export class Hud {
 
   get panelOpen(): boolean {
     return this.openPanelId !== null;
+  }
+
+  /** Which side panel is open, if any. */
+  get panelId(): string | null {
+    return this.openPanelId;
   }
 
   /** 0..1; each third is a gust that brings midnight an hour closer. */

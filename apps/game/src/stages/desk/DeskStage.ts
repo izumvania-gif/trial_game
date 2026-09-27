@@ -183,6 +183,7 @@ export class DeskStage implements Stage {
       ? this.notesView()
       : current ? this.ticketView(current) : h('p', { className: 'desk-note' }, 'Select a ticket.');
 
+    const feed = this.host.lastFrame();
     this.root.replaceChildren(
       h('header', {},
         h('span', {}, 'GOLDENSTERN CONTINUITY'),
@@ -199,7 +200,7 @@ export class DeskStage implements Stage {
             ...(knowledge.knows('curator_awake') ? [h('dt', {}, 'STATUS'), h('dd', {}, 'AWAKE (unclassified)')] : [])),
           h('p', { className: 'desk-note' }, 'Esc — let go of the mark'),
           // The module under study, as the Curator sees it: the frame Leont was standing in.
-          ...(this.host.lastFrame() ? [h('figure', { className: 'desk-feed' }, h('img', { src: this.host.lastFrame()!, alt: 'Eferon, the last frame before you looked up' }),
+          ...(feed ? [h('figure', { className: 'desk-feed' }, h('img', { src: feed, alt: 'Eferon, the last frame before you looked up' }),
             h('figcaption', {}, 'MODULE FEED · LEONT_ASTRO_ASSIST · paused'))] : []),
           // A window onto a morning that does not move.
           h('div', { className: 'desk-window', ariaHidden: 'true' }),

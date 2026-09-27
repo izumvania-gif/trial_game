@@ -16,3 +16,14 @@ test('the masks that talk are real masks, and speak before knots that exist', ()
     for (const knot of Object.keys(lines)) assert.ok(knots.has(knot), `${mask}: no knot ${knot}`);
   }
 });
+
+test('a mask line about an hour waits for that hour, so an early visit does not use it up', async () => {
+  const { maskVoice } = await import('../src/content/maskVoices.ts');
+  const morning = { evening: false, lastHour: false };
+  assert.equal(maskVoice('Extinguisher', 'eion', morning), null);
+  assert.ok(maskVoice('Extinguisher', 'eion', { evening: true, lastHour: false }));
+  assert.equal(maskVoice('Killer', 'mountain_path', { evening: true, lastHour: false }), null);
+  assert.ok(maskVoice('Killer', 'mountain_path', { evening: true, lastHour: true }));
+  assert.ok(maskVoice('Killer', 'hierocles', morning));
+  assert.equal(maskVoice(null, 'hierocles', morning), null);
+});

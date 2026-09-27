@@ -31,7 +31,8 @@ const DAY = (24 - DAWN_HOUR) * 60;
  * filled once it has been seen, and a line for now. Who crosses whom can be read down the page.
  */
 function dayStrip(entries: { from: number; place: string }[], seenAt: (i: number) => boolean, minute: number): HTMLElement {
-  const strip = h('div', { className: 'book-strip' });
+  // Drawn for the eye; the list under it says the same in words.
+  const strip = h('div', { className: 'book-strip', ariaHidden: 'true' });
   entries.forEach((e, i) => {
     const end = entries[i + 1]?.from ?? DAY;
     const block = h('span', { className: `book-block${seenAt(i) ? ' seen' : ''}` }, PLACE_SHORT[e.place] ?? '');
@@ -48,7 +49,7 @@ function dayStrip(entries: { from: number; place: string }[], seenAt: (i: number
 
 /** Hours along the top of the page, so the strips can be read against them. */
 function dayScale(): HTMLElement {
-  const scale = h('div', { className: 'book-scale' });
+  const scale = h('div', { className: 'book-scale', ariaHidden: 'true' });
   for (const hour of [6, 9, 12, 15, 18, 21, 24]) {
     const tick = h('span', {}, `${String(hour).padStart(2, '0')}`);
     tick.style.left = `${(((hour - DAWN_HOUR) * 60) / DAY) * 100}%`;

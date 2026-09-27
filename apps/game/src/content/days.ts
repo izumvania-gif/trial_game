@@ -13,7 +13,7 @@ export interface DayRecord {
 }
 
 /** How many of the player's days the stone keeps. */
-export const DAYS_KEPT = 9;
+export const DAYS_KEPT = 8;
 
 export interface DayFacts {
   /** Facts first learned this day. */
@@ -36,9 +36,10 @@ export function daySummary(day: DayFacts): string {
     .map((id) => SUBJECTS.find((s) => s.id === id)!.name.replace(/^The /, 'the '))
     .slice(0, 3);
   const parts: string[] = [];
-  parts.push(subjects.length ? `Looked into ${list(subjects)}.` : 'Learned nothing new. Walked the city.');
+  parts.push(subjects.length ? `Looked into ${list(subjects)}.` : 'Learned nothing new.');
   if (day.carved) parts.push(`Cut ${day.carved} into the stele.`);
   if (day.reason === 'song') parts.push('Folded the day shut with the Song.');
+  else if (day.reason === 'ending' && day.ending === 'wake_pressed') parts.push('Everything was done, and you pressed Wake.');
   else if (day.reason === 'ending' && day.ending) parts.push(`It ended: ${ENDINGS[day.ending]?.title ?? day.ending}.`);
   else parts.push('At midnight the city said Yes.');
   return parts.join(' ');

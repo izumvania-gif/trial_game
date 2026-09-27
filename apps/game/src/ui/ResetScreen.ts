@@ -119,13 +119,14 @@ export class ResetScreen {
       this.root.hidden = true;
       onWake?.();
     }, { once: true });
-    this.root.replaceChildren(
+    const said = h('div', { id: 'reset-said' },
       h('p', { className: 'log' }, 'RESET COMPLETED SUCCESSFULLY'),
       h('p', { className: 'log' }, `LOG: CYCLE RUN #${run}`),
       ...(carved ? [h('p', { className: 'log reset-carved' }, 'CARVED ON THE SPIRAL'), h('p', { className: 'reset-day' }, carved)] : []),
-      h('p', { className: 'reset-quiet' }, quiet),
-      wake,
-    );
+      h('p', { className: 'reset-quiet' }, quiet));
+    // Focus goes to Wake; a screen reader reads the log with it.
+    wake.setAttribute('aria-describedby', 'reset-said');
+    this.root.replaceChildren(said, wake);
     this.root.hidden = false;
     if (onWake) wake.focus();
   }

@@ -24,7 +24,7 @@
 - else:
     Grey light on the wax. You fell asleep over the chronicle. Again.
 }
-{knows("curator_chair"):
+{knows("curator_chair") and not knows("curator_awake"):
     The stool creaks under you. You find that you are listening to it, as if it were the first sound you had ever been sure of.
 }
 {ended_last_cycle("intermediate"):

@@ -18,7 +18,7 @@ export const KNOWLEDGE: KnowledgeGraph = {
     { id: 'seam_symbol', text: 'A small circle with a line through it. Where I find it, the world goes thin.' },
     { id: 'registry_three', text: 'Three of the carved scribes are me, and I know what each of them tried.' },
     { id: 'mask_extinguisher', text: 'The Leont who put out the fire had his face chiselled smooth. The smooth face comes off the stone like a mask.' },
-    { id: 'past_attempts', text: 'All six tried something: the fire, the date, the priest, the speech, the sacrifice, the tablets. The day came back every time.' },
+    { id: 'past_attempts', text: 'Nine tried something: the fire, the date, the priest, the speech, the sacrifice, the tablets, the warning, the flight, the song. The day came back every time.' },
     { id: 'sea_absent', text: 'There is no sea on the spiral. Not one wave, on any ring.' },
     { id: 'cleon_repeats', text: 'Cleon\'s speech is word for word the one I have heard before. He believes he wrote it this morning.' },
     { id: 'kora_debts', text: 'The flood burns the rich men\'s ledgers. It also frees Kora\'s dockworkers. She hates it and needs it.' },
