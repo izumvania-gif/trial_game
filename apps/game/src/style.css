@@ -534,7 +534,7 @@ button.cmap-card:focus-visible { outline: 3px dashed var(--lacquer); outline-off
 .cmap-detail button.hint-button:hover { background: var(--lacquer); color: var(--bone); }
 .cmap-questions { height: 100%; overflow-y: auto; max-width: 46rem; margin: 0 auto; padding: 1rem 1.6rem; background: var(--panel-solid); color: var(--bone); border: 2px solid var(--lacquer); }
 .cmap-detail { align-self: flex-start; max-height: 100%; }
-.cmap-arrow.settled { opacity: 0.4; }
+.cmap-arrow.settled { opacity: 0.6; }
 /* Faces on the cards of people; marks for what is new, what has more, and a conclusion to draw. */
 button.cmap-card.has-face { flex-direction: row; justify-content: flex-start; gap: 0.35rem; padding-left: 0.45rem; }
 .cmap-face { flex: none; height: 78%; aspect-ratio: 1; margin-top: 0.35rem; }
@@ -655,3 +655,36 @@ button.cmap-next:hover { background: var(--added-red); border-color: var(--added
 .cmap-links { margin-top: 0.9rem; display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; }
 button.cmap-link { background: transparent; color: var(--lacquer); border: 1px solid var(--lacquer); padding: 0.15rem 0.6rem; font-size: 0.8rem; letter-spacing: 0.04em; text-transform: none; }
 button.cmap-link:hover { background: var(--lacquer); color: var(--bone); }
+/* Polish round 3: the chronicle. */
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+h4.thread-question { font-weight: normal; }
+/* The open card's arrows stand out; the rest step back, so the tangle reads one thread at a time. */
+.cmap-board.focused .cmap-arrow { opacity: 0.3; }
+.cmap-board.focused .cmap-arrow.lit { opacity: 1; stroke-width: 0.5; }
+/* The laurel sits in the card's own row, never over the name. */
+.cmap-laurel { position: static; font-size: 0.9em; line-height: 1; }
+.cmap-legend { margin: 0.35rem 0 0; padding: 0.15rem 0.6rem; align-self: center; background: var(--bone); color: var(--lacquer); border-radius: 2px; font-size: 0.85rem; }
+.cmap-legend b { color: var(--added-red); }
+.cmap-board { margin-bottom: 0.4rem; container-type: inline-size; }
+/* Names grow with the map on a big screen instead of floating in an empty card. */
+button.cmap-card { font-size: clamp(0.66rem, 1.45cqw, 1.05rem); justify-content: center; }
+html.large-text button.cmap-card { font-size: clamp(0.8rem, 1.7cqw, 1.2rem); }
+.cmap-detail h3 small { font-size: 0.8rem; letter-spacing: 0.08em; text-transform: none; }
+/* The frame fills from the top and never spills over the tabs or the Esc line. */
+.cmap-frame { justify-content: flex-start; min-height: 0; overflow: hidden; }
+.cmap-board { width: min(100%, calc((100vh - 17.5rem) * 5 / 3)); flex: none; }
+.cmap-legend { max-width: 100%; }
+html.large-text .cmap-face { height: 1.6em; width: 1.6em; }
+html.large-text .cmap-legend, html.large-text .cmap-drag-hint { font-size: 0.75rem; }
+.cmap-dots { align-items: center; }
+/* Large text: the map's labels keep to the map's own scale (it is drawn to fit the screen); the open card carries the large text. */
+html.large-text button.cmap-card { font-size: clamp(0.62rem, 1.6cqw, 1.2rem); }
+.cmap-board { margin-top: 1.4rem; }
+/* One block under the map: the keys and Tidy up, then the legend, on the same bone chip. */
+.cmap-frame { overflow: visible; }
+.cmap-board { width: min(100%, calc((100vh - 18.5rem) * 5 / 3)); margin-top: 0.9rem; }
+div.cmap-drag-hint { display: flex; flex-direction: column; align-items: center; gap: 0.15rem; padding: 0.2rem 0.7rem; }
+div.cmap-drag-hint p { margin: 0; }
+div.cmap-drag-hint .cmap-legend { margin: 0; padding: 0; background: none; font-style: normal; font-size: 0.8rem; }
+/* Cards near the edge hang half outside the board: leave them room above the hint. */
+.cmap-board { margin-bottom: 1.8rem; width: min(100%, calc((100vh - 20rem) * 5 / 3)); }

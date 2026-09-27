@@ -47,19 +47,34 @@ let mode: 'map' | 'questions' = 'map';
 
 /** The chronicle with its two faces: the map of subjects, and the list of open questions. */
 export function chronicleTabs(map: () => HTMLElement, questions: () => (Node | string)[]): HTMLElement {
-  const body = h('div', { className: 'cmap-body' });
-  const tabs = (['map', 'questions'] as const).map((m) => {
-    const b = h('button', { type: 'button', className: 'cmap-tab' }, m === 'map' ? 'Map' : 'Questions');
+  const body = h('div', { className: 'cmap-body', id: 'cmap-panel' });
+  body.setAttribute('role', 'tabpanel');
+  const modes = ['map', 'questions'] as const;
+  const tabs = modes.map((m) => {
+    const b = h('button', { type: 'button', className: 'cmap-tab', id: `cmap-tab-${m}` }, m === 'map' ? 'Map' : 'Questions');
     b.setAttribute('role', 'tab');
+    b.setAttribute('aria-controls', 'cmap-panel');
     b.addEventListener('click', () => render(m));
+    // Left and right switch tabs, as tabs do; the game never sees them.
+    b.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+      e.preventDefault();
+      e.stopPropagation();
+      const other = modes[(modes.indexOf(m) + 1) % 2]!;
+      render(other);
+      tabs[modes.indexOf(other)]!.focus();
+    });
     return b;
   });
   const render = (m: typeof mode) => {
     mode = m;
     tabs.forEach((b, i) => {
-      b.classList.toggle('on', (i === 0) === (m === 'map'));
-      b.setAttribute('aria-selected', String((i === 0) === (m === 'map')));
+      const on = (i === 0) === (m === 'map');
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-selected', String(on));
+      b.tabIndex = on ? 0 : -1;
     });
+    body.setAttribute('aria-labelledby', `cmap-tab-${m}`);
     body.replaceChildren(...(m === 'map' ? [map()] : [h('div', { className: 'cmap-questions' }, ...questions())]));
   };
   render(mode);
@@ -69,8 +84,9 @@ export function chronicleTabs(map: () => HTMLElement, questions: () => (Node | s
   return h('div', { className: 'cmap-wrap' }, bar, body);
 }
 
-/** Which card is open, kept between openings of the chronicle. */
+/** Which card is open, kept between openings of the chronicle within a day (a new day opens on what to do next). */
 let selected: string | null = null;
+let selectedOn = -1;
 
 export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text: string }[], memory: LoopMemory, hooks: MapHooks): HTMLElement {
   const hintsShown = memory.hintsShown;
@@ -80,12 +96,18 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   const visible = map.cards.filter((c) => c.state !== 'hidden');
   const byId = new Map(map.cards.map((c) => [c.subject.id, c]));
 
-  // Open on the card that has something to do, if the last one is gone or done.
-  const pick = () =>
-    visible.find((c) => c.state === 'explored' && nextOnCard(c.subject, knows))
-    ?? visible.find((c) => c.state === 'rumour')
-    ?? visible[0];
-  if (!selected || !visible.some((c) => c.subject.id === selected)) selected = pick()?.subject.id ?? null;
+  const pendingOn = (id: string) => deductionsFor(id).some((d) => d.requires.every(knows) && !memory.deductions.includes(d.id));
+  // Where next: every card with something to do, in turn — more to find first, then a rumour, then a conclusion.
+  const todo = () => [
+    ...visible.filter((c) => c.state === 'explored' && nextOnCard(c.subject, knows)),
+    ...visible.filter((c) => c.state === 'rumour'),
+    ...visible.filter((c) => c.state !== 'rumour' && pendingOn(c.subject.id)),
+  ].map((c) => c.subject.id).filter((id, i, all) => all.indexOf(id) === i);
+  // Open on the card that has something to do: on a new day, or if the last one is gone.
+  if (selectedOn !== memory.cycle || !selected || !visible.some((c) => c.subject.id === selected)) {
+    selected = todo()[0] ?? visible[0]?.subject.id ?? null;
+    selectedOn = memory.cycle;
+  }
 
   // New since the chronicle was last open: facts written since, and rumours first heard since.
   // Seen as of this opening of the chronicle (switching tabs does not use the marks up); a save
@@ -120,6 +142,8 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       const rumour = byId.get(a.to)!.state === 'rumour';
       const path = svg('path', { d: `M${x1},${y1} Q${mx},${my} ${x2},${y2}`, class: `cmap-arrow${rumour ? ' to-rumour' : ''}${a.settled ? ' settled' : ''}`, 'marker-end': 'url(#cmap-head)' });
       if (a.both) path.setAttribute('marker-start', 'url(#cmap-head)');
+      if (a.from === selected || a.to === selected) path.classList.add('lit');
+      path.dataset.ends = `${a.from} ${a.to}`;
       paths.append(path);
     }
   };
@@ -127,23 +151,30 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   board.append(lines);
 
   const detail = h('aside', { className: 'cmap-detail' });
-  detail.setAttribute('aria-live', 'polite');
   detail.setAttribute('aria-label', 'The open card');
+  // What a screen reader hears when a card opens: its name, not the whole card again.
+  const opened = h('p', { className: 'visually-hidden' });
+  opened.setAttribute('role', 'status');
   const cardEls = new Map<string, HTMLElement>();
   const show = (id: string) => {
     selected = id;
     for (const [cid, el] of cardEls) {
       el.classList.toggle('selected', cid === id);
-      el.setAttribute('aria-pressed', String(cid === id));
+      if (cid === id) el.setAttribute('aria-current', 'true');
+      else el.removeAttribute('aria-current');
       el.tabIndex = cid === id ? 0 : -1;
     }
+    // The open card's own arrows stand out; the rest step back.
+    board.classList.add('focused');
+    for (const p of paths.querySelectorAll<SVGPathElement>('.cmap-arrow')) p.classList.toggle('lit', (p.dataset.ends ?? '').split(' ').includes(id));
+    opened.textContent = `Opened: ${nameOf(id)}`;
     const links = linksOf(id).map(({ to, how }) => {
       const b = h('button', { type: 'button', className: 'cmap-link' }, `${how === 'to' ? '→' : '←'} ${nameOf(to)}`);
       b.title = how === 'to' ? 'What this led to' : 'What led here';
       b.addEventListener('click', () => { show(to); focusCard(to); });
       return b;
     });
-    detail.replaceChildren(...detailOf(byId.get(id)!, knows, text, memory, fresh, hooks, links, () => { const el = cardEls.get(id); el?.classList.add('understood'); if (!pendingOn(id)) el?.querySelector('.cmap-conclude')?.remove(); show(id); }));
+    detail.replaceChildren(...detailOf(byId.get(id)!, nameOf(id), knows, text, memory, fresh, hooks, links, () => { const el = cardEls.get(id); el?.classList.add('understood'); if (!pendingOn(id)) el?.querySelector('.cmap-conclude')?.remove(); show(id); }));
     cardEls.get(id)?.classList.remove('new');
   };
 
@@ -152,7 +183,10 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     for (const [cid, el] of cardEls) el.tabIndex = cid === id ? 0 : -1;
     cardEls.get(id)?.focus();
   };
+  // The way back: the opposite arrow returns to the card the last step came from.
+  let lastStep: { from: string; to: string; dx: number; dy: number } | null = null;
   const nearest = (from: string, dx: number, dy: number): string | null => {
+    if (lastStep && lastStep.to === from && lastStep.dx === -dx && lastStep.dy === -dy && cardEls.has(lastStep.from)) return lastStep.from;
     const a = place(from);
     let best: string | null = null;
     let bestScore = Infinity;
@@ -162,12 +196,13 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       const along = (b.x - a.x) * dx + ((b.y - a.y) * dy * H) / 100;
       if (along <= 0.5) continue;
       const across = Math.abs((b.x - a.x) * dy) + Math.abs(((b.y - a.y) * dx * H) / 100);
+      // Only what lies that way, within a cone; nothing there, no step.
+      if (across > along * 1.2) continue;
       const score = along + across * 2;
       if (score < bestScore) { bestScore = score; best = id; }
     }
     return best;
   };
-  const pendingOn = (id: string) => deductionsFor(id).some((d) => d.requires.every(knows) && !memory.deductions.includes(d.id));
   const halfW = (CARD_W / W) * 50;
   const halfH = (CARD_H / H) * 50;
   const moveTo = (id: string, el: HTMLElement, x: number, y: number) => {
@@ -185,7 +220,16 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   };
 
   // What a screen reader says for a card: what it is, how far along, its marks, and where its arrows go.
-  const nameOf = (id: string) => (byId.get(id)!.state === 'rumour' ? 'a rumour' : byId.get(id)!.subject.name);
+  // A rumour is named after where it was heard of, so two of them do not sound the same.
+  const rumourNames = new Map<string, string>();
+  for (const c of visible.filter((v) => v.state === 'rumour')) {
+    const from = map.arrows.find((a) => a.to === c.subject.id || (a.both && a.from === c.subject.id));
+    const via = from ? byId.get(from.to === c.subject.id ? from.from : from.to)!.subject.name : 'somewhere';
+    let name = `a rumour from ${via}`;
+    for (let n = 2; [...rumourNames.values()].includes(name); n++) name = `a rumour from ${via} (${n})`;
+    rumourNames.set(c.subject.id, name);
+  }
+  const nameOf = (id: string) => rumourNames.get(id) ?? byId.get(id)!.subject.name;
   const linksOf = (id: string) => [
     ...map.arrows.filter((a) => a.from === id || (a.both && a.to === id)).map((a) => ({ to: a.from === id ? a.to : a.from, how: 'to' as const })),
     ...map.arrows.filter((a) => a.to === id && !a.both).map((a) => ({ to: a.from, how: 'from' as const })),
@@ -195,13 +239,12 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     const heardFrom = [...new Set(map.arrows.filter((a) => a.to === id || (a.both && a.from === id)).map((a) => (a.to === id ? a.from : a.to)))].map(nameOf);
     const leadsTo = map.arrows.filter((a) => a.from === id || (a.both && a.to === id)).map((a) => (a.from === id ? a.to : a.from)).map(nameOf);
     return [
-      card.state === 'rumour' ? `Rumour, heard of through ${heardFrom.join(', ') || 'something'}` : `${card.subject.name}, ${card.found.length} of ${total} facts`,
+      card.state === 'rumour' ? `${nameOf(id)}, heard of through ${heardFrom.join(', ') || 'something'}` : `${card.subject.name}, ${card.found.length} of ${total} facts`,
       card.state === 'complete' ? 'complete' : '',
       marks.more ? 'more to find' : '',
       marks.pending ? 'a conclusion to draw' : '',
       marks.isNew ? 'new' : '',
       card.state !== 'rumour' && leadsTo.length ? `leads to ${leadsTo.join(', ')}` : '',
-      'Shift and arrow keys move it',
     ].filter(Boolean).join('; ');
   };
 
@@ -222,8 +265,9 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       ? h('span', { className: 'cmap-q' }, '?')
       : h('span', { className: 'cmap-text' },
         h('span', { className: 'cmap-name' }, card.subject.name),
-        h('span', { className: 'cmap-dots' }, ...card.subject.facts.map((f) => h('i', { className: knows(f) ? 'on' : '' })))),
-    card.state === 'complete' ? h('span', { className: 'cmap-laurel', title: 'Nothing left to learn here' }, '❦') : '',
+        h('span', { className: 'cmap-dots' }, ...card.subject.facts.map((f) => h('i', { className: knows(f) ? 'on' : '' })),
+          // The laurel ends the row of dots, never sits over the name.
+          card.state === 'complete' ? h('span', { className: 'cmap-laurel', title: 'Nothing left to learn here' }, '❦') : '')),
     more ? h('span', { className: 'cmap-more', title: 'There is more here, and the way is open' }, '!') : '',
     pending ? h('span', { className: 'cmap-conclude', title: 'A conclusion to draw' }, '✎') : '',
     h('span', { className: 'cmap-new' }, 'new'));
@@ -251,7 +295,6 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       moveTo(card.subject.id, el, ((e.clientX - drag.dx - r.left) / r.width) * 100, ((e.clientY - drag.dy - r.top) / r.height) * 100);
       redraw();
     });
-    // Arrow keys move a focused card too (Shift for a longer step); the game does not see them.
     // Arrow keys go to the nearest card that way; with Shift they move this card instead.
     // The game never sees them.
     el.addEventListener('keydown', (e) => {
@@ -267,7 +310,10 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
         return;
       }
       const next = nearest(card.subject.id, d[0]!, d[1]!);
-      if (next) focusCard(next);
+      if (!next) return;
+      lastStep = { from: card.subject.id, to: next, dx: d[0]!, dy: d[1]! };
+      show(next);
+      focusCard(next);
     });
     // The click that ends a drag is not a click; every other one (mouse, Enter, Space, a screen reader) opens the card.
     const end = () => {
@@ -292,8 +338,8 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
 
   // Back to the cup's own arrangement.
   const tidy = h('button', { type: 'button', className: 'cmap-tidy', title: 'Put every card back where it was painted' }, 'Tidy up');
-  tidy.addEventListener('click', () => {
-    memory.mapLayout = {};
+  const lay = (layout: typeof memory.mapLayout) => {
+    memory.mapLayout = layout;
     for (const [id, el] of cardEls) {
       const p = at(id);
       el.style.left = `${(p.x / W) * 100}%`;
@@ -301,16 +347,23 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
     }
     drawArrows();
     hooks.onLayout();
+  };
+  const undo = h('button', { type: 'button', className: 'cmap-tidy', hidden: true }, 'Undo');
+  let before: typeof memory.mapLayout = {};
+  tidy.addEventListener('click', () => {
+    before = { ...memory.mapLayout };
+    lay({});
+    undo.hidden = Object.keys(before).length === 0;
+  });
+  undo.addEventListener('click', () => {
+    lay(before);
+    undo.hidden = true;
+    tidy.focus();
   });
 
-  const legend = h('span', { className: 'cmap-legend' }, h('b', {}, '!'), ' more to find · ✎ a conclusion · ? heard of · ', h('b', {}, '❦'), ' complete · ● a fact');
-  const hint = h('p', { className: 'cmap-drag-hint' }, 'Drag the cards (or Shift + arrows) to arrange them. ', tidy, legend);
-  // Where next: every card with something to do, in turn — a conclusion first, then more to find, then a rumour.
-  const todo = () => [
-    ...visible.filter((c) => c.state !== 'rumour' && pendingOn(c.subject.id)),
-    ...visible.filter((c) => c.state === 'explored' && nextOnCard(c.subject, knows)),
-    ...visible.filter((c) => c.state === 'rumour'),
-  ].map((c) => c.subject.id).filter((id, i, all) => all.indexOf(id) === i);
+  const legend = h('span', { className: 'cmap-legend' }, h('b', {}, '!'), ' more to find · ✎ conclusion · ? rumour · ', h('b', {}, '❦'), ' done · ● a fact · NEW since last time · dashed: to a rumour · faint: settled');
+  const keys = h('span', { id: 'cmap-keys' }, 'Arrows go from card to card; drag, or Shift + arrows, to move one. ');
+  const hint = h('div', { className: 'cmap-drag-hint' }, h('p', {}, keys, tidy, undo), legend);
   const nextBtn = h('button', { type: 'button', className: 'cmap-next' }, 'Where next?');
   nextBtn.title = 'Open the next card that has something to do';
   const nextNote = h('span', { className: 'cmap-next-note' });
@@ -322,13 +375,21 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
       return;
     }
     const at = ids.indexOf(selected ?? '');
-    const id = ids[(at + 1) % ids.length]!;
-    nextNote.textContent = `${ids.length} with something to do`;
+    const n = (at + 1) % ids.length;
+    const id = ids[n]!;
+    const card = byId.get(id)!;
+    const what = card.state === 'rumour' ? 'heard of, not yet seen' : nextOnCard(card.subject, knows) ? 'more to find' : 'a conclusion to draw';
+    nextNote.textContent = `${n + 1} of ${ids.length}: ${what} — ${nameOf(id)}`;
     show(id);
+    // Asking where next is asking for the hint: it is shown at once.
+    detail.querySelector<HTMLButtonElement>('.hint-button')?.click();
     focusCard(id);
   });
   const bar = h('p', { className: 'cmap-toolbar' }, nextBtn, nextNote);
-  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, bar, board, hint), detail);
+  board.setAttribute('role', 'group');
+  board.setAttribute('aria-label', `Map of subjects, ${visible.length} cards`);
+  board.setAttribute('aria-describedby', 'cmap-keys');
+  const root = h('div', { className: 'cmap' }, h('div', { className: 'cmap-frame' }, bar, board, hint), detail, opened);
   if (selected) show(selected);
   // Opening the chronicle puts the keyboard on the open card, so arrows and Enter work at once.
   if (selected) {
@@ -338,12 +399,12 @@ export function chronicleMapView(knowledge: Knowledge, facts: { id: string; text
   return root;
 }
 
-function detailOf(card: Card, knows: (id: string) => boolean, text: (id: string) => string, memory: LoopMemory, fresh: Set<string>,
+function detailOf(card: Card, name: string, knows: (id: string) => boolean, text: (id: string) => string, memory: LoopMemory, fresh: Set<string>,
   hooks: MapHooks, links: HTMLElement[], rerender: () => void): (Node | string)[] {
   const out: (Node | string)[] = [];
   const next = nextOnCard(card.subject, knows);
   if (card.state === 'rumour') {
-    out.push(h('h3', {}, '?'), h('p', { className: 'cmap-kicker' }, 'Heard of, not yet seen. What led here:'));
+    out.push(h('h3', {}, '? ', h('small', {}, name)), h('p', { className: 'cmap-kicker' }, 'Heard of, not yet seen. What led here:'));
     out.push(h('ul', {}, ...card.heard.map((f) => h('li', {}, text(f)))));
   } else {
     const face = card.subject.face ? h('span', { className: 'cmap-detail-face' }, cloneCanvas(portrait(card.subject.face, 'vase'))) : '';

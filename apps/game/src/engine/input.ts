@@ -14,7 +14,8 @@ export class Input {
 
   constructor(target: HTMLElement) {
     window.addEventListener('keydown', (e) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      // Letters typed into a field or a word box stay there; Esc still closes what is open.
+      if (e.code !== 'Escape' && (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement)) return;
       if (!e.repeat) this.pressed.add(e.code);
       this.down.add(e.code);
     });

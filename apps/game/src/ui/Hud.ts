@@ -14,7 +14,19 @@ export class Hud {
   private cycleEl = h('div', { className: 'hud-cycle' });
   private promptEl = h('div', { className: 'hud-prompt', hidden: true });
   private toastEl = h('div', { className: 'hud-toast' });
-  private chronicleEl = h('aside', { className: 'chronicle', hidden: true });
+  private chronicleEl = (() => {
+    const el = h('aside', { className: 'chronicle', hidden: true });
+    el.addEventListener('keydown', (e) => {
+      if (e.key !== 'Tab' || !el.classList.contains('wide')) return;
+      const all = [...el.querySelectorAll<HTMLElement>('button, select, [tabindex="0"]')].filter((x) => !x.hidden && x.tabIndex >= 0 && x.offsetParent);
+      if (!all.length) return;
+      const first = all[0]!;
+      const last = all[all.length - 1]!;
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    });
+    return el;
+  })();
   private hourEl: SVGTextElement;
   private arcEl: SVGCircleElement;
   private timeEl = h('div', { className: 'hud-time' });
@@ -129,7 +141,15 @@ export class Hud {
     if (this.openPanelId === id) return this.closePanel();
     // The chronicle's map takes the whole screen; the Book stays a page at the side.
     this.chronicleEl.classList.toggle('wide', wide);
-    this.chronicleEl.replaceChildren(h('h2', {}, title), ...content(), h('p', { className: 'chronicle-hint' }, ...keyLine('Esc — close')));
+    this.chronicleEl.replaceChildren(h('h2', { id: 'panel-title' }, title), ...content(), h('p', { className: 'chronicle-hint' }, ...keyLine('Esc — close')));
+    // The full-screen chronicle is a dialog: named, modal, and Tab goes round inside it.
+    if (wide) {
+      this.chronicleEl.setAttribute('role', 'dialog');
+      this.chronicleEl.setAttribute('aria-modal', 'true');
+      this.chronicleEl.setAttribute('aria-labelledby', 'panel-title');
+    } else {
+      for (const a of ['role', 'aria-modal', 'aria-labelledby']) this.chronicleEl.removeAttribute(a);
+    }
     this.chronicleEl.hidden = false;
     this.openPanelId = id;
   }

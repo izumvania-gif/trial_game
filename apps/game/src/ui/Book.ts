@@ -96,12 +96,13 @@ export function bookOfStrangers(memory: LoopMemory, knowledge: Knowledge, patche
  * "Where to look next" is there only if the player asks for it; once asked, it stays shown
  * until that step is done.
  */
-export function hintLine(text: string, key: string, hintsShown: string[]): HTMLElement {
+export function hintLine(text: string, key: string, hintsShown: string[], about?: string): HTMLElement {
   const line = h('p', { className: 'thread-next' });
   const reveal = () => line.replaceChildren(h('span', {}, 'Next'), text);
   if (hintsShown.includes(key)) reveal();
   else {
     const btn = h('button', { type: 'button', className: 'hint-button' }, 'Show hint');
+    if (about) btn.setAttribute('aria-label', `Show hint: ${about}`);
     btn.addEventListener('click', () => {
       if (!hintsShown.includes(key)) hintsShown.push(key);
       reveal();
@@ -128,9 +129,9 @@ export function chronicle(knowledge: Knowledge, facts: { id: string; text: strin
     out.push(h('h3', { className: 'chronicle-section' }, 'Open questions'));
     for (const v of open) {
       out.push(h('section', { className: 'thread' },
-        h('p', { className: 'thread-question' }, v.thread.question),
+        h('h4', { className: 'thread-question' }, v.thread.question),
         ...(v.found.length ? [h('ul', { className: 'thread-found' }, ...v.found.map((f) => h('li', {}, text(f))))] : []),
-        ...(v.next && v.hintKey ? [hintLine(v.next, v.hintKey, hintsShown)] : []),
+        ...(v.next && v.hintKey ? [hintLine(v.next, v.hintKey, hintsShown, v.thread.question)] : []),
       ));
     }
   }
