@@ -1,0 +1,14 @@
+{
+  "name": "@eferon/agent",
+  "private": true,
+  "type": "module",
+  "description": "Play EFERON as an AI agent: the game in words, over HTTP, a CLI or MCP.",
+  "bin": { "eferon-agent": "./eferon.mjs" },
+  "scripts": {
+    "serve": "node eferon.mjs serve",
+    "mcp": "node eferon.mjs mcp"
+  },
+  "dependencies": {
+    "playwright": "^1.55.0"
+  }
+}

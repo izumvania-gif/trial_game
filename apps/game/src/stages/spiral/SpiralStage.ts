@@ -9,7 +9,7 @@ import { h } from '../../ui/dom.ts';
 import { registryOverview, registryRow } from '../../ui/Registry.ts';
 import { disposeScene } from '../dispose.ts';
 import { lambert, makeFigure } from '../figures.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
 import { HallDecor } from './hall.ts';
 
 const RINGS = 4;
@@ -178,6 +178,71 @@ export class SpiralStage implements Stage {
   onResize(): void {
     this.camera.aspect = this.host.aspect();
     this.camera.updateProjectionMatrix();
+  }
+
+  // ─── Agent mode: the rings by angle, the carvings in words ───
+
+  agent(): StageAgent {
+    const ringName = (i: number) => ['outer ring', 'second ring', 'third ring', 'inner ring'][i] ?? `ring ${i}`;
+    const deg = (rad: number) => Math.round(((((rad * 180) / Math.PI) % 360) + 360) % 360);
+    const confirmed = () => PAST_LEONTS.filter((l) => this.host.memory.registry[l.id]?.locked).length;
+    return {
+      describe: () => [
+        'The Hall of Anamnesis: a disk of white marble, taller than three men, carved in rings of scribes around an empty circle. Each scribe is a carving you can study; the rings turn.',
+        this.aligned ? 'Two of the carvings stand in line: the rings are set.' : 'The rings can be turned: turning a ring by +d degrees moves every carving on it from angle a to a + d.',
+        ...(this.seam.visible ? ['A small mark shows in the stone: a circle with a line through it.'] : []),
+        `Registry: ${confirmed()} of ${PAST_LEONTS.length} scribes confirmed.`,
+      ],
+      actions: () => {
+        const out: AgentAction[] = [{ id: 'carvings', label: 'List the carvings on the rings, with where each stands' }];
+        if (!this.aligned) out.push(...this.rings.map((_, i) => ({ id: `turn:${i}`, label: `Turn the ${ringName(i)}`, arg: 'degrees, e.g. 40 or -40' })));
+        out.push({ id: 'study', label: 'Study one carving (and name him in the registry)', arg: 'a scribe id from the list, e.g. l1' });
+        out.push({ id: 'registry', label: 'Open the registry of all scribes' });
+        if (this.seam.visible) out.push({ id: 'touch_mark', label: 'Touch the mark' });
+        out.push({ id: 'leave', label: 'Go back up into the town' });
+        return out;
+      },
+      perform: (id, arg) => {
+        const [verb, what] = id.split(':');
+        if (this.cardOpen && verb !== 'carvings') return 'A card is open: close it first (its Close button, or Esc).';
+        if (verb === 'carvings') {
+          return PAST_LEONTS.filter((l) => this.scribes.has(l.id)).map((l) => {
+            const e = this.host.memory.registry[l.id];
+            const n = PAST_LEONTS.indexOf(l) + 1;
+            return `${l.id} · Leont ${n} · ${ringName(l.ring)} at ${deg(this.angleOf(l.id))}°${e?.locked ? ' · confirmed' : e?.attempt ? ' · named, not yet confirmed' : ''}: ${l.carving.split('. ')[0]}.`;
+          }).join('\n');
+        }
+        if (verb === 'turn') {
+          const ring = this.rings[Number(what)];
+          const by = Number(arg);
+          if (!ring || !Number.isFinite(by)) return 'Say which ring and by how many degrees.';
+          if (this.aligned) return 'The rings are set; they no longer turn.';
+          ring.group.rotation.z += (by * Math.PI) / 180;
+          this.host.sound('grind');
+          this.checkAlignment();
+          return this.aligned ? 'The rings lock. The light runs across the stone.' : `The ${ringName(Number(what))} turns ${by}°.`;
+        }
+        if (verb === 'study') {
+          const l = PAST_LEONTS.find((x) => x.id === (what ?? arg) && this.scribes.has(x.id));
+          if (!l) return 'No such carving here. Use "carvings" for the ids.';
+          this.openCard(l);
+          return `You study Leont ${PAST_LEONTS.indexOf(l) + 1}.`;
+        }
+        if (verb === 'registry') {
+          this.openRegistry();
+          return 'You open the registry.';
+        }
+        if (verb === 'touch_mark' && this.seam.visible) {
+          this.host.interact('spiral_seam');
+          return 'You touch the mark.';
+        }
+        if (verb === 'leave') {
+          this.host.switchStage('town', 'temple');
+          return 'You climb back up into the day.';
+        }
+        return null;
+      },
+    };
   }
 
   update(dt: number): void {

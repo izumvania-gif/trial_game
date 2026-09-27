@@ -8,6 +8,8 @@ import { drawSpiral } from './spiral.ts';
 import { mountDebugPanel } from './ui/DebugPanel.ts';
 import { PORTRAIT_IDS, portrait } from './ui/portraits.ts';
 import { MOODS } from './content/moods.ts';
+import { installVirtualTime } from './agent/virtualTime.ts';
+import { AgentBridge } from './agent/bridge.ts';
 
 const title = document.querySelector<HTMLElement>('#title')!;
 const titleCanvas = document.querySelector<HTMLCanvasElement>('#spiral')!;
@@ -20,7 +22,13 @@ const redrawTitle = () => drawSpiral(titleCanvas, 0);
 window.addEventListener('resize', redrawTitle);
 redrawTitle();
 
+// Agent mode: a virtual clock (time moves only when the agent acts) and the game in words.
+const agentMode = new URLSearchParams(location.search).has('agent');
+const virtualTime = agentMode ? installVirtualTime() : null;
+
 const settings = new SettingsStore(browserStorage());
+// An agent cannot hear or time a word: no sound, déjà vu at any moment, text at once, no tips.
+if (agentMode) settings.update({ master: 0, noRhythm: true, reducedMotion: true, tips: false, lessMeta: true, quality: 'low' });
 settings.subscribe((s) => {
   document.documentElement.classList.toggle('large-text', s.largeText);
   document.documentElement.classList.toggle('reduced-motion', s.reducedMotion);
@@ -44,6 +52,17 @@ if (new URLSearchParams(location.search).has('portraits')) {
     add(portrait(id, 'marble', false, 'sorrow'), `${id} marble`);
   }
   document.body.append(sheet);
+}
+if (virtualTime) {
+  const bridge = new AgentBridge(game, virtualTime);
+  // Stage guides are written for hands on keys; the agent reads its own actions instead.
+  game.save.memory.guides.push('town', 'spiral', 'relief', 'desk', 'board', 'strikes', 'sea', 'diary');
+  (window as unknown as { eferonAgent: unknown }).eferonAgent = {
+    observe: () => bridge.observe(),
+    act: (id: string, arg?: string) => bridge.act(id, arg),
+    settle: () => bridge.settle(),
+  };
+  void bridge.settle(0.2);
 }
 if (new URLSearchParams(location.search).has('debug')) {
   mountDebugPanel(game, document.body);

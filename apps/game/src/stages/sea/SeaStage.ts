@@ -5,7 +5,7 @@ import { lambert } from '../figures.ts';
 import { disposeScene } from '../dispose.ts';
 import { SEA_SKY, Sky } from '../sky.ts';
 import { Shore } from './shore.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { Stage, StageAgent, StageHost } from '../types.ts';
 
 export class SeaStage implements Stage {
   readonly id = 'sea' as const;
@@ -69,6 +69,18 @@ export class SeaStage implements Stage {
   onResize(): void {
     this.camera.aspect = this.host.aspect();
     this.camera.updateProjectionMatrix();
+  }
+
+  agent(): StageAgent {
+    return {
+      describe: () => [this.final ? 'The shore at night. The sea, the only thing here that is never the same twice.' : 'The shore. The sea comes in and goes out, never the same way twice.'],
+      actions: () => (this.final ? [] : [{ id: 'leave', label: 'Go back up into the town' }]),
+      perform: (id) => {
+        if (id !== 'leave' || this.final) return null;
+        this.host.switchStage('town', 'shore');
+        return 'You go back up the path.';
+      },
+    };
   }
 
   update(dt: number): void {

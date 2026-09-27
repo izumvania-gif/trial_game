@@ -503,7 +503,8 @@ export class Game {
     if (this.phase === 'playing') {
       this.handleKeys();
       this.clock.endMinute = endMinuteForWind(this.save.cycle.wind);
-      if (this.current.clockRuns && !blocked && this.clock.tick(dt)) this.midnight();
+      // Time spent in a jump (a long conversation, a wait) can reach the end without a tick crossing it.
+      if (this.current.clockRuns && !blocked && (this.clock.tick(dt) || this.clock.isOver)) this.midnight();
       this.current.update(dt);
     }
     if (this.current.scene && this.current.camera) this.renderer.render(this.current.scene, this.current.camera);

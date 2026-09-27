@@ -47,6 +47,23 @@ export interface StageHost {
   persist(): void;
 }
 
+/** Something an agent can do here: an id to pass back, and what it means in words. */
+export interface AgentAction {
+  id: string;
+  label: string;
+  /** What `arg` means, when the action takes one (a number of degrees, a tile, a time). */
+  arg?: string;
+}
+
+/** A stage's side of agent mode (`?agent`): what is around, in words, and what can be done. */
+export interface StageAgent {
+  /** Lines describing what the player perceives here now. */
+  describe(): string[];
+  actions(): AgentAction[];
+  /** Do it; returns a note on what happened, or null if the id is not this stage's. */
+  perform(id: string, arg?: string): string | null;
+}
+
 export interface Stage {
   readonly id: StageId;
   /** null: a DOM-only stage (the Desk); the 3D canvas is hidden. */
@@ -68,4 +85,6 @@ export interface Stage {
   afterDialogue?(): void;
   /** Player position to persist, for stages that have one. */
   snapshot?(): { x: number; z: number; facing: number };
+  /** Agent mode: this stage in words, and its actions beyond buttons on screen. */
+  agent?(): StageAgent;
 }

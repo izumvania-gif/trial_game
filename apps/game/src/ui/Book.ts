@@ -8,7 +8,7 @@ import { h } from './dom.ts';
 import { cloneCanvas, PORTRAIT_IDS, portrait } from './portraits.ts';
 
 /** Where a place is, in the words a stranger would use: enough to find it, not what happens there. */
-const PLACE_NAMES: Record<string, string> = {
+export const PLACE_NAMES: Record<string, string> = {
   temple: 'the temple of Apollo', stele: 'the star stele', center: 'the central square', agora: 'the agora',
   council: 'the council steps', aristion: "Aristion's house, west of the temple", shrine: 'the shrine of Demeter, east',
   port: 'the port', tavern: 'the port tavern', shore: 'the shore', mountain: 'the mountain path',

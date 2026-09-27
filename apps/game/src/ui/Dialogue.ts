@@ -94,6 +94,33 @@ export class Dialogue {
     return this.source !== null;
   }
 
+  // Agent mode reads the box and presses its keys through these.
+  get agentView(): { speaker: string; text: string; choices: string[]; dejavu: boolean } | null {
+    if (!this.source) return null;
+    return {
+      speaker: this.plate.innerText.replace(/\s+/g, ' ').trim(),
+      text: this.body.innerText.replace(/\s+/g, ' ').trim(),
+      choices: [...this.choiceList.querySelectorAll('button')].map((b) => (b.lastElementChild?.textContent ?? b.textContent ?? '').trim()),
+      dejavu: !!this.speaking,
+    };
+  }
+
+  agentContinue(): void {
+    this.advance();
+  }
+
+  agentChoose(n: number): boolean {
+    if (n < 0 || n >= this.choiceList.childElementCount) return false;
+    this.pick(n);
+    return true;
+  }
+
+  agentFinish(): boolean {
+    if (!this.speaking) return false;
+    this.speaking.finish();
+    return true;
+  }
+
   run(source: DialogueSource, onLine: (line: StoryLine) => void, onDone: () => void, opts: DialogueOptions = {}): void {
     this.source = source;
     this.onLine = onLine;

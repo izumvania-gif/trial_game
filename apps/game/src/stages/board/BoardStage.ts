@@ -9,7 +9,7 @@ import { makeSea } from '../../render/sea.ts';
 import { h } from '../../ui/dom.ts';
 import { disposeScene } from '../dispose.ts';
 import { lambert, makeFigure } from '../figures.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
 
 const TILE = 2.2;
 const STEP_SECONDS = 0.7;
@@ -251,6 +251,66 @@ export class BoardStage implements Stage {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Put an ally on a tile, as a click on the board does. */
+  private placeAlly(id: AllyId, tile: Tile): boolean {
+    if (!canPlace(tile, this.enemies) || Object.entries(this.allies).some(([a, t]) => a !== id && t && sameTile(t, tile))) return false;
+    this.allies[id] = tile;
+    const fig = this.allyFigures.get(id)!;
+    fig.position.copy(tileToWorld(tile));
+    fig.visible = true;
+    this.selected = this.available().find((a) => !this.allies[a]) ?? id;
+    this.renderPanel();
+    return true;
+  }
+
+  agent(): StageAgent {
+    const map = () => {
+      const rows: string[] = [];
+      for (let r = 0; r < ROWS; r++) {
+        let line = `${r} `;
+        for (let c = 0; c < COLS; c++) {
+          const t: Tile = [c, r];
+          const land = Object.entries(LANDMARKS).find(([, lt]) => sameTile(lt, t))?.[0];
+          const ally = (Object.entries(this.allies) as [AllyId, Tile][]).find(([, at]) => sameTile(at, t))?.[0];
+          const start = this.enemies.find((e) => sameTile(e.path[0]!, t));
+          const walked = this.enemies.some((e) => e.path.some((p) => sameTile(p, t)));
+          line += ' ' + (ally ? ally[0]!.toUpperCase() + ally[1]! : land ? land.slice(0, 2).toUpperCase() : start ? start.id[0]!.toLowerCase() + '>' : sameTile(t, WELL_TILE) ? 'we' : walked ? '··' : '  ');
+        }
+        rows.push(line);
+      }
+      return ['   ' + Array.from({ length: COLS }, (_, c) => ` ${c} `).join(''), ...rows];
+    };
+    return {
+      describe: () => {
+        if (this.playback) return ['The night is being played out on the board.'];
+        return [
+          'The night painted on the tavern table, a grid of 7 columns (0–6, west to east) by 5 rows (0–4, north to south).',
+          'Map (HA hall, MO mountain, SH shore, TA tavern, we the old well, p>/g>/l> where the priest, a guard, Lysimachus start, ·· their routes, Ka/Ar/Ei/Ta your allies):',
+          ...map(),
+          'Routes tonight:',
+          ...this.enemies.map((e) => `- ${e.name}: ${e.path.map((t) => `(${t[0]},${t[1]})`).join(' → ')} to the ${e.goal}; only ${e.stoppedBy.map((a) => ALLY_NAMES[a]).join(' or ')} can stop them.`),
+          `With you: ${this.available().map((a) => `${ALLY_NAMES[a]}${this.allies[a] ? ` at (${this.allies[a]!.join(',')})` : ' (not placed)'}`).join(', ')}.`,
+          'An ally standing on a tile of a route stops the walker there if he listens to them. Allies cannot stand on landmarks or on a starting tile.',
+        ];
+      },
+      actions: () => (this.playback || this.result ? [] : this.available().map((a): AgentAction => ({ id: `place:${a}`, label: `Put ${ALLY_NAMES[a]} on a tile`, arg: 'col,row e.g. 3,1' }))),
+      perform: (id, arg) => {
+        const [verb, what] = id.split(':');
+        if (verb !== 'place') return null;
+        const ally = what as AllyId;
+        if (!this.available().includes(ally)) return `${what} is not with you tonight.`;
+        const m = /^\s*(\d)\s*,\s*(\d)\s*$/.exec(arg ?? '');
+        if (!m) return 'Give the tile as col,row.';
+        return this.placeAlly(ally, [Number(m[1]), Number(m[2])]) ? `${ALLY_NAMES[ally]} stands at (${m[1]},${m[2]}).` : 'Nobody can stand there.';
+      },
+    };
+  }
+
+  /** The night is still being played (the bridge waits for it). */
+  get agentBusy(): boolean {
+    return !!this.playback && !this.awaitingCurator;
+  }
+
   update(dt: number): void {
     const { input } = this.host;
     this.sea?.material.tick(dt);
@@ -258,17 +318,7 @@ export class BoardStage implements Stage {
     if (this.playback) return this.play(dt);
     if (this.result) return;
     const tile = this.tileUnderMouse();
-    if (input.wasClicked() && tile && this.selected) {
-      if (canPlace(tile, this.enemies) && !Object.values(this.allies).some((t) => sameTile(t, tile))) {
-        this.allies[this.selected] = tile;
-        const fig = this.allyFigures.get(this.selected)!;
-        fig.position.copy(tileToWorld(tile));
-        fig.visible = true;
-        const free = this.available().find((a) => !this.allies[a]);
-        this.selected = free ?? this.selected;
-        this.renderPanel();
-      }
-    }
+    if (input.wasClicked() && tile && this.selected && !Object.values(this.allies).some((t) => sameTile(t, tile))) this.placeAlly(this.selected, tile);
   }
 
   /** While the night plays, the map darkens, the torches are lit and the candle burns down. */

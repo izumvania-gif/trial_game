@@ -5,12 +5,13 @@ import * as THREE from 'three';
 import { RESIDENTS, type Resident } from '../../content/residents.ts';
 import { residentAt } from '../../core/schedule.ts';
 import { daySeed, seaRandom, seededRng } from '../../core/rng.ts';
-import { distanceToStreets, PLACES, STREET_EDGES } from '../../core/streets.ts';
+import { distanceToStreets, pathLength, PLACES, route, STREET_EDGES, type Place } from '../../core/streets.ts';
+import { PLACE_NAMES } from '../../ui/Book.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
 import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
 import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
@@ -45,6 +46,12 @@ const ENTRIES: Record<string, [number, number, number]> = {
 
 /** How much nearer than a resident a place may be and still be the one E talks to. */
 const PLACE_BIAS = 0.4;
+
+/** Street corners without a place of their own, named for agent mode. */
+const who = (name: string) => name.replace(/^The /, 'the ');
+const STREET_NAMES: Record<string, string> = {
+  south: 'the street down to the port', westLane: 'the west lane', eastLane: 'the east lane', northEast: 'the road to the mountain gate', eastRoad: 'the east road',
+};
 
 const PLACES_TO_TALK: Interactable[] = [
   { x: -4.5, z: -10, radius: 1.8, knot: 'stele', label: 'Star stele' },
@@ -485,6 +492,163 @@ export class TownStage implements Stage {
 
   snapshot() {
     return { x: this.player.position.x, z: this.player.position.z, facing: this.facing };
+  }
+
+  // ─── Agent mode: the town in words, walking by the streets, talking by name ───
+
+  agent(): StageAgent {
+    return { describe: () => this.agentDescribe(), actions: () => this.agentActions(), perform: (id, arg) => this.agentPerform(id, arg) };
+  }
+
+  private nodeNear(x: number, z: number): Place {
+    let best: Place = 'center';
+    let bestD = Infinity;
+    for (const [id, pt] of Object.entries(PLACES) as [Place, { x: number; z: number }][]) {
+      const d = Math.hypot(pt.x - x, pt.z - z);
+      if (d < bestD) { bestD = d; best = id; }
+    }
+    return best;
+  }
+
+  private placeName(x: number, z: number): string {
+    const node = this.nodeNear(x, z);
+    const d = Math.hypot(PLACES[node].x - x, PLACES[node].z - z);
+    const name = PLACE_NAMES[node] ?? STREET_NAMES[node] ?? 'the streets';
+    return d < 4 ? `at ${name}` : `in the streets near ${name}`;
+  }
+
+  private agentPeople(radius = 20): { npc: Npc; d: number; where: string; walking: boolean }[] {
+    const p = this.player.position;
+    const patches = this.host.patches();
+    return this.npcs
+      .filter((n) => n.figure.visible)
+      .map((npc) => {
+        const f = npc.figure.position;
+        const state = residentAt(npc.resident, this.host.clock.minute, patches);
+        return { npc, d: Math.hypot(f.x - p.x, f.z - p.z), where: this.placeName(f.x, f.z), walking: state.walking && !npc.still };
+      })
+      .filter((x) => x.d <= radius)
+      .sort((a, b) => a.d - b.d);
+  }
+
+  private agentDescribe(): string[] {
+    const p = this.player.position;
+    const out = [`You are ${this.placeName(p.x, p.z)}.`];
+    const people = this.agentPeople();
+    out.push(people.length
+      ? `In sight: ${people.map((x) => `${who(x.npc.resident.name)} (${x.npc.still ? 'standing still, facing the mountain' : x.walking ? 'walking' : 'standing'} ${x.where}, ${Math.round(x.d)} m)`).join('; ')}.`
+      : 'Nobody you know is in sight.');
+    const near = this.nearest();
+    if (near) out.push(`Right here: ${near.label}.`);
+    if (this.host.clock.minute >= at(19)) out.push('Torches are lit. People are going up the mountain path.');
+    return out;
+  }
+
+  private agentActions(): AgentAction[] {
+    const p = this.player.position;
+    const out: AgentAction[] = [];
+    for (const x of this.agentPeople(14)) {
+      out.push({ id: `talk:${x.npc.resident.id}`, label: `${x.npc.still ? 'Look at' : 'Talk to'} ${who(x.npc.resident.name)} (${Math.round(x.d)} m)` });
+    }
+    for (const spot of PLACES_TO_TALK) {
+      const d = Math.hypot(spot.x - p.x, spot.z - p.z);
+      if (d <= 14) out.push({ id: `talk:${spot.knot}`, label: `${spot.label} (${Math.round(d)} m)` });
+    }
+    for (const x of this.agentPeople(30)) out.push({ id: `meet:${x.npc.resident.id}`, label: `Walk up to ${who(x.npc.resident.name)}` });
+    for (const [id, name] of Object.entries(PLACE_NAMES)) out.push({ id: `go:${id}`, label: `Walk to ${name}` });
+    out.push({ id: 'wait', label: 'Wait here', arg: 'minutes (default 30)' });
+    out.push({ id: 'wait_until', label: 'Wait until a time of day', arg: 'HH:MM, e.g. 18:00' });
+    return out;
+  }
+
+  /** Walk by the streets to (x, z): the clock moves by the time it takes. Returns minutes spent. */
+  private agentWalk(x: number, z: number): number {
+    const p = this.player.position;
+    const path = route(this.nodeNear(p.x, p.z), this.nodeNear(x, z));
+    const first = path[0] ?? { x: p.x, z: p.z };
+    const last = path[path.length - 1] ?? { x, z };
+    const dist = Math.hypot(first.x - p.x, first.z - p.z) + pathLength(path) + Math.hypot(x - last.x, z - last.z);
+    const minutes = dist / SPEED / this.host.clock.secondsPerMinute;
+    this.host.clock.spend(minutes);
+    return minutes;
+  }
+
+  /** Stand `gap` m from (x, z), on the street side, facing it. */
+  private agentStandBy(x: number, z: number, gap: number): void {
+    const node = PLACES[this.nodeNear(x, z)];
+    let a = Math.atan2(node.x - x, node.z - z);
+    if (Math.hypot(node.x - x, node.z - z) < 0.3) a = 0;
+    for (let k = 0; k < 12; k++) {
+      const t = a + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.5;
+      const px = x + Math.sin(t) * gap;
+      const pz = z + Math.cos(t) * gap;
+      if (!this.blocked(px, pz)) {
+        this.player.position.set(px, 0, pz);
+        this.facing = Math.atan2(x - px, z - pz);
+        this.player.rotation.y = this.facing;
+        return;
+      }
+    }
+    this.player.position.set(node.x, 0, node.z);
+  }
+
+  private agentPerform(id: string, arg?: string): string | null {
+    const [verb, what] = id.split(':');
+    const clock = this.host.clock;
+    if (verb === 'wait' || verb === 'wait_until') {
+      let minutes = Number(arg) || 30;
+      if (verb === 'wait_until') {
+        const m = /^(\d{1,2}):(\d{2})$/.exec(arg ?? '');
+        if (!m) return 'Give the time as HH:MM.';
+        minutes = at(Number(m[1]), Number(m[2])) - clock.minute;
+        if (minutes <= 0) return 'That hour has already passed today.';
+      }
+      clock.spend(minutes);
+      return `You wait ${Math.round(minutes)} minutes.`;
+    }
+    const npc = this.npcs.find((n) => n.resident.id === what && n.figure.visible);
+    const spot = PLACES_TO_TALK.find((s) => s.knot === what);
+    if (verb === 'meet') {
+      if (npc) {
+        const f = npc.figure.position;
+        const minutes = this.agentWalk(f.x, f.z);
+        this.updateResidents();
+        this.agentStandBy(npc.figure.position.x, npc.figure.position.z, 1.2);
+        return `You walk up to ${who(npc.resident.name)} (${Math.round(minutes)} min).`;
+      }
+      return `${what} is not in sight.`;
+    }
+    if (verb === 'go') {
+      const place = PLACES[what as Place];
+      if (!place) return null;
+      const minutes = this.agentWalk(place.x, place.z);
+      this.player.position.set(place.x, 0, place.z);
+      return `You walk to ${PLACE_NAMES[what!] ?? what} (${Math.round(minutes)} min).`;
+    }
+    if (verb === 'talk') {
+      if (npc) {
+        const f = npc.figure.position;
+        if (Math.hypot(f.x - this.player.position.x, f.z - this.player.position.z) > 1.6) {
+          this.agentWalk(f.x, f.z);
+          this.updateResidents();
+          this.agentStandBy(npc.figure.position.x, npc.figure.position.z, 1.2);
+        }
+        const name = npc.resident.name;
+        if (npc.still) this.host.interact('still', [name]);
+        else this.host.interact(npc.resident.knot);
+        return `You turn to ${name}.`;
+      }
+      if (spot) {
+        if (Math.hypot(spot.x - this.player.position.x, spot.z - this.player.position.z) > spot.radius * 0.8) {
+          this.agentWalk(spot.x, spot.z);
+          this.agentStandBy(spot.x, spot.z, Math.min(0.8, spot.radius * 0.5));
+        }
+        this.host.interact(spot.knot, spot.args);
+        return `${spot.label}.`;
+      }
+      return null;
+    }
+    return null;
   }
 
   update(dt: number): void {

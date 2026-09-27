@@ -6,7 +6,7 @@ import { h } from '../../ui/dom.ts';
 import { cloneCanvas, portrait, portraitFor } from '../../ui/portraits.ts';
 import { disposeScene } from '../dispose.ts';
 import { lambert, makeFigure } from '../figures.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { Stage, StageAgent, StageHost } from '../types.ts';
 
 interface Voice {
   at: THREE.Vector3;
@@ -143,6 +143,40 @@ export class ReliefStage implements Stage {
   onResize(): void {
     this.camera.aspect = this.host.aspect();
     this.camera.updateProjectionMatrix();
+  }
+
+  agent(): StageAgent {
+    const p = this.camera.position;
+    return {
+      describe: () => [
+        'Inside the carving: the moment the relief froze, the altar and its fire in the middle, a crowd standing still around it. Nothing moves; you can walk among them.',
+        ...(this.heard ? [`${this.heard.speaker}, close by, frozen mid-word: ${this.heard.text}`] : []),
+        ...(this.chip.visible ? ['At the very edge, a small white chip of stone hangs in the air.'] : []),
+      ],
+      actions: () => [
+        ...this.voices.map((v, i) => ({ id: `approach:${i}`, label: `Go up to ${v.speaker}` })),
+        ...(this.chip.visible ? [{ id: 'chip', label: 'Go to the chip hanging in the air' }] : []),
+        { id: 'leave', label: 'Take your hand out of the carving' },
+      ],
+      perform: (id) => {
+        const [verb, what] = id.split(':');
+        if (verb === 'approach') {
+          const v = this.voices[Number(what)];
+          if (!v) return 'Nobody there.';
+          p.set(v.at.x + 0.6, 1.6, v.at.z + 0.9);
+          return `You stand beside ${v.speaker}.`;
+        }
+        if (verb === 'chip' && this.chip.visible) {
+          p.set(this.chip.position.x + 0.5, 1.6, this.chip.position.z);
+          return 'You reach the chip.';
+        }
+        if (verb === 'leave') {
+          this.host.switchStage('spiral');
+          return 'You take your hand out of the stone.';
+        }
+        return null;
+      },
+    };
   }
 
   update(dt: number): void {

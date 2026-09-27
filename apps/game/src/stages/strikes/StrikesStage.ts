@@ -5,7 +5,7 @@ import type { Mechanic } from '../../core/types.ts';
 import { h } from '../../ui/dom.ts';
 import { disposeScene } from '../dispose.ts';
 import { lambert } from '../figures.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
 
 const AGES: { name: string; mechanic: Mechanic; loss: string }[] = [
   { name: 'Golden', mechanic: 'schedules', loss: 'The Golden Age breaks. The Book of Strangers is blank: you no longer know where anyone will be.' },
@@ -144,6 +144,33 @@ export class StrikesStage implements Stage {
     this.caption.hidden = false;
   }
 
+  agent(): StageAgent {
+    const standing = () => this.sectors.filter((s) => !s.userData.falling);
+    return {
+      describe: () => [
+        'The spiral in the burning Hall, seen from above: five ages carved in the stone. Each blow of the staff breaks something in you as well.',
+        ...AGES.map((a, i) => {
+          const s = this.sectors.find((x) => x.userData.age === i);
+          return `${a.name} Age: ${s?.userData.falling ? 'broken' : `standing (${this.hits[i]} of ${this.strikesNeeded()} blows)`}.`;
+        }),
+        ...(this.carry ? [`The Hall is burning. ${Math.ceil(this.carry.left)} seconds to carry the tablets out, or let them burn and go down to the sea.`] : []),
+      ],
+      actions: () => [
+        ...standing().map((s): AgentAction => ({ id: `strike:${s.userData.age}`, label: `Strike the ${AGES[s.userData.age as number]!.name} Age` })),
+        ...(this.carry ? [{ id: 'wait', label: 'Let the fire have them: wait', arg: 'seconds (default 5)' }] : []),
+      ],
+      perform: (id) => {
+        const [verb, what] = id.split(':');
+        if (verb !== 'strike') return null;
+        const sector = standing().find((s) => s.userData.age === Number(what));
+        if (!sector) return 'That age is already broken.';
+        sector.geometry.computeBoundingSphere();
+        this.strike(sector, sector.localToWorld(sector.geometry.boundingSphere!.center.clone()));
+        return `You strike the ${AGES[Number(what)]!.name} Age.`;
+      },
+    };
+  }
+
   update(dt: number): void {
     const { input } = this.host;
     this.shake = Math.max(0, this.shake - dt * 3);
@@ -186,17 +213,22 @@ export class StrikesStage implements Stage {
       this.say('That part is already falling. Strike what is still standing.');
       return;
     }
-    const age = hit.object.userData.age as number;
+    this.strike(hit.object as THREE.Mesh, hit.point);
+  }
+
+  /** One blow of the staff on one age of the spiral. */
+  private strike(sector: THREE.Mesh, point: THREE.Vector3): void {
+    const age = sector.userData.age as number;
     this.hits[age]! += 1;
     if (!this.host.reducedMotion()) this.shake = 1;
     this.host.sound('strike');
-    this.crack(hit.object as THREE.Mesh, hit.point, this.hits[age]!);
-    this.burst(hit.point, this.host.reducedMotion() ? 6 : 16);
+    this.crack(sector, point, this.hits[age]!);
+    this.burst(point, this.host.reducedMotion() ? 6 : 16);
     if (this.hits[age]! < this.strikesNeeded()) {
       this.say('The marble cracks. A guard kneels and presses the crack shut with his palms.');
       return;
     }
-    hit.object.userData.falling = true;
+    sector.userData.falling = true;
     this.host.loseMechanic(AGES[age]!.mechanic);
     this.say(AGES[age]!.loss);
     if (this.sectors.every((s) => s.userData.falling)) this.startFire();
