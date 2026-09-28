@@ -139,6 +139,18 @@ The path goes down between the rocks to the water.
     -> DONE
 }
 
+=== mole_end ===
+{last_hour():
+    The mole ends in black water. Behind you the whole city faces the mountain; out here nobody is watching, and the sea goes on as if there were no midnight.
+    -> DONE
+}
+{hour() >= 20:
+    The boats knock against the stone. The sea has gone dark before the sky has, and it still moves the way nothing in Eferon does.
+    -> DONE
+}
+The mole ends in open water. Two boats knock against the stone, their sails tied up. Past the harbour mouth the sea goes on to the edge of the world, and it never moves the same way twice.
+-> DONE
+
 === mountain_path ===
 {hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
     The path up the holy mountain. For one more hour only the early climbers are on it, the ones who want to be seen. Among the pale stones one is paler than the rest, and square-edged.

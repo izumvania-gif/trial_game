@@ -9,10 +9,10 @@ import { distanceToStreets, pathLength, PLACES, route, STREET_EDGES, type Place 
 import { PLACE_NAMES } from '../../ui/Book.ts';
 import { makeSea } from '../../render/sea.ts';
 import { disposeScene } from '../dispose.ts';
-import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
+import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, giveWay, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
-import { buildHarbour, buildWalls, Torches, type Box } from './city.ts';
+import { BEACH, buildHarbour, buildWalls, groundAt, tooDeep, Torches, type Box } from './city.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
 import { StreetLife } from './props.ts';
@@ -37,7 +37,9 @@ const SNAP_UP = new THREE.Vector3();
 const PLAYER_RADIUS = 0.4;
 /** How far the player can see a resident well enough for the Book of Strangers. */
 const SEEN_DISTANCE = 11;
-const BOUNDS = { minX: -28, maxX: 28, minZ: -26, maxZ: 21 };
+const BOUNDS = { minX: -28, maxX: 28, minZ: -26, maxZ: 40 };
+/** How close the scribe comes to anyone: he walks around people, not through them. */
+const PERSON_GAP = 0.75;
 const ENTRIES: Record<string, [number, number, number]> = {
   temple: [0, -11.5, 0],
   shore: [0, 18.5, Math.PI],
@@ -59,6 +61,7 @@ const PLACES_TO_TALK: Interactable[] = [
   // On the crier himself, and small: Cleon stands on the steps just north of him at dawn.
   { x: 10.8, z: 2.8, radius: 1.5, knot: 'agora_crier', label: 'Listen to the crier' },
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'The path to the shore' },
+  { x: -6, z: 33.6, radius: 1.5, knot: 'mole_end', label: 'The end of the mole' },
   // The foot of the path, on the town side of where the early climbers stand.
   { x: 10, z: -21, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
@@ -207,9 +210,9 @@ export class TownStage implements Stage {
     // The sea sits just below the shoreline and runs to the horizon.
     this.sea.position.set(0, -0.6, 24 + 110);
     s.add(this.sea);
-    const beach = new THREE.Mesh(new THREE.PlaneGeometry(140, 6), lambert('#e3d3b0'));
+    const beach = new THREE.Mesh(new THREE.PlaneGeometry(140, BEACH.dry - 19.5), lambert('#e3d3b0'));
     beach.rotation.x = -Math.PI / 2;
-    beach.position.set(0, 0.01, 22.5);
+    beach.position.set(0, 0.01, (19.5 + BEACH.dry) / 2);
     beach.receiveShadow = true;
     s.add(beach);
 
@@ -222,7 +225,7 @@ export class TownStage implements Stage {
     this.buildHouses();
     buildWalls(s, this.boxes);
     this.street.build();
-    this.boats = buildHarbour(s);
+    this.boats = buildHarbour(s, this.boxes);
     this.torches = new Torches(s, this.boxes);
     this.buildMountain();
   }
@@ -690,7 +693,9 @@ export class TownStage implements Stage {
     const g = this.glitch;
     const replay = g ? g.g.minute + (((g.g.seconds - g.left) * 2.5) % 1) * 1.6 : 0;
     const stutter = g?.g.kind === 'stutter' ? { x: this.player.position.x, z: this.player.position.z, minute: replay } : undefined;
-    this.crowd.update(clock.minute, this.time, this.dusk, stutter);
+    this.crowd.update(clock.minute, this.time, this.dusk, stutter, this.player.position);
+    this.people = this.npcs.filter((n) => n.figure.visible).map((n) => ({ x: n.figure.position.x, z: n.figure.position.z }));
+    this.crowd.positions(this.people);
     const p = this.player.position;
     const u = this.lookUp;
     // From nine the view begins to sway, a little more every hour: the ground is not quite steady.
@@ -704,8 +709,16 @@ export class TownStage implements Stage {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
     }
-    this.camera.position.set(p.x + sway, p.y + lerp(17, 5.2, u), p.z + lerp(16, 12.5, u));
-    this.camera.lookAt(p.x, p.y + lerp(1, 1.7, u), p.z - lerp(1, 18, u));
+    // On the beach the view turns round to face the sea (but not in the last hours, when it looks up at the mountain).
+    const toSea = THREE.MathUtils.smoothstep(p.z, 18.5, 22.5) * (1 - u);
+    this.seaward += (toSea - this.seaward) * Math.min(1, dt * 1.6);
+    const yaw = Math.PI * (this.host.reducedMotion() ? Math.round(this.seaward) : this.seaward);
+    const back = lerp(16, 12.5, u);
+    const ahead = lerp(1, 18, u);
+    const sy = Math.sin(yaw);
+    const cy = Math.cos(yaw);
+    this.camera.position.set(p.x + sway * cy + back * sy, p.y + lerp(17, 5.2, u), p.z - sway * sy + back * cy);
+    this.camera.lookAt(p.x - ahead * sy, p.y + lerp(1, 1.7, u), p.z - ahead * cy);
     this.snapCamera();
     this.camera.rotateZ((Math.sin(this.time * 0.51) * 0.03 + Math.sin(this.time * 1.3) * 0.008) * unease);
   }
@@ -796,6 +809,8 @@ export class TownStage implements Stage {
       const toMountain = Math.atan2(SUMMIT.x - state.x, SUMMIT.z - state.z);
       figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : npc.still && !lying ? toMountain : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
+      // Someone walking steps round the scribe instead of through him.
+      if (state.walking) giveWay(figure.position, p);
       bob(figure, this.time, state.walking ? 1 : 0);
       if (!state.walking && !npc.still) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
       // Once the player has watched a resident at a point of their day, the Book of Strangers records it.
@@ -808,9 +823,18 @@ export class TownStage implements Stage {
 
   private time = 0;
 
+  /** How far the view has turned round to face the sea (0 in the streets, 1 on the beach). */
+  private seaward = 0;
+  /** The turn the keys are read in: kept while a direction is held, so turning the view never turns you round. */
+  private controlYaw = 0;
+  private heldDir = '';
+
   private movePlayer(dt: number): void {
     const { input } = this.host;
     this.time += dt;
+    const p = this.player.position;
+    // The ground under him: the streets, the mole a step up, the wet sand sloping into the water.
+    p.y += (groundAt(p.x, p.z) - p.y) * Math.min(1, dt * 10);
     let dx = 0;
     let dz = 0;
     if (input.isDown('KeyW') || input.isDown('ArrowUp')) dz -= 1;
@@ -818,18 +842,41 @@ export class TownStage implements Stage {
     if (input.isDown('KeyA') || input.isDown('ArrowLeft')) dx -= 1;
     if (input.isDown('KeyD') || input.isDown('ArrowRight')) dx += 1;
     bob(this.player, this.time, dx || dz ? 1 : 0);
+    const dir = `${dx},${dz}`;
+    if (dir !== this.heldDir) {
+      this.heldDir = dir;
+      this.controlYaw = Math.PI * this.seaward;
+    }
     if (!dx && !dz) return;
-    const len = Math.hypot(dx, dz);
-    const step = (SPEED * dt) / len;
-    const p = this.player.position;
-    const nx = Math.min(BOUNDS.maxX, Math.max(BOUNDS.minX, p.x + dx * step));
-    const nz = Math.min(BOUNDS.maxZ, Math.max(BOUNDS.minZ, p.z + dz * step));
-    // Slide along walls: try each axis separately.
-    if (!this.blocked(nx, p.z)) p.x = nx;
-    if (!this.blocked(p.x, nz)) p.z = nz;
-    this.facing = Math.atan2(dx, dz);
+    // Keys move him as the view sees it: on the beach, with the view turned to the sea, W walks to the water.
+    const c = Math.cos(this.controlYaw);
+    const sn = Math.sin(this.controlYaw);
+    const wx = dx * c + dz * sn;
+    const wz = -dx * sn + dz * c;
+    const len = Math.hypot(wx, wz);
+    // Wading is slow.
+    const step = (SPEED * dt * (p.y < -0.15 ? 0.55 : 1)) / len;
+    const nx = Math.min(BOUNDS.maxX, Math.max(BOUNDS.minX, p.x + wx * step));
+    const nz = Math.min(BOUNDS.maxZ, Math.max(BOUNDS.minZ, p.z + wz * step));
+    // Slide along walls and round people: try each axis separately.
+    if (this.free(p.x, p.z, nx, p.z)) p.x = nx;
+    if (this.free(p.x, p.z, p.x, nz)) p.z = nz;
+    this.facing = Math.atan2(wx, wz);
     this.player.rotation.y = this.facing;
   }
+
+  /** Can he step from (x0, z0) to (x, z)? Not into walls or deep water, and not into anyone (stepping away is always fine). */
+  private free(x0: number, z0: number, x: number, z: number): boolean {
+    if (this.blocked(x, z) || tooDeep(x, z)) return false;
+    for (const o of this.people) {
+      const d = Math.hypot(x - o.x, z - o.z);
+      if (d < PERSON_GAP && d < Math.hypot(x0 - o.x, z0 - o.z)) return false;
+    }
+    return true;
+  }
+
+  /** Where everyone stood last frame, residents and crowd, for the scribe to walk around. */
+  private people: { x: number; z: number }[] = [];
 
   private blocked(x: number, z: number): boolean {
     const r = PLAYER_RADIUS;

@@ -182,6 +182,19 @@ export function bob(figure: THREE.Group, time: number, moving: number): void {
   for (const c of inner) c.position.y = (c.userData.baseY ??= c.position.y) + y;
 }
 
+/** Moves a walker's figure (not their day) out to a step's distance from the scribe. */
+export function giveWay(pos: THREE.Vector3, player: THREE.Vector3, gap = 0.95): void {
+  const dx = pos.x - player.x;
+  const dz = pos.z - player.z;
+  const d = Math.hypot(dx, dz);
+  if (d >= gap) return;
+  // Straight through the middle: step to one side.
+  const nx = d > 0.01 ? dx / d : 1;
+  const nz = d > 0.01 ? dz / d : 0;
+  pos.x = player.x + nx * gap;
+  pos.z = player.z + nz * gap;
+}
+
 export function lambert(color: string): THREE.MeshLambertMaterial {
   return new THREE.MeshLambertMaterial({ color, flatShading: true });
 }

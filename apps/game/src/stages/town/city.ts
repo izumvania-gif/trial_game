@@ -95,8 +95,27 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
   scene.add(inst);
 }
 
+/** The stone mole: walkable, from the beach out into the harbour. Its top stands at `top`. */
+export const MOLE = { x: -6, half: 1.1, from: 22, to: 34.6, top: 0.3 };
+
+/** The beach: dry sand to `dry`, then the foreshore slopes into the water and gets too deep at `deep`. */
+export const BEACH = { dry: 25.3, slope: 0.5, deep: 27.2 };
+
+/** How high the ground is at (x, z): the streets, the beach, the wet slope, the mole. */
+export function groundAt(x: number, z: number): number {
+  if (Math.abs(x - MOLE.x) < MOLE.half && z > MOLE.from && z < MOLE.to) return MOLE.top;
+  if (z <= BEACH.dry) return 0;
+  return -(z - BEACH.dry) * BEACH.slope;
+}
+
+/** Past the shallows, off the mole: the water is too deep to walk. */
+export function tooDeep(x: number, z: number): boolean {
+  if (Math.abs(x - MOLE.x) < MOLE.half + 0.1 && z > MOLE.from && z < MOLE.to) return false;
+  return z > BEACH.deep;
+}
+
 /** The harbour: a stone mole out into the water, and two boats that did not sail. */
-export function buildHarbour(scene: THREE.Scene): THREE.Group[] {
+export function buildHarbour(scene: THREE.Scene, boxes: Box[]): THREE.Group[] {
   const stone = textured(pavingTexture(), '#e0cfa8');
   const mole = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.1, 13), stone);
   mole.position.set(-6, -0.25, 28.5);
@@ -106,7 +125,15 @@ export function buildHarbour(scene: THREE.Scene): THREE.Group[] {
     const bollard = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.2, 0.5, 6), lambert('#3a2418'));
     bollard.position.set(i % 2 ? -5 : -7, 0.55, 24 + i * 3);
     scene.add(bollard);
+    boxes.push({ minX: bollard.position.x - 0.2, maxX: bollard.position.x + 0.2, minZ: bollard.position.z - 0.2, maxZ: bollard.position.z + 0.2 });
   }
+  // The foreshore: wet sand sloping from the dry beach under the water, so the sea has an edge to wash up.
+  const wet = new THREE.Mesh(new THREE.PlaneGeometry(140, 4), lambert('#c79a6e'));
+  const drop = 4 * BEACH.slope;
+  wet.rotation.x = -Math.PI / 2 + Math.atan(BEACH.slope);
+  wet.position.set(0, -drop / 2, BEACH.dry + 2 * Math.cos(Math.atan(BEACH.slope)));
+  wet.receiveShadow = true;
+  scene.add(wet);
   const boats: THREE.Group[] = [];
   for (const [x, z, turn] of [[-8.9, 27, 0.2], [-3.1, 30.5, -0.25]] as const) {
     const boat = new THREE.Group();
@@ -123,6 +150,7 @@ export function buildHarbour(scene: THREE.Scene): THREE.Group[] {
     boat.rotation.y = turn;
     boat.userData.baseY = -0.2;
     scene.add(boat);
+    boxes.push({ minX: x - 1, maxX: x + 1, minZ: z - 2.2, maxZ: z + 2.2 });
     boats.push(boat);
   }
   return boats;

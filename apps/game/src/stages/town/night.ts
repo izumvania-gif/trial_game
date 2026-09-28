@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { extraAt, makeCrowd, type Extra } from '../../content/crowd.ts';
 import { daySeed, seededRng } from '../../core/rng.ts';
-import { amphora, bob, lambert, makeFigure } from '../figures.ts';
+import { amphora, bob, giveWay, lambert, makeFigure } from '../figures.ts';
 
 const smooth = THREE.MathUtils.smoothstep;
 const lerp = THREE.MathUtils.lerp;
@@ -44,7 +44,13 @@ export class Crowd {
   }
 
   /** `stutter`: the visible person nearest (x, z) is shown at `minute` instead: the same steps, again. */
-  update(minute: number, time: number, lit: number, stutter?: { x: number; z: number; minute: number }): void {
+  /** Adds where every visible extra stands to `out`. */
+  positions(out: { x: number; z: number }[]): void {
+    for (const { figure } of this.people) if (figure.visible) out.push({ x: figure.position.x, z: figure.position.z });
+  }
+
+  /** `avoid`: the scribe, whom walkers step round. */
+  update(minute: number, time: number, lit: number, stutter?: { x: number; z: number; minute: number }, avoid?: THREE.Vector3): void {
     let lightIndex = 0;
     let stuck: Extra | null = null;
     if (stutter) {
@@ -63,6 +69,7 @@ export class Crowd {
       figure.visible = s.visible;
       if (!s.visible) continue;
       figure.position.set(s.x, 0, s.z);
+      if (avoid && s.walking) giveWay(figure.position, avoid);
       figure.rotation.y = s.heading;
       bob(figure, time, s.walking ? 1 : 0);
       torch.visible = s.torch;
