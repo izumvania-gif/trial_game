@@ -292,6 +292,7 @@ button.carry { position: absolute; left: 50%; top: 40%; transform: translateX(-5
 /* Desk: chat */
 .desk main h3 { color: #d6e6dc; font-weight: normal; }
 .desk-queue li { margin: 0.35rem 0; }
+.desk[inert] button { opacity: 0.55; }
 .desk-queue .ticket-open { all: unset; cursor: pointer; display: block; width: 100%; }
 .desk-queue .ticket-open:hover, .desk-queue .ticket-open:focus-visible { color: #d6e6dc; }
 .desk-queue .ticket-open:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }

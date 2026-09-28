@@ -942,13 +942,18 @@ export class TownStage implements Stage {
     const { clock, memory } = this.host;
     const patches = this.host.patches();
     const p = this.player.position;
-    // The last hour: wherever they are at eleven, they stop there and look at the mountain.
-    // Not the singer, who goes down to the water, and not the priest of the sea.
-    const lastHour = clock.minute >= at(23);
+    // The last hour (however early the wind made midnight): whoever did not go up the mountain
+    // stops where they are and looks at it. Not the singer, who goes down to the water, and not
+    // the priest of the sea.
+    const lastStart = clock.endMinute - 60;
+    const lastHour = clock.minute >= lastStart;
     const placed = this.npcs.map((npc) => {
       const free = FREE_AT_LAST.includes(npc.resident.id);
-      const state = residentAt(npc.resident, free ? clock.minute : Math.min(clock.minute, at(23)), patches);
+      const state = residentAt(npc.resident, free ? clock.minute : Math.min(clock.minute, lastStart), patches);
       npc.still = lastHour && !free;
+      // Whoever climbs the mountain tonight is on it by the last hour, however early the wind brought it.
+      const climbs = npc.resident.schedule(patches).some((e) => e.place === 'mountain');
+      npc.figure.visible = !(npc.still && climbs);
       if (npc.still) state.walking = false;
       if (npc.resident.seaSpot) {
         state.x = this.glaucusX;

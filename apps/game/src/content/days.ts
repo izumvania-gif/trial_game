@@ -30,13 +30,44 @@ function list(names: string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
 }
 
-/** One line for a day: what it looked into, what it cut, how it ended. */
+/**
+ * The day's deeds worth carving, most telling first: the day is remembered by what was done in it,
+ * not by the first things it happened to learn.
+ */
+const DEEDS: [string, string][] = [
+  ['curator_awake', 'woke the Curator'],
+  ['registry_all', 'named all thirty-six'],
+  ['shards_12', 'found the last chip'],
+  ['board_played', "played the night out on the singer's table"],
+  ['desk_agent_id', 'went up to the Desk'],
+  ['debts_settled', 'freed the port of its debts'],
+  ['past_attempts', 'named the scribes on the spiral'],
+  ['sea_absent', 'saw there is no sea on the spiral'],
+  ['kora_ally', 'won Kora over'],
+  ['last_line', "heard the singer's new verse"],
+  ['song_of_return', 'learned the Song of Return'],
+  ['hall_key', 'got the key to the Hall'],
+];
+
+const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
+
+/** One line for a day: what it did, what it looked into, what it cut, how it ended. */
 export function daySummary(day: DayFacts): string {
-  const subjects = [...new Set(day.learned.map(subjectOfFact).filter((s): s is string => !!s))]
-    .map((id) => SUBJECTS.find((s) => s.id === id)!.name.replace(/^The /, 'the '))
-    .slice(0, 3);
+  const deeds = DEEDS.filter(([fact]) => day.learned.includes(fact)).slice(0, 3).map(([, text]) => text);
+  // Subjects by how much the day learned about them; a tie goes to the one looked into first.
+  const count = new Map<string, number>();
+  for (const f of day.learned) {
+    const sub = subjectOfFact(f);
+    if (sub) count.set(sub, (count.get(sub) ?? 0) + 1);
+  }
+  const subjects = [...count.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, deeds.length ? 2 : 3)
+    .map(([id]) => SUBJECTS.find((s) => s.id === id)!.name.replace(/^The /, 'the '));
   const parts: string[] = [];
-  parts.push(subjects.length ? `Looked into ${list(subjects)}.` : 'Learned nothing new.');
+  if (deeds.length) parts.push(`${capital(list(deeds))}.`);
+  if (subjects.length) parts.push(`Looked into ${list(subjects)}.`);
+  else if (!deeds.length) parts.push('Learned nothing new.');
   if (day.carved) parts.push(`Cut ${day.carved} into the stele.`);
   if (day.reason === 'song') parts.push('Folded the day shut with the Song.');
   else if (day.reason === 'ending' && day.ending === 'wake_pressed') parts.push('Everything was done, and you pressed Wake.');

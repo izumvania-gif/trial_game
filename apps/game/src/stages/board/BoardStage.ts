@@ -415,6 +415,12 @@ export class BoardStage implements Stage {
       lanes,
       h('p', {}, `Turn ${Math.min(this.turn + 1, NIGHT_TURNS)} of ${NIGHT_TURNS}`),
     ];
+    // What the colleague is doing, so a ticket that did not move has a reason on screen.
+    if (!rolledBack(s) && this.turn > 0 && this.turn < NIGHT_TURNS) {
+      children.push(h('p', { className: 'desk-note sprint-mino' }, s.pushed
+        ? `Minotaur_ops pushed the ticket on to ${LANES[s.lane]}.`
+        : 'Minotaur_ops is still typing his answer to you: the ticket did not move.'))
+    }
     if (rolledBack(s)) children.push(h('p', { className: 'sprint-bad' }, 'ROLLBACK APPROVED. Whatever happens below, the morning will not know it.'));
     else if (this.awaitingCurator) {
       for (const a of ['wait', 'defer', 'reply', 'noise'] as CuratorAction[]) {

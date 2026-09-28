@@ -124,7 +124,10 @@ export class AgentBridge {
     const lines: string[] = [];
     const clockShown = !titleUp && g.current.clockRuns && !g.lost('clock');
     const time = clockShown ? g.clock.label() : null;
-    if (!titleUp) {
+    if (!titleUp && g.phase === 'reset') {
+      // Between days: the old day is carved and gone, the new one has not begun.
+      lines.push(`[reset] after day ${g.memory.cycle - 1}`);
+    } else if (!titleUp) {
       const end = Math.floor(g.clock.endMinute / 60) + 6;
       lines.push(`[${stage}] day ${g.memory.cycle}${time ? ` · ${time} · midnight comes at ${String(end % 24).padStart(2, '0')}:${String(Math.floor(g.clock.endMinute % 60)).padStart(2, '0')}` : ''}${g.save.cycle.wornMask ? ` · wearing the ${g.save.cycle.wornMask} mask` : ''}`);
       const agent = g.current.agent?.();
@@ -177,7 +180,8 @@ export class AgentBridge {
     this.controls.clear();
     const seen = new Map<string, number>();
     for (const el of document.querySelectorAll<HTMLElement>('button, select, input, textarea')) {
-      if (!visible(el) || (el as HTMLButtonElement).disabled) continue;
+      // Inert: a screen held still under a line of dialogue (read, but not pressed).
+      if (!visible(el) || (el as HTMLButtonElement).disabled || el.closest('[inert]')) continue;
       if (el.closest('.dialogue, .debug, .controls-bar, .hud, .lyre')) continue;
       if (titleUp && el.closest('.settings')) continue;
       const label = (el.getAttribute('aria-label') || (el as HTMLInputElement).placeholder || el.innerText || el.title || el.id || el.tagName).replace(/\s+/g, ' ').trim();

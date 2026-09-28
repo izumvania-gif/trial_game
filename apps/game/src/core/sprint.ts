@@ -8,7 +8,7 @@ export type CuratorAction = 'wait' | 'defer' | 'reply' | 'noise';
 export const ACTION_LABELS: Record<CuratorAction, string> = {
   wait: 'Do nothing',
   defer: 'Defer the ticket (back one lane)',
-  reply: 'Answer Minotaur in chat (he skips his next move; not twice running)',
+  reply: 'Answer Minotaur in chat (he stops pushing for this turn and the next; not twice running)',
   noise: 'Classify the sea event as noise (back to DETECTED)',
 };
 
@@ -25,10 +25,12 @@ export interface SprintState {
   used: Record<CuratorAction, number>;
   /** The Curator's previous move: Minotaur does not fall for the same chat twice running. */
   last: CuratorAction | null;
+  /** Whether Minotaur pushed the ticket on the last turn (for the panel to say so). */
+  pushed: boolean;
 }
 
 export function initialSprint(): SprintState {
-  return { lane: 0, distracted: false, used: { wait: 0, defer: 0, reply: 0, noise: 0 }, last: null };
+  return { lane: 0, distracted: false, used: { wait: 0, defer: 0, reply: 0, noise: 0 }, last: null, pushed: false };
 }
 
 export function canUse(state: SprintState, action: CuratorAction): boolean {
@@ -40,13 +42,16 @@ export function canUse(state: SprintState, action: CuratorAction): boolean {
 export function sprintTurn(state: SprintState, action: CuratorAction): SprintState {
   if (state.lane >= LANES.length - 1) return state;
   if (!canUse(state, action)) action = 'wait';
-  const s: SprintState = { lane: state.lane, distracted: state.distracted, used: { ...state.used }, last: action };
+  const s: SprintState = { lane: state.lane, distracted: state.distracted, used: { ...state.used }, last: action, pushed: false };
   s.used[action] += 1;
   if (action === 'defer') s.lane = Math.max(0, s.lane - 1);
   if (action === 'noise') s.lane = 0;
   if (action === 'reply') s.distracted = true;
   if (s.distracted && action !== 'reply') s.distracted = false;
-  else if (!s.distracted) s.lane = Math.min(LANES.length - 1, s.lane + 1);
+  else if (!s.distracted) {
+    s.lane = Math.min(LANES.length - 1, s.lane + 1);
+    s.pushed = true;
+  }
   return s;
 }
 

@@ -32,6 +32,17 @@ export const THREADS: Thread[] = [
     },
   },
   {
+    // The first day, once the stele and the Hall are done: the night is the next thing to see.
+    id: 'midnight',
+    question: 'Tonight the whole city climbs the mountain. What happens at midnight?',
+    opens: ['other_hand'],
+    closes: 'rain_at_midnight',
+    steps: ['rain_at_midnight'],
+    clues: {
+      rain_at_midnight: 'Live the day to its end: the ring at the top right counts down to midnight. From nine the city goes up the mountain path through the gate; follow it to the boundary stone and watch, or wait anywhere.',
+    },
+  },
+  {
     id: 'day',
     question: 'Why does the day come back?',
     opens: ['rain_at_midnight'],
@@ -175,6 +186,20 @@ export const THREADS: Thread[] = [
       curator_chair: 'Upstairs, from the third sprint: when the terminal says you can feel the chair, try to remember it.',
       board_of_directors: 'Upstairs, the ticket with the minutes of the board of directors.',
       curator_awake: 'Upstairs, on a later day than the minutes: Human Notes, the USER NOTE field. Copy one line into it, or write your own.',
+    },
+  },
+  // After the twelfth chip: everything the last night needs, and the singer who says it is time.
+  {
+    id: 'last',
+    question: 'Every chip is back in the stone. What does the last night need?',
+    opens: ['shards_12'],
+    closes: 'eion_blessing',
+    steps: ['registry_all', 'curator_awake', 'debts_settled', 'eion_blessing'],
+    clues: {
+      registry_all: 'All thirty-six scribes named in the registry (Tab in the Hall).',
+      curator_awake: 'The Curator upstairs has to wake: its own USER NOTE, written on a later day than the minutes.',
+      debts_settled: 'The port must owe nothing tonight: burn the ledgers in the villa after 17:00, or free them another way.',
+      eion_blessing: 'Carve FIRST into the stele before 07:00, on the dawn card or at the stele: it must be the last word you carved. Then, after dark, talk to Eion at the port tavern and plan the night.',
     },
   },
 ];

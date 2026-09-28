@@ -126,6 +126,8 @@ export class DeskStage implements Stage {
   }
 
   update(dt: number): void {
+    // While a line is being read over it, the terminal holds still: nothing on it can be pressed.
+    this.root.inert = this.host.overlay.classList.contains('talking');
     if (this.host.input.wasPressed('Escape')) this.host.switchStage('spiral');
     this.office(dt);
   }

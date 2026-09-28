@@ -271,6 +271,7 @@ Eion puts the lyre down.
     I carried the tablets out, once. Don't. Whatever burns tonight, let it burn. #speaker:Eion #mood:sorrow
     And afterwards, when something asks you to wake up — you'll know it, it always asks politely — don't. Wait. #speaker:Eion
     Sit. This time the table is the same, and we are not. #speaker:Eion #mood:joy
+    ~ learn("eion_blessing")
 - else:
     You know what launches it, and who holds the door, and where the hole in the myth is, and what the others tried. #speaker:Eion #mood:wonder
     Then it is tonight. Sit. Let's paint it on the table. #speaker:Eion #mood:joy

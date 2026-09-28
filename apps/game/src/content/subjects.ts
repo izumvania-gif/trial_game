@@ -27,7 +27,7 @@ export const SUBJECTS: Subject[] = [
   { id: 'cleon', name: 'Cleon', x: 36, y: 66, facts: ['cleon_repeats'], face: 'cleon' },
   { id: 'kora', name: 'Kora', x: 50, y: 70, facts: ['kora_debts', 'kora_ally'], face: 'kora' },
   { id: 'port', name: 'The Debts of the Port', x: 50, y: 92, facts: ['lysimachus_pays', 'hierocles_paid', 'debts_burned', 'debts_released', 'debts_reformed', 'debts_settled'], face: 'lysimachus' },
-  { id: 'eion', name: 'Eion', x: 66, y: 66, facts: ['eion_song', 'eion_was_leont', 'song_of_return', 'shard_tavern'], face: 'eion' },
+  { id: 'eion', name: 'Eion', x: 66, y: 66, facts: ['eion_song', 'eion_was_leont', 'song_of_return', 'shard_tavern', 'eion_blessing'], face: 'eion' },
   { id: 'sea', name: 'The Sea', x: 84, y: 90, facts: ['glaucus_no_calendar', 'sea_differs', 'talia_boat', 'talia_friend'], face: 'glaucus' },
   { id: 'night', name: 'The Night of Anamnesis', x: 84, y: 64, facts: ['board_played', 'shard_board'] },
   { id: 'shards', name: 'Chips of the Spiral', x: 22, y: 92, facts: ['shard_well', 'shard_path', 'shards_4', 'shards_8', 'shards_12'] },

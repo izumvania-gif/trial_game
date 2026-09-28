@@ -231,10 +231,11 @@ export class StrikesStage implements Stage {
     sector.userData.falling = true;
     this.host.loseMechanic(AGES[age]!.mechanic);
     this.say(AGES[age]!.loss);
-    if (this.sectors.every((s) => s.userData.falling)) this.startFire();
+    // The last age's loss stays on screen with the fire, not under it.
+    if (this.sectors.every((s) => s.userData.falling)) this.startFire(AGES[age]!.loss);
   }
 
-  private startFire(): void {
+  private startFire(lastLoss: string): void {
     // The last temptation: everything you learned, in your arms, still warm.
     const button = h('button', { type: 'button', className: 'carry' }, '');
     button.addEventListener('click', () => {
@@ -245,7 +246,7 @@ export class StrikesStage implements Stage {
     this.host.overlay.append(button);
     this.carry = { left: CARRY_SECONDS, button };
     this.host.setControls('Click the button — carry the tablets out · Wait — go down to the sea');
-    this.say('The hall is burning. Your chronicle is on the floor, the wax running. The sea is down the path.');
+    this.say(`${lastLoss} Then the hall is burning. Your chronicle is on the floor, the wax running. The sea is down the path.`);
   }
 }
 
