@@ -53,7 +53,7 @@ export interface Observation {
   actions: AgentAction[];
 }
 
-const SCREENS = ['#title', '.modal-card', '.guide', '.spiral-card', '.reset', '.desk', '.diary', '.board-panel', '.sprint-panel', '.relief-caption', '.strike-caption', '.chronicle', '.lyre', '.carry', '#tablet-panel'];
+const SCREENS = ['.cold-open', '.hud-coach', '.hud-goal', '.prologue-skip', '#title', '.modal-card', '.guide', '.spiral-card', '.reset', '.desk', '.diary', '.board-panel', '.sprint-panel', '.relief-caption', '.strike-caption', '.chronicle', '.lyre', '.carry', '#tablet-panel'];
 const STEP = 1000 / 24;
 /** The game's own text names keys; here is what each one is as an action. */
 const KEYS = 'In agent mode the keys the game mentions are actions: E (talk, look) = talk:<who or what> or the "Right here" action; F (finish their sentence) = finish; C = chronicle; B = book; M = mask; R = lyre; Tab (registry) = registry; Esc = leave, or a card\'s close button; digits = say:<n>; Space = continue. Walking is go:<place> or meet:<person>; waiting is wait / wait_until.';
@@ -86,7 +86,7 @@ export class AgentBridge {
   }
 
   /** Let the game run until nothing is in motion (or `max` seconds of game time pass). */
-  async settle(min = 0.4, max = 20): Promise<void> {
+  async settle(min = 0.4, max = 30): Promise<void> {
     let t = 0;
     let n = 0;
     while (t < min || (this.busy() && t < max)) {
@@ -112,7 +112,7 @@ export class AgentBridge {
     const reset = document.querySelector<HTMLElement>('.reset');
     if (g.phase === 'reset') return !(reset && !reset.hidden && reset.querySelector('button:not([disabled])'));
     if (g.phase === 'midnight' && !g.dialogue.open) return true;
-    if (document.querySelector('.passage:not([hidden])')) return true;
+    if (document.querySelector('.passage:not([hidden]), .cold-open:not([hidden])')) return true;
     if ((g.current as unknown as { agentBusy?: boolean } | undefined)?.agentBusy) return true;
     return false;
   }

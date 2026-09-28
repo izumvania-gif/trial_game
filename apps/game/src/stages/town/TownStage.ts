@@ -110,6 +110,8 @@ export class TownStage implements Stage {
   private windowDark = lambert('#24160f');
   private windowLit = new THREE.MeshLambertMaterial({ color: '#24160f', emissive: '#ffc46a', emissiveIntensity: 0, flatShading: true });
   /** Floats over whatever E would talk to or look at. */
+  /** Over where the first goal is (the stele), seen from across the town. */
+  private goalMarker = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 4), new THREE.MeshBasicMaterial({ color: '#6e2a1c' }));
   private marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: '#f4efe4' }));
   private mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.08), new THREE.MeshLambertMaterial({ color: '#f2ead6' }));
 
@@ -126,6 +128,9 @@ export class TownStage implements Stage {
     this.scene.add(this.player);
     this.marker.scale.set(1, 1.6, 1);
     this.marker.visible = false;
+    this.goalMarker.rotation.x = Math.PI;
+    this.goalMarker.visible = false;
+    this.scene.add(this.goalMarker);
     this.scene.add(this.marker);
     for (const resident of RESIDENTS) {
       if (resident.appears && !resident.appears((f) => host.knowledge.knows(f))) continue;
@@ -671,6 +676,13 @@ export class TownStage implements Stage {
       const top = npc ? (npc.figure.position.y > 0.1 ? 1.2 : 2.35) : 2.2;
       this.marker.position.set(near.x, top + Math.sin(this.time * 3) * 0.12, near.z);
       this.marker.rotation.y = this.time * 1.5;
+    }
+    // The first morning's goal, marked where it is: the stele, until the name under the moss is found.
+    const goal = !this.host.knowledge.knows('name_in_stone') && this.host.memory.cycle <= 2 ? PLACES_TO_TALK.find((x) => x.knot === 'stele')! : null;
+    this.goalMarker.visible = !!goal && near?.knot !== 'stele';
+    if (goal) {
+      this.goalMarker.position.set(goal.x, 3.2 + Math.sin(this.time * 2.2) * 0.25, goal.z);
+      this.goalMarker.rotation.y = -this.time;
     }
     if (near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) this.host.interact(near.knot, near.args);
 

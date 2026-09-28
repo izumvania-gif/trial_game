@@ -21,6 +21,14 @@ log('title');
 let o = await game.newGame();
 check(has(o, 'ui:wake'), 'the title offers Wake');
 o = await through(await act('ui:wake'));
+check(o.stage === 'house' && has(o, 'use:tablet'), 'after the cold open, the prologue in the house');
+
+log('prologue');
+o = await through(await act('use:tablet'));
+check(/other_hand|Look into the stone|New question/i.test(JSON.stringify(o)), 'read the line on the tablet');
+o = await through(await act('use:eion'));
+check(has(o, 'use:door'), 'Eion sang and left; the door is open');
+o = await through(await act('use:door'));
 check(o.stage === 'town' && has(o, 'go:agora'), 'dawn in the town, free to walk');
 
 log('town');

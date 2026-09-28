@@ -33,6 +33,8 @@ import { SeaStage } from './stages/sea/SeaStage.ts';
 import { SpiralStage } from './stages/spiral/SpiralStage.ts';
 import { StrikesStage } from './stages/strikes/StrikesStage.ts';
 import { TownStage } from './stages/town/TownStage.ts';
+import { HouseStage } from './stages/house/HouseStage.ts';
+import { ColdOpen } from './ui/ColdOpen.ts';
 import type { Stage, StageHost } from './stages/types.ts';
 import { bookOfStrangers, chronicle, hintLine } from './ui/Book.ts';
 import { chronicleMapView, chronicleTabs } from './ui/ChronicleMap.ts';
@@ -93,6 +95,7 @@ export class Game {
   readonly settings: SettingsStore;
   private settingsPanel: SettingsPanel;
   private guides: Guides;
+  private coldOpen = new ColdOpen(document.body);
   readonly audio: AudioEngine;
   private raining = false;
   /** A short shower called down by the storm song (not the midnight rain). */
@@ -113,6 +116,9 @@ export class Game {
     this.save = loaded.save;
     this.saveBlocked = loaded.status === 'unavailable';
     this.cycleRun = this.save.memory.lastCycleRun;
+    // Saves from before the prologue existed: whoever has already lived a day does not need the house.
+    const m = this.save.memory;
+    if (!m.prologueDone && (m.cycle > 1 || m.facts.length > 0)) m.prologueDone = true;
     this.breakShard = readShard(this.storage);
 
     this.input = new Input(canvas);
@@ -159,6 +165,11 @@ export class Game {
     if (this.memory.epilogue) {
       this.beginCycle(false);
       this.activate('diary');
+    } else if (!this.memory.prologueDone && this.memory.cycle === 1 && !this.save.cycle.finale) {
+      // The very first morning: the cold open, then the scribe's house. The dawn knot is the prologue's now.
+      this.save.cycle.stage = 'house';
+      this.beginCycle(false);
+      this.coldOpen.play(() => {}, () => this.audio.play('thunder'));
     } else {
       const finale = this.save.cycle.finale;
       this.beginCycle(!finale && !this.backupDetected && this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
@@ -216,6 +227,9 @@ export class Game {
       lowResHeight: () => this.renderer.lowResHeight,
       lastFrame: () => this.feedFrame,
       setControls: (text) => this.hud.setControls(text ?? STAGE_CONTROLS[this.current.id] ?? null),
+      openPanel: () => this.hud.panelId,
+      coach: (text) => this.hud.coach(text),
+      prologueDone: () => this.finishPrologue(),
       interact: (knot, args) => this.interact(knot, args),
       switchStage: (id, entry) => this.switchStage(id, entry),
       prompt: (label) => this.hud.prompt(this.dialogue.open ? null : label),
@@ -235,6 +249,24 @@ export class Game {
   // ─── The cycle ────────────────────────────────────────────────────────────
 
   /** Builds a fresh world for the current CycleState. Loop memory is untouched. */
+  /** Out of the house: the tutorial's lessons count as learned, and the first question is on screen. */
+  private finishPrologue(): void {
+    const m = this.memory;
+    if (m.prologueDone) return;
+    m.prologueDone = true;
+    for (const id of ['house', 'town', 'tip:chronicle', 'tip:book', 'tip:dejavu']) if (!m.guides.includes(id)) m.guides.push(id);
+    this.updateGoal();
+    this.persist();
+  }
+
+  /** The first open question, under the clock: what the player is following now. */
+  private updateGoal(): void {
+    const knows = (id: string) => this.knowledge.knows(id);
+    const hidden = !this.current || this.current.id === 'house' && !knows('other_hand') || this.lost('chronicle') || !!this.memory.epilogue;
+    const t = hidden ? null : THREADS.find((x) => isOpen(x, knows) && !threadView(x, knows).closed);
+    this.hud.setGoal(t ? `${t.question} · C — where to look` : null);
+  }
+
   private beginCycle(atDawn: boolean): void {
     const cycle = this.save.cycle;
     this.clock.minute = cycle.minute;
@@ -251,6 +283,7 @@ export class Game {
     }
     const host = this.host();
     this.stages = {
+      house: new HouseStage(host),
       town: new TownStage(host, cycle.player),
       spiral: new SpiralStage(host),
       relief: new ReliefStage(host),
@@ -271,6 +304,7 @@ export class Game {
 
   /** After a fact: what it made possible, and which question it opened or answered. */
   private announce(factId: string): void {
+    this.updateGoal();
     const knows = (id: string) => this.knowledge.knows(id);
     if (UNLOCKS[factId]) this.hud.toast(UNLOCKS[factId]!, 'In the margin', true);
     for (const t of THREADS) {
@@ -360,13 +394,16 @@ export class Game {
       this.passage.play(scene && camera ? this.renderer.snapshot(scene, camera) : null, passage, this.settings.value.reducedMotion);
       this.audio.play(passage === 'down' ? 'descend' : 'ascend');
     }
+    const fromHouse = this.current?.id === 'house' && id !== 'house';
     this.current?.exit();
     this.current = this.stages[id];
+    if (fromHouse) this.finishPrologue();
     const palette = this.current.palette;
     this.canvas.hidden = palette === null;
     if (palette) this.renderer.setPalette(palette);
     this.hud.setVisible(!this.current.hideHud);
     this.hud.setControls(STAGE_CONTROLS[id] ?? null);
+    this.updateGoal();
     this.save.cycle.stage = id;
     if (id === 'sea' && entry === 'final') this.save.cycle.finale = 'sea';
     this.current.enter(entry);
@@ -495,7 +532,7 @@ export class Game {
   private tick(t: number): void {
     const dt = Math.min(0.1, (t - this.lastTime) / 1000);
     this.lastTime = t;
-    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.guides.open || this.phase !== 'playing';
+    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.guides.open || this.coldOpen.open || this.phase !== 'playing';
     this.input.enabled = !blocked;
     this.overlay.classList.toggle('talking', this.dialogue.open);
     if (!blocked) this.offerGuides();
@@ -586,7 +623,7 @@ export class Game {
       return;
     }
     if (this.dialogue.open || this.modal.open || this.lyre.open || this.settingsPanel.open) return;
-    const inWorld = this.current.id === 'town' || this.current.id === 'spiral';
+    const inWorld = this.current.id === 'town' || this.current.id === 'spiral' || this.current.id === 'house';
     if (i.wasPressedRaw('KeyC') && inWorld) {
       const burned = this.lost('chronicle');
       const seen = this.memory.mapSeen.length || this.knowledge.list().length <= 3 ? [...this.memory.mapSeen] : this.knowledge.list();

@@ -43,6 +43,11 @@ export class Hud {
   /** Keys for the current place; lives outside the HUD root so it shows where the HUD is hidden. */
   private controlsEl = h('div', { className: 'controls-bar' });
   private promptText: string | null = null;
+  /** The prologue's teaching line: what to press now. */
+  private coachEl = h('div', { className: 'hud-coach', hidden: true });
+  private coachText: string | null = null;
+  /** The question the player is following, under the clock. */
+  private goalEl = h('div', { className: 'hud-goal', hidden: true });
 
   constructor(parent: HTMLElement) {
     const clock = h('div', { className: 'hud-clock' });
@@ -57,7 +62,8 @@ export class Hud {
     this.arcEl = clock.querySelectorAll('circle')[1] as SVGCircleElement;
     this.clockEl = clock;
     this.toastEl.setAttribute('role', 'status');
-    this.root.append(this.cycleEl, clock, this.windEl, this.maskEl, this.promptEl, this.toastEl);
+    this.coachEl.setAttribute('role', 'status');
+    this.root.append(this.cycleEl, clock, this.windEl, this.maskEl, this.goalEl, this.promptEl, this.coachEl, this.toastEl);
     parent.append(this.root, this.chronicleEl, this.captionEl, this.controlsEl);
   }
 
@@ -134,6 +140,19 @@ export class Hud {
         this.nextToast();
       }, 450);
     }, Math.max(4500, 2000 + t.text.length * 45)); // long lines (the masks) stay long enough to read
+  }
+
+  coach(text: string | null): void {
+    if (text === this.coachText) return;
+    this.coachText = text;
+    this.coachEl.hidden = !text;
+    if (text) this.coachEl.replaceChildren(...keyLine(text));
+  }
+
+  /** The open question to follow, or null. */
+  setGoal(text: string | null): void {
+    this.goalEl.hidden = !text;
+    if (text) this.goalEl.replaceChildren(h('span', { className: 'hud-goal-kicker' }, 'Goal'), h('span', {}, text));
   }
 
   /** Side panels: the chronicle (C), the Book of Strangers (B). One at a time. */

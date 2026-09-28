@@ -153,6 +153,7 @@ export const TIPS: Record<string, Guide> = {
 
 /** Keys for the place you are in, shown along the bottom-left edge. */
 export const STAGE_CONTROLS: Partial<Record<StageId, string>> = {
+  house: 'WASD — walk · E — use · C — chronicle · B — book · Esc — skip the prologue',
   town: 'WASD — walk · E — talk · C — chronicle · B — strangers · H — help',
   spiral: 'Drag — turn a ring · Tab — registry · Esc — back · H — help',
   relief: 'W S — walk · A D — turn · Esc — let go · H — help',

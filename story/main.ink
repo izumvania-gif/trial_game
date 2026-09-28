@@ -36,6 +36,7 @@ EXTERNAL damaged()
 EXTERNAL shard_line()
 EXTERNAL voice()
 
+INCLUDE prologue.ink
 INCLUDE town.ink
 INCLUDE people.ink
 INCLUDE people2.ink

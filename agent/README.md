@@ -20,7 +20,7 @@ Actions come from three places:
 | Where | Examples |
 |---|---|
 | The dialogue | `continue`, `say:2`, `finish` (déjà vu: say the line before them) |
-| The stage | town: `go:agora`, `meet:kora`, `talk:kora`, `talk:stele`, `wait` (minutes), `wait_until 18:00` · Hall: `carvings`, `turn:1 40`, `study l1`, `registry`, `leave` · board: `place:kora 3,1` · burning Hall: `strike:0` · relief: `approach:0`, `leave` |
+| The stage | prologue (a new game, after the cold open): `use:tablet`, `use:eion`, `use:door` or `skip` · town: `go:agora`, `meet:kora`, `talk:kora`, `talk:stele`, `wait` (minutes), `wait_until 18:00` · Hall: `carvings`, `turn:1 40`, `study l1`, `registry`, `leave` · board: `place:kora 3,1` · burning Hall: `strike:0` · relief: `approach:0`, `leave` |
 | Anything on screen | `ui:<button>` (e.g. `ui:wake`), `choose:<list> <option>`, `type:<field> <text>` |
 
 Always available in the world: `chronicle` (what you know and the open questions), `hint <n>`

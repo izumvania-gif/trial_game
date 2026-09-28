@@ -18,6 +18,12 @@ export interface StageHost {
   lastFrame(): string | null;
   /** Replace the keycap bar for a moment of this stage (null: the stage's own again). */
   setControls(text: string | null): void;
+  /** The side panel open now ('chronicle', 'book'), if any. */
+  openPanel(): string | null;
+  /** A teaching line at the bottom of the screen, with its keys (null: none). */
+  coach(text: string | null): void;
+  /** The prologue is over: the first morning goes on in the town. */
+  prologueDone(): void;
   /** Run an ink knot in the dialogue box; `args` for a knot that takes parameters. */
   interact(knot: string, args?: string[]): void;
   switchStage(id: StageId, entry?: string): void;
