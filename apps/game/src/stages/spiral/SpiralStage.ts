@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { PAST_LEONTS, type PastLeont } from '../../content/leonts.ts';
 import { confirmEntries } from '../../core/registry.ts';
 import { daySeed, seededRng } from '../../core/rng.ts';
+import { carvingCanvas, CRAFTS } from '../../ui/carvings.ts';
 import { h } from '../../ui/dom.ts';
 import { registryOverview, registryRow } from '../../ui/Registry.ts';
 import { disposeScene } from '../dispose.ts';
@@ -356,8 +357,24 @@ export class SpiralStage implements Stage {
     this.dragging = null;
     document.body.style.cursor = '';
     const render = () => {
+      // The carving is read from the picture; the words stay for screen readers (and agents),
+      // and anyone can ask for them.
+      const art = carvingCanvas(leont);
+      art.className = 'carving-art';
+      art.setAttribute('role', 'img');
+      art.setAttribute('aria-label', leont.carving);
+      const words = h('p', { className: 'carving sr-only' }, leont.carving);
+      const describe = h('button', { type: 'button', className: 'ghost carving-describe' }, 'Describe it');
+      describe.setAttribute('aria-hidden', 'true');
+      describe.tabIndex = -1;
+      describe.addEventListener('click', () => {
+        words.classList.toggle('sr-only');
+        describe.textContent = words.classList.contains('sr-only') ? 'Describe it' : 'Hide the words';
+      });
       const rows = [
-        h('p', { className: 'carving' }, leont.carving),
+        h('figure', { className: 'carving-figure' }, art, h('figcaption', {}, `${CRAFTS[leont.ring] ?? ''} · what he tried, and how it ended`)),
+        words,
+        describe,
         registryRow(this.host.memory, leont, () => this.onRegistryChange(render)),
       ];
       if (leont.enterable) {

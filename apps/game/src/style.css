@@ -254,6 +254,13 @@ select { font: inherit; background: var(--lacquer); color: var(--bone); border: 
   background: var(--panel); border: 1px solid var(--rule); box-shadow: var(--shadow); padding: 1.4rem 1.6rem; }
 .spiral-card h2 { font-weight: normal; letter-spacing: 0.25em; text-transform: uppercase; font-size: 0.95rem; margin-top: 0; }
 .spiral-card .carving { font-style: italic; line-height: 1.55; }
+.spiral-card:has(.carving-figure) { width: min(44rem, 92vw); }
+.carving-figure { margin: 0 0 0.4rem; }
+.carving-art { display: block; width: 100%; height: auto; border: 1px solid var(--rule); }
+.carving-figure figcaption { font-size: 0.78rem; letter-spacing: 0.08em; color: var(--muted, #b9ad94); margin-top: 0.35rem; }
+.spiral-card .carving-describe { font-size: 0.8rem; padding: 0.2rem 0.7rem; margin-top: 0; }
+/* Present for screen readers (and for agents reading the page), out of sight otherwise. */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
 .spiral-card button { margin: 0.6rem 0.4rem 0 0; }
 .registry-row { display: flex; flex-direction: column; gap: 0.35rem; padding: 0.7rem 0; border-top: 1px solid rgba(232, 226, 208, 0.15); }
 .registry-row.locked { color: var(--ember); }

@@ -106,7 +106,7 @@ export const PAST_LEONTS: PastLeont[] = [
   // Ring II — older, coarser.
   {
     id: 'l3', ring: 1, angle: slot(1, 0), attempt: 'killed_priest', fate: 'stoned', enterable: true, mask: 'Killer',
-    carving: 'An altar on the mountain. The priest falls backwards; the knife is in the scribe\'s hand, not his. The carving is deep here. You could put your hand into it.',
+    carving: 'An altar on the mountain. The priest falls backwards; the knife is in the scribe\'s hand, not his. In the next panel the scribe cowers on the slope with his arms over his head, and small round marks fly at him from every side. The carving is deep here. You could put your hand into it.',
   },
   {
     id: 'l4', ring: 1, angle: slot(1, 2), attempt: 'moved_date', fate: 'fire',
@@ -138,7 +138,7 @@ export const PAST_LEONTS: PastLeont[] = [
   },
   {
     id: 'l22', ring: 1, angle: slot(1, 8), attempt: 'fled_city', fate: 'forgotten',
-    carving: 'A scribe on a hill with a bundle, looking back at the city. The city in the next panel has no scribe in it: the carver left an empty space at the desk in the temple, and a young man is walking towards the empty space.',
+    carving: 'A scribe on a hill with a bundle, looking back at the city. The city in the next panel has no scribe in it: at his desk the carver left only a faint outline of a man, as if someone had rubbed him out, and a young man is walking towards the empty seat without looking at it.',
   },
   // Ring III — older still. Nearly pictograms.
   {

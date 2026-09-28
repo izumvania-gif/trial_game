@@ -8,6 +8,8 @@ import { drawSpiral } from './spiral.ts';
 import { mountDebugPanel } from './ui/DebugPanel.ts';
 import { PORTRAIT_IDS, portrait } from './ui/portraits.ts';
 import { MOODS } from './content/moods.ts';
+import { PAST_LEONTS } from './content/leonts.ts';
+import { carvingCanvas } from './ui/carvings.ts';
 import { installVirtualTime } from './agent/virtualTime.ts';
 import { AgentBridge } from './agent/bridge.ts';
 
@@ -50,6 +52,19 @@ if (new URLSearchParams(location.search).has('portraits')) {
     for (const mood of MOODS) add(portrait(id, 'vase', false, mood), `${id} ${mood}`);
     add(portrait(id, 'vase', true, 'joy'), `${id} talking`);
     add(portrait(id, 'marble', false, 'sorrow'), `${id} marble`);
+  }
+  document.body.append(sheet);
+}
+if (new URLSearchParams(location.search).has('carvings')) {
+  // Development sheet: every past Leont's carving, ring by ring.
+  const sheet = document.createElement('div');
+  sheet.style.cssText = 'position:fixed;inset:0;z-index:99;overflow:auto;background:#1d1611;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;color:#e8e2d0;font:12px serif';
+  for (const l of PAST_LEONTS) {
+    const cell = document.createElement('div');
+    const c = carvingCanvas(l);
+    c.style.cssText = 'width:100%;display:block';
+    cell.append(c, `${l.id} · ring ${l.ring} · ${l.attempt} → ${l.fate}`);
+    sheet.append(cell);
   }
   document.body.append(sheet);
 }
