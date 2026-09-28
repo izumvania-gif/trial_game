@@ -3,7 +3,7 @@
 // It uses the debug panel to jump between stages, then plays each one only through observe/act.
 import { EferonGame } from './game.mjs';
 
-const game = await new EferonGame({ debug: true, profile: `/tmp/eferon-agent-selftest-${process.pid}` }).start();
+const game = await new EferonGame({ debug: true, gamePort: 0, profile: `/tmp/eferon-agent-selftest-${process.pid}` }).start();
 const log = (...a) => console.log(...a);
 let fails = 0;
 const check = (ok, what) => { log(ok ? '  ok ' : '  FAIL', what); if (!ok) fails++; };

@@ -7,7 +7,7 @@ import { fetchNotes, fetchStele } from '../../api.ts';
 import { queue, type Ticket } from '../../content/tickets.ts';
 import type { TicketDecision } from '../../core/types.ts';
 import { h } from '../../ui/dom.ts';
-import type { Stage, StageHost } from '../types.ts';
+import type { Stage, StageAgent, StageHost } from '../types.ts';
 
 const CHAT: [string, string, string][] = [
   ['09:14', 'Minotaur_ops', 'morning. anyone else feel like this sprint already happened?'],
@@ -112,6 +112,19 @@ export class DeskStage implements Stage {
     this.root.remove();
   }
 
+  /** Agent mode: the screen is read as it is; only Esc (letting go of the mark) needs an action. */
+  agent(): StageAgent {
+    return {
+      describe: () => [],
+      actions: () => [{ id: 'leave', label: 'Let go of the mark (Esc): back down into the Hall' }],
+      perform: (id) => {
+        if (id !== 'leave') return null;
+        this.host.switchStage('spiral');
+        return 'You let go of the mark.';
+      },
+    };
+  }
+
   update(dt: number): void {
     if (this.host.input.wasPressed('Escape')) this.host.switchStage('spiral');
     this.office(dt);
@@ -169,10 +182,12 @@ export class DeskStage implements Stage {
 
     const list = h('ol', { className: 'desk-queue' }, ...tickets.map((t, i) => {
       const closed = memory.tickets[t.id];
-      const li = h('li', { className: `${t.id === this.selected ? 'active' : ''}${closed ? ' closed' : ''}` },
+      // A real button inside the item, so the queue can be worked from the keyboard (and by agents).
+      const open = h('button', { type: 'button', className: 'ticket-open' },
         h('span', { className: 'ticket-id' }, `EFR-${String(i + 1).padStart(4, '0')}`), ' ', t.title);
-      li.addEventListener('click', () => this.open(t));
-      return li;
+      if (t.id === this.selected) open.setAttribute('aria-current', 'true');
+      open.addEventListener('click', () => this.open(t));
+      return h('li', { className: `${t.id === this.selected ? 'active' : ''}${closed ? ' closed' : ''}` }, open);
     }));
 
     const tabs = h('div', { className: 'desk-tabs' },

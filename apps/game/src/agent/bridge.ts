@@ -193,10 +193,15 @@ export class AgentBridge {
       } else if (verb === 'type') out.push({ id: `type:${key}`, label, arg: 'text' });
       else out.push({ id: `ui:${key}`, label });
     }
-    if (titleUp || blocked || g.phase !== 'playing') return out;
+    // Waiting is always possible outside a line of dialogue: some screens are passed by not pressing anything
+    // (the last one asks you to wake up, and the right answer is to wait).
+    if (titleUp || blocked || g.phase !== 'playing') {
+      if (!titleUp && !view) out.push({ id: 'wait', label: 'Let a few seconds pass (do nothing)', arg: 'seconds (default 3)' });
+      return out;
+    }
     const agent = g.current.agent?.();
     if (agent) out.push(...agent.actions());
-    if (g.current.id === 'town' || g.current.id === 'spiral') {
+    if (g.current.id === 'town' || g.current.id === 'spiral' || g.current.id === 'house') {
       if (!g.lost('chronicle')) out.push({ id: 'chronicle', label: 'Read your chronicle: what you know, and the questions still open' });
       if (!g.lost('chronicle')) out.push({ id: 'hint', label: 'Reveal where to look next for an open question', arg: 'question number from the chronicle' });
       if (!g.lost('schedules')) out.push({ id: 'book', label: 'Read the Book of Strangers: where people are, hour by hour' });
@@ -256,9 +261,10 @@ export class AgentBridge {
       return `${s} seconds pass.`;
     }
     if (verb === 'save') return `Wax tablet (import it on the title screen to continue from here):\n${exportTablet((g as unknown as { save: Parameters<typeof exportTablet>[0] }).save)}`;
-    if (verb === 'chronicle') return this.readChronicle();
+    // Reading counts as opening it (the prologue's lesson is to open the chronicle and the Book).
+    if (verb === 'chronicle') { (g.current as { panelRead?: (p: string) => void }).panelRead?.('chronicle'); return this.readChronicle(); }
     if (verb === 'hint') return this.revealHint(Number(arg ?? rest));
-    if (verb === 'book') return this.readBook();
+    if (verb === 'book') { (g.current as { panelRead?: (p: string) => void }).panelRead?.('book'); return this.readBook(); }
     if (verb === 'mask') {
       g.toggleMask();
       return g.save.cycle.wornMask ? `You wear the ${g.save.cycle.wornMask} mask.` : 'You take the mask off.';

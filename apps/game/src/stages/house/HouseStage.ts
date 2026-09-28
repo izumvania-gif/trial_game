@@ -350,6 +350,12 @@ export class HouseStage implements Stage {
   }
 
   // Esc: leave the prologue for those who have played before.
+  /** Agent mode reads the chronicle or the Book without opening the panel: the lesson counts the same. */
+  panelRead(panel: string): void {
+    if (this.step === 'chronicle' && panel === 'chronicle') this.step = 'eion';
+    if (this.step === 'book' && panel === 'book') this.step = 'door';
+  }
+
   /** The skip question is up: the game holds still behind it. */
   get modalOpen(): boolean {
     return !this.skip.hidden;

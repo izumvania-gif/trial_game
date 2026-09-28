@@ -10,8 +10,12 @@ const HERE = fileURLToPath(new URL('.', import.meta.url));
 const DIST = resolve(HERE, '../apps/game/dist');
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.mp3': 'audio/mpeg', '.svg': 'image/svg+xml', '.png': 'image/png', '.json': 'application/json' };
 
-/** Serve the built game (apps/game/dist) on a free local port; the /api calls fail soft. */
-function serveDist() {
+/**
+ * Serve the built game (apps/game/dist) locally; the /api calls fail soft.
+ * On a fixed port by default: the save lives in the page's localStorage, which belongs to the
+ * origin, so a port that changed between runs would start every run with an empty save.
+ */
+function serveDist(port = 7358) {
   if (!existsSync(join(DIST, 'index.html'))) throw new Error(`No build at ${DIST}. Run "npm run build" in the repo root first, or pass --url.`);
   const server = createServer((req, res) => {
     const path = decodeURIComponent(new URL(req.url, 'http://x').pathname);
@@ -21,13 +25,22 @@ function serveDist() {
     res.writeHead(200, { 'content-type': TYPES[extname(file)] ?? 'application/octet-stream' });
     createReadStream(file).pipe(res);
   });
-  return new Promise((ok) => server.listen(0, '127.0.0.1', () => ok({ server, url: `http://127.0.0.1:${server.address().port}/` })));
+  return new Promise((ok, fail) => {
+    const listen = (p) => server.listen(p, '127.0.0.1', () => ok({ server, url: `http://127.0.0.1:${server.address().port}/` }));
+    server.once('error', (e) => {
+      if (e.code !== 'EADDRINUSE' || port === 0) return fail(e);
+      process.stderr.write(`[eferon] port ${port} is busy; serving on a free port instead — this run's save will not be found by the next one.\n`);
+      listen(0);
+    });
+    listen(port);
+  });
 }
 
 export class EferonGame {
   /**
-   * @param {{ url?: string, profile?: string, headed?: boolean, executablePath?: string }} opts
-   *   url: a deployed game instead of the local build; profile: where the save lives between runs.
+   * @param {{ url?: string, profile?: string, headed?: boolean, executablePath?: string, gamePort?: number }} opts
+   *   url: a deployed game instead of the local build; profile: where the save lives between runs;
+   *   gamePort: where the local build is served (default 7358; the save belongs to that origin).
    */
   constructor(opts = {}) {
     this.opts = opts;
@@ -35,7 +48,7 @@ export class EferonGame {
 
   async start() {
     const { url, profile = resolve(HERE, '.profile'), headed = false } = this.opts;
-    if (!url) this.local = await serveDist();
+    if (!url) this.local = await serveDist(this.opts.gamePort);
     this.base = url ?? this.local.url;
     mkdirSync(profile, { recursive: true });
     this.context = await chromium.launchPersistentContext(profile, {

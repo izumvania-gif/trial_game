@@ -47,6 +47,8 @@ node agent/eferon.mjs shot view.png    # what a human would see
 
 Options: `--url <deployed game>` (instead of the local build), `--profile <dir>` (where the save
 lives between runs; default `agent/.profile`), `--port`, `--headed`, `--json`.
+The local build is always served on `127.0.0.1:7358`: the save lives in the page's
+localStorage, which belongs to that origin, so the next run finds it again.
 
 HTTP: `GET /observe`, `POST /act {"id": "...", "arg": "..."}`, `POST /new`, `POST /load {"tablet"}`,
 `GET /shot?path=`; add `?json` (or `Accept: application/json`) for the structured observation.

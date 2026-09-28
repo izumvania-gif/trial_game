@@ -284,8 +284,10 @@ button.carry { position: absolute; left: 50%; top: 40%; transform: translateX(-5
 
 /* Desk: chat */
 .desk main h3 { color: #d6e6dc; font-weight: normal; }
-.desk-queue li { cursor: pointer; margin: 0.35rem 0; }
-.desk-queue li:hover { color: #d6e6dc; }
+.desk-queue li { margin: 0.35rem 0; }
+.desk-queue .ticket-open { all: unset; cursor: pointer; display: block; width: 100%; }
+.desk-queue .ticket-open:hover, .desk-queue .ticket-open:focus-visible { color: #d6e6dc; }
+.desk-queue .ticket-open:focus-visible { outline: 1px solid currentColor; outline-offset: 2px; }
 .desk-queue li.closed { opacity: 0.45; text-decoration: line-through; }
 .ticket-id { color: #93a99b; }
 .desk-actions { display: flex; flex-direction: column; align-items: flex-start; gap: 0.4rem; margin-top: 1.2rem; }
