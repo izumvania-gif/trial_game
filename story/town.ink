@@ -155,6 +155,37 @@ The mole ends in open water. Two boats knock against the stone, their sails tied
 A boundary stone where the road leaves the gate and starts to climb, cut with one word: HOROS. Past it the mountain belongs to the god.
 -> mountain_path
 
+=== theatre ===
+{
+- last_hour():
+    The rows are empty. From the top of the theatre the whole city lies below you, and it is looking the other way, up at the mountain.
+    Past the roofs and the mole the sea is still moving. Nothing else is.
+- hour() >= 17:
+    The chorus has gone home. The orchestra is swept; the masks are hung inside the skene in a row, their mouths open on nothing.
+    Somebody has left one on the altar in the middle. It is not any face you know.
+- hour() >= 9:
+    The chorus is rehearsing a tragedy in the orchestra, white masks, one voice.
+    "Every night the city says yes, and every morning the city forgets it said it." The man with the staff stops them. "Again. From the yes."
+    They begin again. They say it exactly the same way. He is pleased.
+- else:
+    The theatre at first light. Stone rows climb away from you in a half-circle, and from the top of them, over the roofs, you can see the sea.
+    Nobody sits here this early. The rows are cold, and every one of them is the same height as the last.
+}
+-> DONE
+
+=== cape_shrine ===
+{
+- last_hour():
+    The light on the tower is burning for nobody. Every boat is hauled up; every face in the city is turned to the mountain.
+    Out here there is only the fire, the wind and the water, and the water is not listening to the priest.
+- hour() >= 19:
+    The keeper has lit the fire on the tower. It throws a long, shaking line across the water towards you, and the line is never the same twice.
+- else:
+    A small shrine of Poseidon at the end of the rocks: four columns, a roof, an altar stone that is always wet, whatever the weather.
+    There are no inscriptions on it, no dates. Somebody has left a fish-hook and a single barley grain on the altar, as if that were enough.
+}
+-> DONE
+
 === mountain_path ===
 {hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
     The path up the holy mountain. For one more hour only the early climbers are on it, the ones who want to be seen. Among the pale stones one is paler than the rest, and square-edged.

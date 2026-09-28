@@ -12,6 +12,7 @@ import { disposeScene } from '../dispose.ts';
 import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, giveWay, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
+import { buildPlaces, PLACE_SPOTS, placeReserved, STEP, type PlaceLife } from './places.ts';
 import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep, Torches, type Box } from './city.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
@@ -65,6 +66,7 @@ const PLACES_TO_TALK: Interactable[] = [
   { x: 10.8, z: 2.8, radius: 1.5, knot: 'agora_crier', label: 'Listen to the crier' },
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'The path to the shore' },
   { x: -6, z: 33.6, radius: 1.5, knot: 'mole_end', label: 'The end of the mole' },
+  ...PLACE_SPOTS,
   // Out through the gate, where the sacred road starts to climb.
   { x: HOROS.x - 1, z: HOROS.z + 0.6, radius: 2, knot: 'horos', label: 'The boundary stone' },
   // The foot of the path, on the town side of where the early climbers stand.
@@ -100,6 +102,7 @@ export class TownStage implements Stage {
   private boxes: Box[] = [];
   private socle = lambert('#b98a62');
   private tavernLamps: THREE.Mesh[] = [];
+  private placeLives: PlaceLife[] = [];
   private tavernDrinkers: THREE.Group[] = [];
   private tavernLight = new THREE.PointLight('#ffb25a', 0, 9, 1.3);
   private terrace = lambert('#d8c49c');
@@ -241,6 +244,7 @@ export class TownStage implements Stage {
     this.addBox(-4.5, -11, 1.2, 0.5, 3.2, '#f4eedd').rotation.y = 0.15; // the star stele
     this.buildAgora();
     this.buildLandmarks();
+    this.placeLives = buildPlaces(s, this.boxes);
     this.sky2 = new Sky(s, TOWN_SKY, { moonDir: new THREE.Vector3(0.42, 0.26, -0.9), moonColor: '#f4ecd8', starColor: '#f4ecd8', sunset: '#ff7a3a' });
     this.street = new StreetLife(s, this.boxes);
     this.buildHouses();
@@ -512,7 +516,8 @@ export class TownStage implements Stage {
       Math.hypot(x - 9, z - 1.5) < 6 || // agora
       (z < -12.5 && Math.abs(x) < 9) || // temple
       Math.hypot(x - 1, z - 21) < 5 || // path to the sea
-      (x > -18 && x < -8.5 && z > 7.5 && z < 15.5); // the tavern and its courtyard
+      (x > -18 && x < -8.5 && z > 7.5 && z < 15.5) || // the tavern and its courtyard
+      placeReserved(x, z);
     let placed = 0;
     for (let tries = 0; tries < 800 && placed < 42; tries++) {
       const x = -26 + rand() * 52;
@@ -848,7 +853,7 @@ export class TownStage implements Stage {
       const m = this.placeMarks[i]!;
       const d = Math.hypot(place.x - this.player.position.x, place.z - this.player.position.z);
       m.visible = d < 18 && near !== place && this.host.input.enabled;
-      m.position.set(place.x, 2.6 + Math.sin(this.time * 2 + i) * 0.08, place.z);
+      m.position.set(place.x, groundAt(place.x, place.z) + 2.6 + Math.sin(this.time * 2 + i) * 0.08, place.z);
     });
     // The first morning's goal, marked where it is: the stele, until the name under the moss is found.
     const goal = !this.host.knowledge.knows('name_in_stone') && this.host.memory.cycle <= 2 ? PLACES_TO_TALK.find((x) => x.knot === 'stele')! : null;
@@ -1064,6 +1069,8 @@ export class TownStage implements Stage {
   /** Can he step from (x0, z0) to (x, z)? Not into walls or deep water, and not into anyone (stepping away is always fine). */
   private free(x0: number, z0: number, x: number, z: number): boolean {
     if (this.blocked(x, z) || tooDeep(x, z) || !outsideRoad(x, z)) return false;
+    // Up a stair or a slope, yes; up or down a ledge higher than a step, no.
+    if (Math.abs(groundAt(x, z) - groundAt(x0, z0)) > STEP) return false;
     for (const o of this.people) {
       const d = Math.hypot(x - o.x, z - o.z);
       if (d < PERSON_GAP && d < Math.hypot(x0 - o.x, z0 - o.z)) return false;
@@ -1107,6 +1114,7 @@ export class TownStage implements Stage {
       lamp.scale.y = 0.85 + 0.3 * Math.abs(Math.sin(this.time * 8 + i * 2));
     }
     this.tavernLight.intensity = dusk * 10;
+    for (const life of this.placeLives) life.update(minute, this.time, dusk);
     dimPaint(night);
     // The last hours: gusts off the mountain (sooner if the player has raised the wind), and eyes up.
     const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);

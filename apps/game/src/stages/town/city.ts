@@ -3,6 +3,7 @@
 // Everything here is fixed: the same city every cycle.
 import * as THREE from 'three';
 import { lambert, pavingTexture, textured } from '../figures.ts';
+import { onPlaceOverWater, placeGround } from './places.ts';
 
 export interface Box {
   minX: number;
@@ -158,6 +159,8 @@ export const BEACH = { dry: 25.3, slope: 0.5, deep: 27.2 };
 
 /** How high the ground is at (x, z): the streets, the beach, the wet slope, the mole. */
 export function groundAt(x: number, z: number): number {
+  const place = placeGround(x, z);
+  if (place !== null) return place;
   if (Math.abs(x - MOLE.x) < MOLE.half && z > MOLE.from && z < MOLE.to) return MOLE.top;
   if (z <= BEACH.dry) return 0;
   return -(z - BEACH.dry) * BEACH.slope;
@@ -165,6 +168,7 @@ export function groundAt(x: number, z: number): number {
 
 /** Past the shallows, off the mole: the water is too deep to walk. */
 export function tooDeep(x: number, z: number): boolean {
+  if (onPlaceOverWater(x, z)) return false;
   if (Math.abs(x - MOLE.x) < MOLE.half && z > MOLE.from && z < MOLE.to) return false;
   return z > BEACH.deep;
 }
