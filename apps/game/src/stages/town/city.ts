@@ -3,7 +3,7 @@
 // Everything here is fixed: the same city every cycle.
 import * as THREE from 'three';
 import { lambert, pavingTexture, textured } from '../figures.ts';
-import { onPlaceOverWater, placeGround } from './places.ts';
+import { onPlaceOverWater, placeGround, placeOutside, WEST_GATE } from './places.ts';
 
 export interface Box {
   minX: number;
@@ -76,7 +76,11 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
   const { west: W, east: E, north: N, shore: S, gateX: G, gateHalf: g } = WALL;
   wall(W, N, G - g - TOWER / 2, N);
   wall(G + g + TOWER / 2, N, E, N);
-  wall(W, N, W, S);
+  // The west wall, with the other gate: the one the road of the dead goes out by.
+  const wg0 = WEST_GATE.z - WEST_GATE.half - TOWER / 2;
+  const wg1 = WEST_GATE.z + WEST_GATE.half + TOWER / 2;
+  wall(W, N, W, wg0);
+  wall(W, wg1, W, S);
   wall(E, N, E, S);
   for (const z of [N, N + 12.5, N + 25, N + 37.5, S]) {
     tower(W, z);
@@ -101,6 +105,21 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
     scene.add(leaf);
   }
 
+  tower(W, wg0, HEIGHT + 1.8);
+  tower(W, wg1, HEIGHT + 1.8);
+  const westLintel = new THREE.Mesh(new THREE.BoxGeometry(THICK + 0.3, 0.9, 2 * WEST_GATE.half + 0.4), lambert('#d2bf97'));
+  westLintel.position.set(W, HEIGHT + 0.2, WEST_GATE.z);
+  westLintel.castShadow = true;
+  scene.add(westLintel);
+  for (const side of [-1, 1]) {
+    const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.18, HEIGHT - 0.5, WEST_GATE.half), wood);
+    leaf.geometry.translate(0, 0, (side * -WEST_GATE.half) / 2);
+    leaf.position.set(W + 0.3, (HEIGHT - 0.5) / 2, WEST_GATE.z + side * WEST_GATE.half);
+    leaf.rotation.y = -side * 1.25;
+    leaf.castShadow = true;
+    scene.add(leaf);
+  }
+
   const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), coping, copings.length);
   copings.forEach((m, i) => inst.setMatrixAt(i, m));
   inst.castShadow = true;
@@ -113,6 +132,7 @@ export const OUTSIDE = { halfWidth: 5.2, end: -37.5 };
 
 /** Outside the walls, only the road beyond the gate can be walked. */
 export function outsideRoad(x: number, z: number): boolean {
+  if (x < WALL.west - THICK / 2) return placeOutside(x, z);
   if (z > WALL.north - THICK / 2) return true;
   return Math.abs(x - WALL.gateX) < OUTSIDE.halfWidth && z > OUTSIDE.end;
 }

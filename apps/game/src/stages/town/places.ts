@@ -50,6 +50,31 @@ function capeHeight(x: number, z: number): number | null {
   return null;
 }
 
+// ─── The lookout: a rock west of the temple of Apollo, a stair up its south face ───
+
+export const LOOKOUT = { x0: -14.4, x1: -8.2, z0: -26, z1: -20.4, top: 3.4, stair: { x0: -12.2, x1: -10.8, foot: -16.2 } };
+
+function lookoutHeight(x: number, z: number): number | null {
+  const L = LOOKOUT;
+  if (x > L.x0 && x < L.x1 && z > L.z0 && z < L.z1) return L.top;
+  if (x > L.stair.x0 && x < L.stair.x1 && z >= L.z1 && z < L.stair.foot) return ((L.stair.foot - z) / (L.stair.foot - L.z1)) * L.top;
+  return null;
+}
+
+// ─── The west gate, and outside it the road of the dead ───
+
+export const WEST_GATE = { z: 4.2, half: 1.9 };
+export const NECROPOLIS = { from: -30.1, to: -45.5, half: 4.2 };
+
+/** Outside the walls, on the road to the necropolis. */
+export function placeOutside(x: number, z: number): boolean {
+  return x < NECROPOLIS.from && x > NECROPOLIS.to && Math.abs(z - WEST_GATE.z) < NECROPOLIS.half;
+}
+
+// ─── The gymnasium, inside the west wall south of the gate ───
+
+export const GYM = { x0: -27.8, x1: -18.6, z0: 7.6, z1: 16.2, track: 14.4 };
+
 /** Walkable rock or stone out over the water, where the sea is not too deep. */
 export function onPlaceOverWater(x: number, z: number): boolean {
   return capeHeight(x, z) !== null;
@@ -57,18 +82,24 @@ export function onPlaceOverWater(x: number, z: number): boolean {
 
 /** The ground of these places at (x, z), or null where they do not reach. */
 export function placeGround(x: number, z: number): number | null {
-  return theatreHeight(x, z) ?? capeHeight(x, z);
+  return theatreHeight(x, z) ?? capeHeight(x, z) ?? lookoutHeight(x, z);
 }
 
 /** Where the player can talk or look. */
 export const PLACE_SPOTS: PlaceSpot[] = [
   { x: THEATRE.x, z: THEATRE.z + 0.4, radius: 2, knot: 'theatre', label: 'The theatre' },
   { x: CAPE.end.x - 0.6, z: CAPE.end.z - 2.2, radius: 1.8, knot: 'cape_shrine', label: 'The shrine of Poseidon' },
+  { x: -10.6, z: -23.4, radius: 2, knot: 'lookout', label: 'The lookout' },
+  { x: -39.5, z: 5.6, radius: 1.5, knot: 'phyllis_grave', label: 'A grave by the road' },
+  { x: -43.6, z: WEST_GATE.z, radius: 1.8, knot: 'west_road', label: 'The road into the hills' },
+  { x: -21, z: 11.2, radius: 2, knot: 'gymnasium', label: 'The gymnasium' },
 ];
 
 /** Keep houses out of these places. */
 export function placeReserved(x: number, z: number): boolean {
-  return (x > 13.5 && z < -14.6 && z > -27) || (x > 17 && x < 27 && z > 19);
+  return (x > 13.5 && z < -14.6 && z > -27) || (x > 17 && x < 27 && z > 19) ||
+    (x > -15.6 && x < -7.6 && z < -15.4 && z > -27) || // the lookout
+    (x < -18 && z > 1.2 && z < 16.8); // the gate road and the gymnasium
 }
 
 /** The places' small lives, moved by the clock. */
@@ -251,7 +282,211 @@ function buildCape(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   };
 }
 
+function buildLookout(scene: THREE.Scene, boxes: Box[]): PlaceLife {
+  const L = LOOKOUT;
+  const rock = lambert('#8a5a3c');
+  const rand = seededRng(daySeed('eferon/lookout'));
+  const w = L.x1 - L.x0;
+  const d = L.z1 - L.z0;
+  const block = new THREE.Mesh(new THREE.BoxGeometry(w, L.top, d), rock);
+  block.position.set((L.x0 + L.x1) / 2, L.top / 2, (L.z0 + L.z1) / 2);
+  block.castShadow = block.receiveShadow = true;
+  scene.add(block);
+  const top = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.2, d - 0.2), textured(pavingTexture(), '#d8c49c'));
+  top.rotation.x = -Math.PI / 2;
+  top.position.set((L.x0 + L.x1) / 2, L.top + 0.01, (L.z0 + L.z1) / 2);
+  top.receiveShadow = true;
+  scene.add(top);
+  // Boulders round its foot, so it reads as rock and not as a building.
+  for (let i = 0; i < 14; i++) {
+    const t = i / 14;
+    const onX = i % 2 === 0;
+    const x = onX ? L.x0 + t * w : (i % 4 === 1 ? L.x0 - 0.3 : L.x1 + 0.3);
+    const z = onX ? L.z1 + 0.3 : L.z0 + t * d;
+    if (x > L.stair.x0 - 0.8 && x < L.stair.x1 + 0.8 && z > L.z1 - 0.5) continue;
+    const r = 0.7 + rand() * 0.8;
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), rock);
+    m.position.set(x, r * 0.6 + rand() * 1.2, z);
+    m.rotation.set(rand() * 3, rand() * 3, 0);
+    m.castShadow = true;
+    scene.add(m);
+  }
+  // The stair cut into the south face, step by step.
+  const steps = 10;
+  const run = (L.stair.foot - L.z1) / steps;
+  for (let i = 0; i < steps; i++) {
+    const h = ((i + 1) / steps) * L.top;
+    const st = new THREE.Mesh(new THREE.BoxGeometry(L.stair.x1 - L.stair.x0, h, run), lambert('#cdbb92'));
+    st.position.set((L.stair.x0 + L.stair.x1) / 2, h / 2, L.stair.foot - (i + 0.5) * run);
+    st.receiveShadow = true;
+    scene.add(st);
+  }
+  // On top: a stone bench, a herm, and a cypress bent by the wind off the mountain.
+  const bench = new THREE.Mesh(new THREE.BoxGeometry(2, 0.45, 0.5), lambert('#e6d9b8'));
+  bench.position.set(-10.6, L.top + 0.22, -24.8);
+  scene.add(bench);
+  boxes.push({ minX: -11.6, maxX: -9.6, minZ: -25.05, maxZ: -24.55 });
+  const herm = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.6, 0.4), lambert('#f0e6cc'));
+  herm.position.set(-13.3, L.top + 0.8, -21.4);
+  herm.castShadow = true;
+  scene.add(herm);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), lambert('#f0e6cc'));
+  head.position.set(-13.3, L.top + 1.85, -21.4);
+  scene.add(head);
+  boxes.push({ minX: -13.55, maxX: -13.05, minZ: -21.65, maxZ: -21.15 });
+  return { update() {} };
+}
+
+function buildNecropolis(scene: THREE.Scene, boxes: Box[]): PlaceLife {
+  const N = NECROPOLIS;
+  const z0 = WEST_GATE.z;
+  const rand = seededRng(daySeed('eferon/necropolis'));
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(N.from - N.to + 2, 3), textured(pavingTexture(), '#e6d5b2'));
+  road.rotation.x = -Math.PI / 2;
+  road.position.set((N.from + N.to) / 2, 0.012, z0);
+  road.receiveShadow = true;
+  scene.add(road);
+  const marble = lambert('#f0e6cc');
+  const grey = lambert('#d8c8a8');
+  const put = (m: THREE.Mesh, x: number, y: number, z: number, block: [number, number]) => {
+    m.position.set(x, y, z);
+    m.castShadow = true;
+    scene.add(m);
+    boxes.push({ minX: x - block[0], maxX: x + block[0], minZ: z - block[1], maxZ: z + block[1] });
+  };
+  // Grave stelai on both sides of the road, some with a pediment, some a small column.
+  for (let x = N.from - 1.6; x > N.to + 1.5; x -= 2.1) {
+    for (const side of [-1, 1]) {
+      if (side === 1 && Math.abs(x + 39.5) < 1.2) continue; // Phyllis's place is kept for her stone
+      const z = z0 + side * (3.2 + rand() * 0.5);
+      const kind = rand();
+      if (kind < 0.55) {
+        const h = 1.1 + rand() * 0.6;
+        put(new THREE.Mesh(new THREE.BoxGeometry(0.55, h, 0.18), rand() < 0.5 ? marble : grey), x, h / 2, z, [0.3, 0.12]);
+        const cap = new THREE.Mesh(new THREE.ConeGeometry(0.4, 0.3, 3), marble);
+        cap.rotation.z = Math.PI / 2;
+        cap.rotation.y = Math.PI / 2;
+        cap.position.set(x, h + 0.12, z);
+        scene.add(cap);
+      } else if (kind < 0.8) {
+        const h = 0.9 + rand() * 0.5;
+        put(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.18, h, 8), marble), x, h / 2, z, [0.2, 0.2]);
+      } else {
+        const lek = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.14, 0.9, 8), grey);
+        put(lek, x, 0.45, z, [0.25, 0.25]);
+      }
+    }
+  }
+  // A family tomb: a stone house of the dead with a pediment, on the north side.
+  const tomb = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 1.6), grey);
+  put(tomb, -34.2, 0.9, z0 - 4, [1.25, 0.85]);
+  const ped = new THREE.Mesh(new THREE.ConeGeometry(1.5, 0.6, 3), marble);
+  ped.rotation.set(0, Math.PI / 2, Math.PI / 2);
+  ped.scale.set(1, 1, 0.55);
+  ped.position.set(-34.2, 2.0, z0 - 4);
+  scene.add(ped);
+  // Phyllis: a tall stele with a painted panel, a woman carrying a water jar.
+  const phyllis = new THREE.Mesh(new THREE.BoxGeometry(0.7, 1.9, 0.22), marble);
+  put(phyllis, -39.5, 0.95, z0 + 3.4, [0.4, 0.14]);
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.9, 0.04), new THREE.MeshBasicMaterial({ color: '#b5532a' }));
+  panel.position.set(-39.5, 1.15, z0 + 3.28);
+  scene.add(panel);
+  const woman = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.62, 0.05), new THREE.MeshBasicMaterial({ color: '#17110d' }));
+  woman.position.set(-39.5, 1.08, z0 + 3.25);
+  scene.add(woman);
+  const sprig = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.12), lambert('#4a3a22'));
+  sprig.position.set(-39.5, 0.06, z0 + 3.1);
+  scene.add(sprig);
+  // Cypresses behind the graves, and the hills where the road runs out.
+  for (let x = N.from - 3; x > N.to; x -= 4.3) {
+    for (const side of [-1, 1]) {
+      const c = new THREE.Mesh(new THREE.ConeGeometry(0.55, 4 + rand() * 2, 6), lambert('#241a12'));
+      c.position.set(x + rand(), 2.4, z0 + side * (5.4 + rand()));
+      c.castShadow = true;
+      scene.add(c);
+    }
+  }
+  for (let i = 0; i < 6; i++) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(4 + i, 7, 5, 0, Math.PI * 2, 0, Math.PI / 2), lambert('#9a6446'));
+    m.position.set(N.to - 6 - i * 2, 0, z0 + (i - 2.5) * 5);
+    m.scale.y = 0.45;
+    m.receiveShadow = true;
+    scene.add(m);
+  }
+  for (const dz of [-3.4, -1.8, 2.1, 3.6]) {
+    const r = 0.8 + rand() * 0.5;
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), lambert('#7a4a30'));
+    put(m, N.to + 0.6, r * 0.6, z0 + dz, [r * 0.7, r * 0.7]);
+  }
+  return { update() {} };
+}
+
+function buildGymnasium(scene: THREE.Scene, boxes: Box[]): PlaceLife {
+  const G = GYM;
+  // The palaestra: a court of raked sand, a stoa along the wall, a running track at the far side.
+  const sand = new THREE.Mesh(new THREE.PlaneGeometry(G.x1 - G.x0, G.z1 - G.z0), lambert('#e3d3b0'));
+  sand.rotation.x = -Math.PI / 2;
+  sand.position.set((G.x0 + G.x1) / 2, 0.01, (G.z0 + G.z1) / 2);
+  sand.receiveShadow = true;
+  scene.add(sand);
+  const track = new THREE.Mesh(new THREE.PlaneGeometry(G.x1 - G.x0 - 1, 1.6), lambert('#c9a57c'));
+  track.rotation.x = -Math.PI / 2;
+  track.position.set((G.x0 + G.x1) / 2, 0.015, G.track);
+  scene.add(track);
+  for (const x of [G.x0 + 0.8, G.x1 - 0.8]) {
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.2, 0.25), lambert('#f0e6cc'));
+    post.position.set(x, 0.6, G.track - 1);
+    scene.add(post);
+    boxes.push({ minX: x - 0.15, maxX: x + 0.15, minZ: G.track - 1.15, maxZ: G.track - 0.85 });
+  }
+  // The stoa: columns along the court, a tiled roof back to the city wall.
+  const col = lambert('#f0e6cc');
+  const sx = G.x0 + 1.6;
+  for (let z = G.z0 + 0.6; z <= G.z1 - 0.4; z += 1.7) {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.21, 2.8, 8), col);
+    c.position.set(sx, 1.4, z);
+    c.castShadow = true;
+    scene.add(c);
+    boxes.push({ minX: sx - 0.22, maxX: sx + 0.22, minZ: z - 0.22, maxZ: z + 0.22 });
+  }
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.3, G.z1 - G.z0), lambert('#9a5a3a'));
+  roof.position.set(G.x0 + 0.75, 3, (G.z0 + G.z1) / 2);
+  roof.rotation.z = -0.12;
+  roof.castShadow = true;
+  scene.add(roof);
+  // Runners down the track and back, wrestlers in the sand, the trainer with his forked stick.
+  const runners = [0, 1, 2].map(() => makeFigure('#3a2418', 1.62));
+  const wrestlers = [0, 1].map(() => makeFigure('#2a1a12', 1.62));
+  const trainer = makeFigure('#17110d', 1.7);
+  const stick = new THREE.Mesh(new THREE.BoxGeometry(0.06, 1.6, 0.06), lambert('#4a2c1a'));
+  stick.position.set(0.32, 0.9, 0.1);
+  trainer.add(stick);
+  for (const f of [...runners, ...wrestlers, trainer]) scene.add(f);
+  wrestlers[0]!.position.set(-22.8, 0, 10.4);
+  wrestlers[1]!.position.set(-22.1, 0, 10.4);
+  wrestlers[0]!.rotation.set(0, Math.PI / 2, 0.35);
+  wrestlers[1]!.rotation.set(0, -Math.PI / 2, -0.35);
+  trainer.position.set(-24.6, 0, 11.6);
+  trainer.rotation.y = Math.PI / 2;
+  const length = G.x1 - G.x0 - 2.4;
+  return {
+    update(minute, time) {
+      const open = (minute >= at(7) && minute < at(12)) || (minute >= at(15) && minute < at(18, 30));
+      for (const f of [...runners, ...wrestlers, trainer]) f.visible = open;
+      if (!open) return;
+      runners.forEach((f, i) => {
+        // Down and back, the pace fixed by the clock; the third is always one stride behind the second.
+        const phase = (minute * 0.9 + (i === 2 ? 0.36 : i * 0.4)) % 2;
+        const t = phase < 1 ? phase : 2 - phase;
+        f.position.set(G.x0 + 1.2 + t * length, Math.abs(Math.sin(time * 11 + i)) * 0.08, G.track + (i - 1) * 0.45);
+        f.rotation.y = phase < 1 ? Math.PI / 2 : -Math.PI / 2;
+      });
+      wrestlers.forEach((f, i) => { f.rotation.z = (i ? -1 : 1) * (0.3 + Math.sin(time * 1.3) * 0.08); });
+    },
+  };
+}
+
 /** Build every place; the returned lives are updated with the clock each frame. */
 export function buildPlaces(scene: THREE.Scene, boxes: Box[]): PlaceLife[] {
-  return [buildTheatre(scene, boxes), buildCape(scene, boxes)];
+  return [buildTheatre(scene, boxes), buildCape(scene, boxes), buildLookout(scene, boxes), buildNecropolis(scene, boxes), buildGymnasium(scene, boxes)];
 }

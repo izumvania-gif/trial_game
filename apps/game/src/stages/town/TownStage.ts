@@ -38,7 +38,7 @@ const SNAP_UP = new THREE.Vector3();
 const PLAYER_RADIUS = 0.4;
 /** How far the player can see a resident well enough for the Book of Strangers. */
 const SEEN_DISTANCE = 11;
-const BOUNDS = { minX: -28, maxX: 28, minZ: -40, maxZ: 40 };
+const BOUNDS = { minX: -46, maxX: 28, minZ: -40, maxZ: 40 };
 /** How close the scribe comes to anyone: he walks around people, not through them. */
 const PERSON_GAP = 0.75;
 const ENTRIES: Record<string, [number, number, number]> = {

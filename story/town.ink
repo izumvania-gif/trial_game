@@ -186,6 +186,55 @@ A boundary stone where the road leaves the gate and starts to climb, cut with on
 }
 -> DONE
 
+=== lookout ===
+{
+- last_hour():
+    From the rock the procession is a line of fire climbing the mountain, and above it the cloud has a face.
+    Behind you, over the roofs, the sea goes on in the dark as if nothing were about to happen. It may be right.
+- hour() >= 19:
+    The first torches are going up the mountain path. From here you can count them. You stop at a hundred.
+- else:
+    From the top of the rock Eferon is a map: the agora, the temple roof at your feet, the harbour, the walls on three sides.
+    The fourth side has no wall. It has the sea, and the sea is the only part of the map that will not keep still.
+}
+-> DONE
+
+=== phyllis_grave ===
+A tall stele by the road, painted: a woman carrying a water jar, walking out of the frame.
+PHYLLIS, WIFE OF ARISTION. Under the name, somebody has scratched a small well with a stick.
+{knows("aristion_phyllis"):
+    Twenty years dead, and every Golden Age she is at the well again. A sprig of olive lies at the foot of the stone, fresh this morning.
+    Aristion cannot walk this far. Somebody else brings it. Nobody has ever asked who.
+- else:
+    A sprig of olive lies at the foot of the stone, fresh this morning, though the stone is old.
+}
+-> DONE
+
+=== west_road ===
+The road goes on past the last grave into the hills, and the hills go round, the way hills do on the spiral.
+{knows("past_attempts"):
+    You know how this walk ends. One of you walked it all day, and came back through the other gate at dusk, dusty, into the same city.
+- else:
+    You could walk it all day. You have the feeling that somebody once did.
+}
+-> DONE
+
+=== gymnasium ===
+{
+- last_hour():
+    The gymnasium is empty. The rake lies in the sand where it was dropped. Every runner has gone up the mountain.
+- hour() >= 18:
+    Oil and sand and the smell of bodies. The trainer is scraping the sand smooth for a tomorrow that will not need it.
+- hour() >= 15 or (hour() >= 7 and hour() < 12):
+    Three runners, down the track and back. The third is always one stride behind the second — exactly one, every length, every day. The trainer has stopped shouting at him.
+    In the sand two wrestlers hold each other still. Neither of them will ever throw the other.
+- hour() >= 12:
+    The gymnasium is empty at noon. Even the trainer is asleep in the shade of the stoa, his forked stick across his knees.
+- else:
+    Before seven the gymnasium is raked sand and nobody. The first footprints on it will be the same ones as yesterday's.
+}
+-> DONE
+
 === mountain_path ===
 {hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
     The path up the holy mountain. For one more hour only the early climbers are on it, the ones who want to be seen. Among the pale stones one is paler than the rest, and square-edged.
