@@ -12,7 +12,7 @@ import { disposeScene } from '../dispose.ts';
 import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, giveWay, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
-import { BEACH, buildHarbour, buildWalls, groundAt, tooDeep, Torches, type Box } from './city.ts';
+import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep, Torches, type Box } from './city.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
 import { StreetLife } from './props.ts';
@@ -37,7 +37,7 @@ const SNAP_UP = new THREE.Vector3();
 const PLAYER_RADIUS = 0.4;
 /** How far the player can see a resident well enough for the Book of Strangers. */
 const SEEN_DISTANCE = 11;
-const BOUNDS = { minX: -28, maxX: 28, minZ: -26, maxZ: 40 };
+const BOUNDS = { minX: -28, maxX: 28, minZ: -40, maxZ: 40 };
 /** How close the scribe comes to anyone: he walks around people, not through them. */
 const PERSON_GAP = 0.75;
 const ENTRIES: Record<string, [number, number, number]> = {
@@ -62,6 +62,8 @@ const PLACES_TO_TALK: Interactable[] = [
   { x: 10.8, z: 2.8, radius: 1.5, knot: 'agora_crier', label: 'Listen to the crier' },
   { x: 0, z: 20.2, radius: 2, knot: 'to_shore', label: 'The path to the shore' },
   { x: -6, z: 33.6, radius: 1.5, knot: 'mole_end', label: 'The end of the mole' },
+  // Out through the gate, where the sacred road starts to climb.
+  { x: HOROS.x - 1, z: HOROS.z + 0.6, radius: 2, knot: 'horos', label: 'The boundary stone' },
   // The foot of the path, on the town side of where the early climbers stand.
   { x: 10, z: -21, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
@@ -93,6 +95,8 @@ export class TownStage implements Stage {
   private player = makeFigure('#120e0b');
   private facing = Math.PI;
   private boxes: Box[] = [];
+  private socle = lambert('#b98a62');
+  private terrace = lambert('#d8c49c');
   private sun = new THREE.DirectionalLight('#fff4dc', 2.2);
   private sky = new THREE.HemisphereLight('#f4ead0', '#5a3520', 0.9);
   private sea = makeSea(220);
@@ -117,6 +121,14 @@ export class TownStage implements Stage {
   private goalMarker = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 4), new THREE.MeshBasicMaterial({ color: '#6e2a1c' }));
   private marker = new THREE.Mesh(new THREE.OctahedronGeometry(0.22, 0), new THREE.MeshBasicMaterial({ color: '#f4efe4' }));
   private mask = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.08), new THREE.MeshLambertMaterial({ color: '#f2ead6' }));
+  /** A small mark over every place that can be looked at, near enough; seen through roofs, so nothing hides behind a house. */
+  private placeMarks = PLACES_TO_TALK.map(() => {
+    const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.16, 0), new THREE.MeshBasicMaterial({ color: '#f4efe4', depthTest: false, fog: false }));
+    m.scale.set(1, 1.5, 1);
+    m.renderOrder = 11;
+    m.userData.noOutline = true;
+    return m;
+  });
 
   constructor(host: StageHost, start: { x: number; z: number; facing: number }) {
     this.host = host;
@@ -135,6 +147,7 @@ export class TownStage implements Stage {
     this.goalMarker.visible = false;
     this.scene.add(this.goalMarker);
     this.scene.add(this.marker);
+    for (const m of this.placeMarks) this.scene.add(m);
     for (const resident of RESIDENTS) {
       if (resident.appears && !resident.appears((f) => host.knowledge.knows(f))) continue;
       const height = HEIGHTS[resident.id] ?? 1.7;
@@ -200,9 +213,9 @@ export class TownStage implements Stage {
     Object.assign(this.sun.shadow.camera, { left: -40, right: 40, top: 40, bottom: -40, far: 150 });
     s.add(this.sun, this.sun.target);
 
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 70), lambert('#b8784e'));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 110), lambert('#b8784e'));
     ground.rotation.x = -Math.PI / 2;
-    ground.position.z = -10;
+    ground.position.z = -30;
     ground.receiveShadow = true;
     s.add(ground);
     this.buildStreets();
@@ -381,13 +394,27 @@ export class TownStage implements Stage {
       if (overlaps) continue;
       const hgt = 2 + rand() * 2.5;
       this.addBox(x, z, w, d, hgt, rand() > 0.3 ? '#ece2c8' : '#c9a57c');
+      // A stone socle under the mud brick, the way Greek houses stood.
+      const socle = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.5, d + 0.1), this.socle);
+      socle.position.set(x, 0.25, z);
+      socle.receiveShadow = true;
+      this.scene.add(socle);
       this.houseFront(x, z, w, d, hgt, rand);
-      // Tiled gable roof, ridge along the longer side.
       const alongX = w > d;
-      const roof = gableRoof(alongX ? d : w, alongX ? w : d, 0.9 + rand() * 0.5, '#9a5a3a', '#e4d8bc');
-      roof.position.set(x, hgt, z);
-      if (alongX) roof.rotation.y = Math.PI / 2;
-      this.scene.add(roof);
+      if (rand() < 0.35) {
+        // A flat roof: a terrace of beaten earth on beams, the beam ends showing under the edge.
+        const slab = new THREE.Mesh(new THREE.BoxGeometry(w + 0.3, 0.2, d + 0.3), this.terrace);
+        slab.position.set(x, hgt + 0.1, z);
+        slab.castShadow = slab.receiveShadow = true;
+        this.scene.add(slab);
+      } else {
+        // A low-pitched roof of terracotta tiles, ridge along the longer side.
+        const span = alongX ? d : w;
+        const roof = gableRoof(span, alongX ? w : d, span * 0.17 + 0.1, '#9a5a3a', '#e4d8bc');
+        roof.position.set(x, hgt, z);
+        if (alongX) roof.rotation.y = Math.PI / 2;
+        this.scene.add(roof);
+      }
       // An oven chimney on some roofs; its smoke says someone is home.
       if (rand() < 0.35) this.street.chimney(x + (alongX ? w * 0.28 : w * 0.18), hgt + 0.35, z + (alongX ? d * 0.15 : d * 0.28));
       placed++;
@@ -680,6 +707,12 @@ export class TownStage implements Stage {
       this.marker.position.set(near.x, top + Math.sin(this.time * 3) * 0.12, near.z);
       this.marker.rotation.y = this.time * 1.5;
     }
+    PLACES_TO_TALK.forEach((place, i) => {
+      const m = this.placeMarks[i]!;
+      const d = Math.hypot(place.x - this.player.position.x, place.z - this.player.position.z);
+      m.visible = d < 18 && near !== place;
+      m.position.set(place.x, 2.6 + Math.sin(this.time * 2 + i) * 0.08, place.z);
+    });
     // The first morning's goal, marked where it is: the stele, until the name under the moss is found.
     const goal = !this.host.knowledge.knows('name_in_stone') && this.host.memory.cycle <= 2 ? PLACES_TO_TALK.find((x) => x.knot === 'stele')! : null;
     this.goalMarker.visible = !!goal && near?.knot !== 'stele';
@@ -867,7 +900,7 @@ export class TownStage implements Stage {
 
   /** Can he step from (x0, z0) to (x, z)? Not into walls or deep water, and not into anyone (stepping away is always fine). */
   private free(x0: number, z0: number, x: number, z: number): boolean {
-    if (this.blocked(x, z) || tooDeep(x, z)) return false;
+    if (this.blocked(x, z) || tooDeep(x, z) || !outsideRoad(x, z)) return false;
     for (const o of this.people) {
       const d = Math.hypot(x - o.x, z - o.z);
       if (d < PERSON_GAP && d < Math.hypot(x0 - o.x, z0 - o.z)) return false;

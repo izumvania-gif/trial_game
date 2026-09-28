@@ -151,6 +151,10 @@ The path goes down between the rocks to the water.
 The mole ends in open water. Two boats knock against the stone, their sails tied up. Past the harbour mouth the sea goes on to the edge of the world, and it never moves the same way twice.
 -> DONE
 
+=== horos ===
+A boundary stone where the road leaves the gate and starts to climb, cut with one word: HOROS. Past it the mountain belongs to the god.
+-> mountain_path
+
 === mountain_path ===
 {hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
     The path up the holy mountain. For one more hour only the early climbers are on it, the ones who want to be seen. Among the pale stones one is paler than the rest, and square-edged.

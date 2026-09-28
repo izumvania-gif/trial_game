@@ -27,7 +27,12 @@ function ashlar(width: number, height: number): THREE.MeshLambertMaterial {
 }
 
 export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
-  const merlons: THREE.Matrix4[] = [];
+  // Greek walls, after Messene: coursed ashlar with a plain parapet and a coping, no merlons;
+  // square towers with slit windows and low tiled roofs.
+  const copings: THREE.Matrix4[] = [];
+  const coping = lambert('#e8dab8');
+  const tile = lambert('#9a5a3a');
+  const slit = lambert('#1a120c');
   const add = (x: number, z: number, w: number, d: number, h: number, mat: THREE.Material) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, h / 2, z);
@@ -36,28 +41,34 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
     boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
     return m;
   };
-  const crenellate = (x1: number, z1: number, x2: number, z2: number, top: number) => {
-    const len = Math.hypot(x2 - x1, z2 - z1);
-    const n = Math.floor(len / 1.3);
-    for (let i = 0; i <= n; i++) {
-      const t = n ? i / n : 0;
-      merlons.push(new THREE.Matrix4().makeTranslation(x1 + (x2 - x1) * t, top + 0.27, z1 + (z2 - z1) * t));
-    }
-  };
-  // A wall segment between two points on one axis, with a walk of merlons along the top.
+  // A wall segment between two points on one axis, finished with a coping along the top.
   const wall = (x1: number, z1: number, x2: number, z2: number) => {
     const alongX = z1 === z2;
     const len = alongX ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
     add((x1 + x2) / 2, (z1 + z2) / 2, alongX ? len : THICK, alongX ? THICK : len, HEIGHT, ashlar(len, HEIGHT));
-    crenellate(x1, z1, x2, z2, HEIGHT);
+    const c = new THREE.Matrix4().compose(
+      new THREE.Vector3((x1 + x2) / 2, HEIGHT + 0.12, (z1 + z2) / 2),
+      new THREE.Quaternion(),
+      new THREE.Vector3(alongX ? len : THICK + 0.25, 0.24, alongX ? THICK + 0.25 : len),
+    );
+    copings.push(c);
   };
   const tower = (x: number, z: number, h = HEIGHT + 1.4) => {
     add(x, z, TOWER, TOWER, h, ashlar(TOWER, h));
-    const lip = new THREE.Mesh(new THREE.BoxGeometry(TOWER + 0.3, 0.25, TOWER + 0.3), lambert('#e8dab8'));
-    lip.position.set(x, h + 0.12, z);
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(TOWER + 0.35, 0.22, TOWER + 0.35), coping);
+    lip.position.set(x, h + 0.11, z);
     scene.add(lip);
-    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
-      merlons.push(new THREE.Matrix4().makeTranslation(x + dx * (TOWER / 2 - 0.3), h + 0.5, z + dz * (TOWER / 2 - 0.3)));
+    // A low pyramid of tiles.
+    const roof = new THREE.Mesh(new THREE.ConeGeometry((TOWER + 0.5) * Math.SQRT1_2, 0.9, 4), tile);
+    roof.rotation.y = Math.PI / 4;
+    roof.position.set(x, h + 0.22 + 0.45, z);
+    roof.castShadow = true;
+    scene.add(roof);
+    // Slit windows high on every face.
+    for (const [dx, dz] of [[0, 1], [0, -1], [1, 0], [-1, 0]] as const) {
+      const w = new THREE.Mesh(new THREE.BoxGeometry(dx ? 0.06 : 0.28, 0.7, dz ? 0.06 : 0.28), slit);
+      w.position.set(x + dx * (TOWER / 2 + 0.01), h - 1, z + dz * (TOWER / 2 + 0.01));
+      scene.add(w);
     }
   };
 
@@ -89,10 +100,54 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
     scene.add(leaf);
   }
 
-  const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.62, 0.55, THICK + 0.1), lambert('#e2d2ae'), merlons.length);
-  merlons.forEach((m, i) => inst.setMatrixAt(i, m));
+  const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), coping, copings.length);
+  copings.forEach((m, i) => inst.setMatrixAt(i, m));
   inst.castShadow = true;
   scene.add(inst);
+  buildOutsideGate(scene, boxes);
+}
+
+/** Past the gate: a short stretch of the sacred road between rocks, up to the boundary stone. */
+export const OUTSIDE = { halfWidth: 5.2, end: -37.5 };
+
+/** Outside the walls, only the road beyond the gate can be walked. */
+export function outsideRoad(x: number, z: number): boolean {
+  if (z > WALL.north - THICK / 2) return true;
+  return Math.abs(x - WALL.gateX) < OUTSIDE.halfWidth && z > OUTSIDE.end;
+}
+
+/** Where the boundary stone stands, at the end of the walk: the god's land begins past it. */
+export const HOROS = { x: WALL.gateX + 1.6, z: OUTSIDE.end + 1.2 };
+
+function buildOutsideGate(scene: THREE.Scene, boxes: Box[]): void {
+  const G = WALL.gateX;
+  const road = new THREE.Mesh(new THREE.PlaneGeometry(3, 14), textured(pavingTexture(), '#e6d5b2'));
+  road.rotation.x = -Math.PI / 2;
+  road.position.set(G, 0.012, WALL.north - 7);
+  road.receiveShadow = true;
+  scene.add(road);
+  const rock = lambert('#7a4a30');
+  // Rocks along both sides and across the far end, where the road starts to climb.
+  const place = (x: number, z: number, r: number, turn: number) => {
+    const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), rock);
+    m.position.set(x, r * 0.55, z);
+    m.rotation.set(turn, turn * 2, 0);
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+    boxes.push({ minX: x - r * 0.8, maxX: x + r * 0.8, minZ: z - r * 0.8, maxZ: z + r * 0.8 });
+  };
+  for (let i = 0; i < 6; i++) {
+    const z = WALL.north - 2 - i * 1.9;
+    place(G - OUTSIDE.halfWidth - 0.3 + (i % 2) * 0.3, z, 1 + (i % 3) * 0.3, i);
+    place(G + OUTSIDE.halfWidth + 0.3 - (i % 2) * 0.3, z - 0.8, 0.9 + ((i + 1) % 3) * 0.3, i + 2);
+  }
+  for (const [dx, r] of [[-4, 1.3], [-2.2, 1], [3.8, 1.2], [-0.2, 0.6]] as const) place(G + dx, OUTSIDE.end - 0.9, r, dx);
+  // The boundary stone: a plain pillar with the god's word on it.
+  const horos = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.3, 0.35), lambert('#f0e6cc'));
+  horos.position.set(HOROS.x, 0.65, HOROS.z);
+  horos.castShadow = true;
+  scene.add(horos);
+  boxes.push({ minX: HOROS.x - 0.3, maxX: HOROS.x + 0.3, minZ: HOROS.z - 0.25, maxZ: HOROS.z + 0.25 });
 }
 
 /** The stone mole: walkable, from the beach out into the harbour. Its top stands at `top`. */
