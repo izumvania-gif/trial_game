@@ -23,7 +23,8 @@ export interface StageHost {
   /** A teaching line at the bottom of the screen, with its keys (null: none). */
   coach(text: string | null): void;
   /** The prologue is over: the first morning goes on in the town. */
-  prologueDone(): void;
+  /** The prologue is over; `skipped` when the player left it with Esc, so its lessons were not taught. */
+  prologueDone(skipped?: boolean): void;
   /** Run an ink knot in the dialogue box; `args` for a knot that takes parameters. */
   interact(knot: string, args?: string[]): void;
   switchStage(id: StageId, entry?: string): void;

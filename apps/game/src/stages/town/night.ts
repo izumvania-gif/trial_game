@@ -50,7 +50,7 @@ export class Crowd {
   }
 
   /** `avoid`: the scribe, whom walkers step round. */
-  update(minute: number, time: number, lit: number, stutter?: { x: number; z: number; minute: number }, avoid?: THREE.Vector3): void {
+  update(minute: number, time: number, lit: number, stutter?: { x: number; z: number; minute: number }, avoid?: THREE.Vector3, wall?: (x: number, z: number) => boolean): void {
     let lightIndex = 0;
     let stuck: Extra | null = null;
     if (stutter) {
@@ -69,7 +69,7 @@ export class Crowd {
       figure.visible = s.visible;
       if (!s.visible) continue;
       figure.position.set(s.x, 0, s.z);
-      if (avoid && s.walking) giveWay(figure.position, avoid);
+      if (avoid && s.walking) giveWay(figure.position, avoid, wall);
       figure.rotation.y = s.heading;
       bob(figure, time, s.walking ? 1 : 0);
       torch.visible = s.torch;

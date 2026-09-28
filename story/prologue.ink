@@ -9,10 +9,22 @@ Somewhere in the courtyard, someone is humming.
 
 === prologue_tablet ===
 Your chronicle: tablets of wax, a stylus, yesterday written out in your best hand.
+{shard_line() != "":
+    On the first tablet, older than the others, in a slanted hand you almost recognise:
+    {shard_line()} #hand
+}
 At the bottom of the last tablet there is a line you did not write.
 Don't look at the sky. Look into the stone. #hand
 The letters lean. Yours never do. And yet the name under them is yours.
 ~ learn("other_hand")
+-> DONE
+
+// The prologue skipped: only what a broken game left on the first tablet.
+=== prologue_shard ===
+{shard_line() != "":
+    On the first tablet, older than the others, in a slanted hand you almost recognise:
+    {shard_line()} #hand
+}
 -> DONE
 
 === prologue_eion ===

@@ -173,7 +173,7 @@ export class Game {
       const resuming = this.save.cycle.stage === 'house';
       this.save.cycle.stage = 'house';
       this.beginCycle(false);
-      if (!resuming) this.coldOpen.play(() => {}, () => this.audio.play('thunder'));
+      if (!resuming) this.coldOpen.play(() => {}, () => this.audio.play('thunder'), this.settings.value.reducedMotion);
     } else {
       const finale = this.save.cycle.finale;
       this.beginCycle(!finale && !this.backupDetected && this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
@@ -233,7 +233,7 @@ export class Game {
       setControls: (text) => this.hud.setControls(text ?? STAGE_CONTROLS[this.current.id] ?? null),
       openPanel: () => this.hud.panelId,
       coach: (text) => this.hud.coach(text),
-      prologueDone: () => this.finishPrologue(),
+      prologueDone: (skipped) => this.finishPrologue(skipped),
       interact: (knot, args) => this.interact(knot, args),
       switchStage: (id, entry) => this.switchStage(id, entry),
       prompt: (label) => this.hud.prompt(this.dialogue.open ? null : label),
@@ -254,11 +254,12 @@ export class Game {
 
   /** Builds a fresh world for the current CycleState. Loop memory is untouched. */
   /** Out of the house: the tutorial's lessons count as learned, and the first question is on screen. */
-  private finishPrologue(): void {
+  private finishPrologue(skipped = false): void {
     const m = this.memory;
     if (m.prologueDone) return;
     m.prologueDone = true;
-    for (const id of ['house', 'town', 'tip:chronicle', 'tip:book', 'tip:dejavu']) if (!m.guides.includes(id)) m.guides.push(id);
+    // What the house taught need not be taught again; a skipped house taught nothing.
+    for (const id of skipped ? ['house'] : ['house', 'town', 'tip:chronicle', 'tip:book', 'tip:dejavu']) if (!m.guides.includes(id)) m.guides.push(id);
     this.updateGoal();
     this.persist();
   }
@@ -536,7 +537,7 @@ export class Game {
   private tick(t: number): void {
     const dt = Math.min(0.1, (t - this.lastTime) / 1000);
     this.lastTime = t;
-    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.guides.open || this.coldOpen.open || this.phase !== 'playing';
+    const blocked = this.dialogue.open || this.hud.panelOpen || this.modal.open || this.lyre.open || this.settingsPanel.open || this.guides.open || this.coldOpen.open || (this.current?.id === 'house' && (this.stages.house as HouseStage).modalOpen) || this.phase !== 'playing';
     this.input.enabled = !blocked;
     this.overlay.classList.toggle('talking', this.dialogue.open);
     if (!blocked) this.offerGuides();
@@ -607,6 +608,8 @@ export class Game {
 
   private handleKeys(): void {
     const i = this.input;
+    // The prologue's skip question holds every other key until it is answered.
+    if (this.current.id === 'house' && (this.stages.house as HouseStage).modalOpen) return;
     if (i.wasPressedRaw('KeyH') && !this.dialogue.open && !this.modal.open && !this.settingsPanel.open && !this.guides.open) {
       const guide = STAGE_GUIDES[this.current.id];
       if (guide) {
@@ -685,6 +688,7 @@ export class Game {
     if (m === 'masks') this.save.cycle.wornMask = null;
     this.hud.shatter(m);
     window.setTimeout(() => this.audio.play('crack'), 550);
+    this.updateGoal();
     this.persist();
   }
 

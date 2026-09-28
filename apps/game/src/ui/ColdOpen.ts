@@ -30,26 +30,29 @@ export class ColdOpen {
     this.root.append(this.canvas, this.words, this.ask, this.skipBtn);
     parent.append(this.root);
     this.skipBtn.addEventListener('click', () => this.finish());
-    window.addEventListener('keydown', (e) => {
+    // While it plays it has every key: nothing behind it moves (the house's first lines wait under it).
+    const swallow = (e: KeyboardEvent) => {
       if (this.root.hidden) return;
-      if (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter') {
-        e.preventDefault();
-        e.stopPropagation();
-        this.finish();
-      }
-    }, true);
+      e.stopPropagation();
+      if (e.code === 'Tab') return;
+      e.preventDefault();
+      if (e.type === 'keydown' && (e.code === 'Escape' || e.code === 'Space' || e.code === 'Enter')) this.finish();
+    };
+    window.addEventListener('keydown', swallow, true);
+    window.addEventListener('keyup', swallow, true);
   }
 
   get open(): boolean {
     return !this.root.hidden;
   }
 
-  play(onDone: () => void, onThunder: () => void): void {
+  /** `reduced`: no spinning spiral; it opens on the still dawn and the tablet. */
+  play(onDone: () => void, onThunder: () => void, reduced = false): void {
     this.done = onDone;
     this.root.hidden = false;
     this.words.textContent = '';
     this.ask.classList.remove('on');
-    const start = performance.now();
+    const start = performance.now() - (reduced ? T.dawn * 1000 : 0);
     let thundered = false;
     const step = () => {
       if (this.root.hidden) return;

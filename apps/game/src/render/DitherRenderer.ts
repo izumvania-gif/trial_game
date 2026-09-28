@@ -234,7 +234,16 @@ export class DitherRenderer {
    * the same task, so the drawing buffer is still there to copy.
    */
   snapshot(scene: THREE.Scene, camera: THREE.Camera): HTMLCanvasElement {
+    // Guidance marks (userData.hud) are for playing, not for the carved or remembered frame.
+    const hidden: THREE.Object3D[] = [];
+    scene.traverse((o) => {
+      if (o.userData.hud && o.visible) {
+        o.visible = false;
+        hidden.push(o);
+      }
+    });
     this.render(scene, camera);
+    for (const o of hidden) o.visible = true;
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.floor(window.innerWidth / this.pixelScale));
     canvas.height = this.lowResHeight;

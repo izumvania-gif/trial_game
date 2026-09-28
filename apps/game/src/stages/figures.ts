@@ -183,16 +183,23 @@ export function bob(figure: THREE.Group, time: number, moving: number): void {
 }
 
 /** Moves a walker's figure (not their day) out to a step's distance from the scribe. */
-export function giveWay(pos: THREE.Vector3, player: THREE.Vector3, gap = 0.95): void {
+export function giveWay(pos: THREE.Vector3, player: THREE.Vector3, wall?: (x: number, z: number) => boolean, gap = 0.95): void {
   const dx = pos.x - player.x;
   const dz = pos.z - player.z;
   const d = Math.hypot(dx, dz);
   if (d >= gap) return;
   // Straight through the middle: step to one side.
-  const nx = d > 0.01 ? dx / d : 1;
-  const nz = d > 0.01 ? dz / d : 0;
-  pos.x = player.x + nx * gap;
-  pos.z = player.z + nz * gap;
+  const a = d > 0.01 ? Math.atan2(dz, dx) : 0;
+  // Out on their own side if the wall allows it, else round the other way; never into a wall.
+  for (const turn of [0, 0.6, -0.6, 1.2, -1.2, Math.PI / 2, -Math.PI / 2]) {
+    const x = player.x + Math.cos(a + turn) * gap;
+    const z = player.z + Math.sin(a + turn) * gap;
+    if (!wall?.(x, z)) {
+      pos.x = x;
+      pos.z = z;
+      return;
+    }
+  }
 }
 
 export function lambert(color: string): THREE.MeshLambertMaterial {

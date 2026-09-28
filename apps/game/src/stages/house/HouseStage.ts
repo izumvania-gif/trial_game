@@ -67,7 +67,15 @@ export class HouseStage implements Stage {
     this.scene.add(this.marker);
     this.skip.className = 'prologue-skip';
     this.skip.hidden = true;
+    this.skip.setAttribute('role', 'dialog');
+    this.skip.setAttribute('aria-label', 'Skip the prologue?');
     host.overlay.append(this.skip);
+    // A small modal: Esc means "Stay".
+    this.skip.addEventListener('keydown', (e) => {
+      if (e.code !== 'Escape') return;
+      e.stopPropagation();
+      this.skip.hidden = true;
+    });
   }
 
   private wall(x0: number, z0: number, x1: number, z1: number, mat: THREE.Material): void {
@@ -287,7 +295,10 @@ export class HouseStage implements Stage {
     if (this.step === 'chronicle' && !panel && this.player.position.x > -1.5) this.step = 'eion';
     if (this.step === 'book' && !panel && this.player.position.x > 5) this.step = 'door';
 
-    if (this.skipOpen()) return;
+    if (this.skipOpen()) {
+      if (input.wasPressed('Escape')) this.skip.hidden = true;
+      return;
+    }
     if (input.wasPressed('Escape')) return this.offerSkip();
     this.move(dt);
     const near = this.nearest();
@@ -322,8 +333,11 @@ export class HouseStage implements Stage {
     const before = p.clone();
     if (!this.blocked(nx, p.z)) p.x = nx;
     // Brushing a door jamb slides you into the doorway instead of stopping you.
-    else if (dx && !dz && Math.abs(p.z) < 1.6) p.z -= Math.sign(p.z) * Math.min(Math.abs(p.z), SPEED * dt);
-    if (!this.blocked(p.x, nz)) p.z = nz;
+    else if (dx && !dz && Math.abs(p.z) < 1.6) {
+      const sz = p.z - Math.sign(p.z) * Math.min(Math.abs(p.z), SPEED * dt);
+      if (!this.blocked(p.x, sz)) p.z = sz;
+    }
+    if (dz && !this.blocked(p.x, nz)) p.z = nz;
     this.walked += p.distanceTo(before);
     if (this.step === 'walk' && this.walked > 0.8) this.step = 'tablet';
     this.player.rotation.y = Math.atan2(dx, dz);
@@ -336,6 +350,11 @@ export class HouseStage implements Stage {
   }
 
   // Esc: leave the prologue for those who have played before.
+  /** The skip question is up: the game holds still behind it. */
+  get modalOpen(): boolean {
+    return !this.skip.hidden;
+  }
+
   private skipOpen(): boolean {
     return !this.skip.hidden;
   }
@@ -354,13 +373,18 @@ export class HouseStage implements Stage {
     p.textContent = 'Leave the house and start the day in the city?';
     this.skip.replaceChildren(p, yes, no);
     this.skip.hidden = false;
+    // Enter skips (for those who have played before); Esc stays.
     yes.focus();
   }
 
   private skipAll(): void {
     this.skip.hidden = true;
     this.host.knowledge.learn('other_hand');
+    // Skipped, not played: the town's own guide and tips still come, as they would have.
+    this.host.prologueDone(true);
     this.host.switchStage('town');
+    // The line a broken game leaves on the first tablet is not lost with the house.
+    if (this.host.breakShard()) this.host.interact('prologue_shard');
   }
 
   agent(): StageAgent {
@@ -378,7 +402,8 @@ export class HouseStage implements Stage {
         if (id === 'skip') { this.skipAll(); return 'You leave the house.'; }
         const spot = this.spots.find((s) => `use:${s.id}` === id);
         if (!spot || !this.available(spot)) return null;
-        this.player.position.set(spot.x - 0.6, 0, spot.z + 0.5);
+        // Stand beside it on the open side of the room, never inside a wall.
+        this.player.position.set(spot.x - 0.6, 0, spot.z + (spot.z > 2 ? -0.5 : 0.5));
         if (this.step === 'walk') this.step = 'tablet';
         this.use(spot);
         return `${spot.label}.`;

@@ -127,6 +127,7 @@ export class TownStage implements Stage {
     m.scale.set(1, 1.5, 1);
     m.renderOrder = 11;
     m.userData.noOutline = true;
+    m.userData.hud = true;
     return m;
   });
 
@@ -142,6 +143,7 @@ export class TownStage implements Stage {
     this.addXray();
     this.scene.add(this.player);
     this.marker.scale.set(1, 1.6, 1);
+    this.marker.userData.hud = this.goalMarker.userData.hud = true;
     this.marker.visible = false;
     this.goalMarker.rotation.x = Math.PI;
     this.goalMarker.visible = false;
@@ -509,6 +511,7 @@ export class TownStage implements Stage {
       this.player.position.set(at[0], 0, at[1]);
       this.facing = at[2];
     }
+    this.settleView();
     this.onResize();
   }
 
@@ -617,14 +620,16 @@ export class TownStage implements Stage {
       const t = a + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.5;
       const px = x + Math.sin(t) * gap;
       const pz = z + Math.cos(t) * gap;
-      if (!this.blocked(px, pz)) {
+      if (!this.blocked(px, pz) && !tooDeep(px, pz) && outsideRoad(px, pz)) {
         this.player.position.set(px, 0, pz);
+        this.settleView();
         this.facing = Math.atan2(x - px, z - pz);
         this.player.rotation.y = this.facing;
         return;
       }
     }
     this.player.position.set(node.x, 0, node.z);
+    this.settleView();
   }
 
   private agentPerform(id: string, arg?: string): string | null {
@@ -658,6 +663,7 @@ export class TownStage implements Stage {
       if (!place) return null;
       const minutes = this.agentWalk(place.x, place.z);
       this.player.position.set(place.x, 0, place.z);
+      this.settleView();
       return `You walk to ${PLACE_NAMES[what!] ?? what} (${Math.round(minutes)} min).`;
     }
     if (verb === 'talk') {
@@ -710,12 +716,12 @@ export class TownStage implements Stage {
     PLACES_TO_TALK.forEach((place, i) => {
       const m = this.placeMarks[i]!;
       const d = Math.hypot(place.x - this.player.position.x, place.z - this.player.position.z);
-      m.visible = d < 18 && near !== place;
+      m.visible = d < 18 && near !== place && this.host.input.enabled;
       m.position.set(place.x, 2.6 + Math.sin(this.time * 2 + i) * 0.08, place.z);
     });
     // The first morning's goal, marked where it is: the stele, until the name under the moss is found.
     const goal = !this.host.knowledge.knows('name_in_stone') && this.host.memory.cycle <= 2 ? PLACES_TO_TALK.find((x) => x.knot === 'stele')! : null;
-    this.goalMarker.visible = !!goal && near?.knot !== 'stele';
+    this.goalMarker.visible = !!goal && near?.knot !== 'stele' && this.host.input.enabled;
     if (goal) {
       this.goalMarker.position.set(goal.x, 3.2 + Math.sin(this.time * 2.2) * 0.25, goal.z);
       this.goalMarker.rotation.y = -this.time;
@@ -726,7 +732,7 @@ export class TownStage implements Stage {
     const g = this.glitch;
     const replay = g ? g.g.minute + (((g.g.seconds - g.left) * 2.5) % 1) * 1.6 : 0;
     const stutter = g?.g.kind === 'stutter' ? { x: this.player.position.x, z: this.player.position.z, minute: replay } : undefined;
-    this.crowd.update(clock.minute, this.time, this.dusk, stutter, this.player.position);
+    this.crowd.update(clock.minute, this.time, this.dusk, stutter, this.player.position, this.wall);
     this.people = this.npcs.filter((n) => n.figure.visible).map((n) => ({ x: n.figure.position.x, z: n.figure.position.z }));
     this.crowd.positions(this.people);
     const p = this.player.position;
@@ -743,9 +749,8 @@ export class TownStage implements Stage {
       this.camera.updateProjectionMatrix();
     }
     // On the beach the view turns round to face the sea (but not in the last hours, when it looks up at the mountain).
-    const toSea = THREE.MathUtils.smoothstep(p.z, 18.5, 22.5) * (1 - u);
-    this.seaward += (toSea - this.seaward) * Math.min(1, dt * 1.6);
-    const yaw = Math.PI * (this.host.reducedMotion() ? Math.round(this.seaward) : this.seaward);
+    this.seaward += (this.seawardAt(p.z, u) - this.seaward) * Math.min(1, dt * 1.6);
+    const yaw = this.viewYaw();
     const back = lerp(16, 12.5, u);
     const ahead = lerp(1, 18, u);
     const sy = Math.sin(yaw);
@@ -843,7 +848,7 @@ export class TownStage implements Stage {
       figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : npc.still && !lying ? toMountain : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
       // Someone walking steps round the scribe instead of through him.
-      if (state.walking) giveWay(figure.position, p);
+      if (state.walking) giveWay(figure.position, p, this.wall);
       bob(figure, this.time, state.walking ? 1 : 0);
       if (!state.walking && !npc.still) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
       // Once the player has watched a resident at a point of their day, the Book of Strangers records it.
@@ -862,6 +867,25 @@ export class TownStage implements Stage {
   private controlYaw = 0;
   private heldDir = '';
 
+  /** How far the view should be turned to the sea at z (and `lookUp` in the last hours). */
+  private seawardAt(z: number, lookUp = this.lookUp): number {
+    return THREE.MathUtils.smoothstep(z, 18.5, 22.5) * (1 - lookUp);
+  }
+
+  /** The turn of the view, as drawn: with reduced motion it snaps instead of swinging. */
+  private viewYaw(): number {
+    return Math.PI * (this.host.reducedMotion() ? Math.round(this.seaward) : this.seaward);
+  }
+
+  /** After a jump (an entry, an agent's walk), the view starts where it belongs, not mid-swing. */
+  private settleView(): void {
+    const p = this.player.position;
+    p.y = groundAt(p.x, p.z);
+    this.seaward = this.seawardAt(p.z);
+    this.controlYaw = this.viewYaw();
+    this.heldDir = '';
+  }
+
   private movePlayer(dt: number): void {
     const { input } = this.host;
     this.time += dt;
@@ -878,7 +902,7 @@ export class TownStage implements Stage {
     const dir = `${dx},${dz}`;
     if (dir !== this.heldDir) {
       this.heldDir = dir;
-      this.controlYaw = Math.PI * this.seaward;
+      this.controlYaw = this.viewYaw();
     }
     if (!dx && !dz) return;
     // Keys move him as the view sees it: on the beach, with the view turned to the sea, W walks to the water.
@@ -910,6 +934,9 @@ export class TownStage implements Stage {
 
   /** Where everyone stood last frame, residents and crowd, for the scribe to walk around. */
   private people: { x: number; z: number }[] = [];
+
+  /** For walkers stepping round the scribe: a wall they must not step into. */
+  private wall = (x: number, z: number): boolean => this.boxes.some((b) => x > b.minX - 0.2 && x < b.maxX + 0.2 && z > b.minZ - 0.2 && z < b.maxZ + 0.2);
 
   private blocked(x: number, z: number): boolean {
     const r = PLAYER_RADIUS;

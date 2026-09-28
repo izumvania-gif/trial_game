@@ -151,7 +151,7 @@ function buildOutsideGate(scene: THREE.Scene, boxes: Box[]): void {
 }
 
 /** The stone mole: walkable, from the beach out into the harbour. Its top stands at `top`. */
-export const MOLE = { x: -6, half: 1.1, from: 22, to: 34.6, top: 0.3 };
+export const MOLE = { x: -6, half: 1.25, from: 22, to: 34.6, top: 0.3 };
 
 /** The beach: dry sand to `dry`, then the foreshore slopes into the water and gets too deep at `deep`. */
 export const BEACH = { dry: 25.3, slope: 0.5, deep: 27.2 };
@@ -165,7 +165,7 @@ export function groundAt(x: number, z: number): number {
 
 /** Past the shallows, off the mole: the water is too deep to walk. */
 export function tooDeep(x: number, z: number): boolean {
-  if (Math.abs(x - MOLE.x) < MOLE.half + 0.1 && z > MOLE.from && z < MOLE.to) return false;
+  if (Math.abs(x - MOLE.x) < MOLE.half && z > MOLE.from && z < MOLE.to) return false;
   return z > BEACH.deep;
 }
 
