@@ -191,7 +191,12 @@ export class HouseStage implements Stage {
     this.onResize();
     this.player.position.set(-4.6, 0, -0.4);
     this.player.rotation.y = Math.PI;
-    this.step = 'walk';
+    // Back into a prologue left halfway (a reload): pick up where it was, from what is already known.
+    this.eionGone = this.host.memory.seen.includes('eion:0');
+    this.eion.visible = !this.eionGone;
+    this.panelSeen = false;
+    this.step = this.eionGone ? 'door' : this.host.knowledge.knows('other_hand') ? 'eion' : 'walk';
+    if (this.step !== 'walk') return;
     this.talking = 'prologue_wake';
     this.host.interact('prologue_wake');
   }

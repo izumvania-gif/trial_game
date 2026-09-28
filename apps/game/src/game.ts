@@ -118,7 +118,9 @@ export class Game {
     this.cycleRun = this.save.memory.lastCycleRun;
     // Saves from before the prologue existed: whoever has already lived a day does not need the house.
     const m = this.save.memory;
-    if (!m.prologueDone && (m.cycle > 1 || m.facts.length > 0)) m.prologueDone = true;
+    // (A save made inside the house is the prologue itself, stopped halfway: it stays unfinished.)
+    if (!m.prologueDone && (m.cycle > 1 || (m.facts.length > 0 && this.save.cycle.stage !== 'house'))) m.prologueDone = true;
+    if (m.prologueDone && this.save.cycle.stage === 'house') this.save.cycle.stage = 'town';
     this.breakShard = readShard(this.storage);
 
     this.input = new Input(canvas);
@@ -167,9 +169,11 @@ export class Game {
       this.activate('diary');
     } else if (!this.memory.prologueDone && this.memory.cycle === 1 && !this.save.cycle.finale) {
       // The very first morning: the cold open, then the scribe's house. The dawn knot is the prologue's now.
+      // Reloaded halfway through the house: back into it, without the cold open again.
+      const resuming = this.save.cycle.stage === 'house';
       this.save.cycle.stage = 'house';
       this.beginCycle(false);
-      this.coldOpen.play(() => {}, () => this.audio.play('thunder'));
+      if (!resuming) this.coldOpen.play(() => {}, () => this.audio.play('thunder'));
     } else {
       const finale = this.save.cycle.finale;
       this.beginCycle(!finale && !this.backupDetected && this.save.cycle.minute === 0 && this.save.cycle.storyState === null);
