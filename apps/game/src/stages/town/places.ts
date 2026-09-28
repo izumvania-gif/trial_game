@@ -75,6 +75,12 @@ export function placeOutside(x: number, z: number): boolean {
 
 export const GYM = { x0: -27.8, x1: -18.6, z0: 7.6, z1: 16.2, track: 14.4 };
 
+// ─── The olive grove, south of the temple of Zeus; the fish market and the shipyard by the water ───
+
+export const GROVE = { x0: 15, x1: 28.4, z0: 11.2, z1: 18.6, press: { x: 25.6, z: 13.2 }, planter: { x: 18.6, z: 17.4 } };
+export const MARKET = { x: -3.6, z: 16.9 };
+export const SHIPYARD = { x: -20.5, z: 22.6 };
+
 /** Walkable rock or stone out over the water, where the sea is not too deep. */
 export function onPlaceOverWater(x: number, z: number): boolean {
   return capeHeight(x, z) !== null;
@@ -93,13 +99,19 @@ export const PLACE_SPOTS: PlaceSpot[] = [
   { x: -39.5, z: 5.6, radius: 1.5, knot: 'phyllis_grave', label: 'A grave by the road' },
   { x: -43.6, z: WEST_GATE.z, radius: 1.8, knot: 'west_road', label: 'The road into the hills' },
   { x: -21, z: 11.2, radius: 2, knot: 'gymnasium', label: 'The gymnasium' },
+  { x: GROVE.press.x - 1.4, z: GROVE.press.z + 1.6, radius: 1.8, knot: 'olive_press', label: 'The olive press' },
+  { x: GROVE.planter.x, z: GROVE.planter.z - 0.9, radius: 1.5, knot: 'olive_grove', label: 'The old man with the sapling' },
+  { x: MARKET.x + 1.2, z: MARKET.z - 1.3, radius: 1.8, knot: 'fish_market', label: 'The fish market' },
+  { x: SHIPYARD.x + 0.4, z: SHIPYARD.z - 1.9, radius: 1.8, knot: 'shipyard', label: 'The boat on the stocks' },
 ];
 
 /** Keep houses out of these places. */
 export function placeReserved(x: number, z: number): boolean {
   return (x > 13.5 && z < -14.6 && z > -27) || (x > 17 && x < 27 && z > 19) ||
     (x > -15.6 && x < -7.6 && z < -15.4 && z > -27) || // the lookout
-    (x < -18 && z > 1.2 && z < 16.8); // the gate road and the gymnasium
+    (x < -18 && z > 1.2 && z < 16.8) || // the gate road and the gymnasium
+    (x > GROVE.x0 - 0.5 && z > GROVE.z0 - 0.4 && z < GROVE.z1 + 0.5) || // the olive grove
+    (x > MARKET.x - 2.4 && x < MARKET.x + 3.6 && z > MARKET.z - 1.6 && z < MARKET.z + 1.8); // the fish market
 }
 
 /** The places' small lives, moved by the clock. */
@@ -486,7 +498,229 @@ function buildGymnasium(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   };
 }
 
+function buildGrove(scene: THREE.Scene, boxes: Box[]): PlaceLife {
+  const G = GROVE;
+  const rand = seededRng(daySeed('eferon/grove'));
+  // Rows of old olives on two terraces, each tree a crooked trunk under dark clumps of leaves.
+  const trunk = lambert('#2a1a12');
+  const leaves = lambert('#4a3a22');
+  const tree = (x: number, z: number, s = 1) => {
+    const t = new THREE.Mesh(new THREE.CylinderGeometry(0.14 * s, 0.24 * s, 1.5 * s, 5), trunk);
+    t.position.set(x, 0.75 * s, z);
+    t.rotation.z = (rand() - 0.5) * 0.4;
+    t.castShadow = true;
+    scene.add(t);
+    for (let i = 0; i < 3; i++) {
+      const c = new THREE.Mesh(new THREE.IcosahedronGeometry((0.6 + rand() * 0.35) * s, 0), leaves);
+      c.position.set(x + (rand() - 0.5) * 1.1 * s, (1.6 + rand() * 0.5) * s, z + (rand() - 0.5) * 1.1 * s);
+      c.castShadow = true;
+      scene.add(c);
+    }
+    boxes.push({ minX: x - 0.25, maxX: x + 0.25, minZ: z - 0.25, maxZ: z + 0.25 });
+  };
+  for (const z of [12.2, 15.6]) {
+    for (let x = G.x0 + 1.2; x < G.x1 - 1; x += 3.3) {
+      if (Math.hypot(x - G.press.x, z - G.press.z) < 2.6 || Math.hypot(x - G.planter.x, z - G.planter.z) < 2) continue;
+      tree(x + (rand() - 0.5) * 0.6, z + (rand() - 0.5) * 0.6);
+    }
+  }
+  // A low terrace wall between the rows, open in the middle.
+  const wallMat = lambert('#b98a62');
+  for (const [x0, x1] of [[G.x0, 20.6], [22.4, G.x1]] as const) {
+    const w = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, 0.45, 0.4), wallMat);
+    w.position.set((x0 + x1) / 2, 0.22, 13.95);
+    w.castShadow = w.receiveShadow = true;
+    scene.add(w);
+    boxes.push({ minX: x0, maxX: x1, minZ: 13.75, maxZ: 14.15 });
+  }
+  // The press: a round stone basin, a millstone on its edge turning round a post, a lever beam.
+  const p = G.press;
+  const stone = lambert('#d8c8a8');
+  const basin = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.2, 0.6, 16), stone);
+  basin.position.set(p.x, 0.3, p.z);
+  basin.castShadow = basin.receiveShadow = true;
+  scene.add(basin);
+  boxes.push({ minX: p.x - 1.2, maxX: p.x + 1.2, minZ: p.z - 1.2, maxZ: p.z + 1.2 });
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.4, 6), trunk);
+  post.position.set(p.x, 1, p.z);
+  scene.add(post);
+  const turn = new THREE.Group();
+  turn.position.set(p.x, 0.6, p.z);
+  const mill = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.55, 0.3, 14), stone);
+  mill.rotation.z = Math.PI / 2;
+  mill.position.set(0.5, 0.5, 0);
+  const axle = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.1), trunk);
+  axle.position.set(0.9, 0.55, 0);
+  turn.add(mill, axle);
+  scene.add(turn);
+  for (let i = 0; i < 4; i++) {
+    const a = amphoraLike(i);
+    a.position.set(p.x + 1.6 + (i % 2) * 0.5, 0, p.z - 1 + Math.floor(i / 2) * 0.55);
+    scene.add(a);
+  }
+  // The worker walking the millstone round, and the old man planting an olive he will not see grow.
+  const worker = makeFigure('#3a2418', 1.62);
+  scene.add(worker);
+  const old = makeFigure('#2a1a12', 1.45);
+  old.position.set(G.planter.x, -0.35, G.planter.z);
+  old.rotation.set(0.35, Math.PI, 0);
+  scene.add(old);
+  const sapling = new THREE.Group();
+  const stem = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.9, 0.06), trunk);
+  stem.position.y = 0.45;
+  const tuft = new THREE.Mesh(new THREE.IcosahedronGeometry(0.28, 0), leaves);
+  tuft.position.y = 0.95;
+  sapling.add(stem, tuft);
+  sapling.position.set(G.planter.x, 0, G.planter.z - 0.7);
+  scene.add(sapling);
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(0.35, 10), lambert('#6b3a22'));
+  hole.rotation.x = -Math.PI / 2;
+  hole.position.set(G.planter.x, 0.02, G.planter.z - 0.7);
+  scene.add(hole);
+  return {
+    update(minute) {
+      const working = minute >= at(7) && minute < at(18);
+      worker.visible = working;
+      old.visible = working;
+      if (!working) return;
+      // One slow round every eight minutes of the day.
+      const a = (minute / 8) * Math.PI * 2;
+      turn.rotation.y = -a;
+      worker.position.set(p.x + Math.cos(a) * 2.2, 0, p.z + Math.sin(a) * 2.2);
+      worker.rotation.y = Math.atan2(-Math.sin(a), Math.cos(a));
+    },
+  };
+}
+
+/** A small storage jar standing in the grove. */
+function amphoraLike(i: number): THREE.Mesh {
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.12, 0.7, 8), lambert(i % 2 ? '#8f4a2a' : '#a55a34'));
+  m.geometry.translate(0, 0.35, 0);
+  m.castShadow = true;
+  return m;
+}
+
+function buildMarket(scene: THREE.Scene, boxes: Box[]): PlaceLife {
+  const M = MARKET;
+  const wood = lambert('#4a2c1a');
+  const cloth = [lambert('#9a5a3a'), lambert('#e6d4aa')];
+  const fishMat = new THREE.MeshBasicMaterial({ color: '#e8e2d0' });
+  const sellers: THREE.Group[] = [];
+  const fish: THREE.Mesh[] = [];
+  for (let i = 0; i < 2; i++) {
+    const x = M.x + i * 2.5;
+    const table = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.1, 0.9), lambert('#d8c49c'));
+    table.position.set(x, 0.8, M.z);
+    table.castShadow = table.receiveShadow = true;
+    scene.add(table);
+    boxes.push({ minX: x - 0.95, maxX: x + 0.95, minZ: M.z - 0.45, maxZ: M.z + 0.45 });
+    for (const dx of [-0.85, 0.85]) {
+      for (const dz of [-0.4, 0.8]) {
+        const pole = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 0.08), wood);
+        pole.position.set(x + dx, 1.1, M.z + dz);
+        scene.add(pole);
+      }
+    }
+    const awning = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.08, 1.6), cloth[i]!);
+    awning.position.set(x, 2.25, M.z + 0.2);
+    awning.rotation.x = -0.15;
+    awning.castShadow = true;
+    scene.add(awning);
+    for (let k = 0; k < 5; k++) {
+      const f = new THREE.Mesh(new THREE.SphereGeometry(0.12, 6, 4), fishMat);
+      f.scale.set(2.2, 0.6, 1);
+      f.position.set(x - 0.7 + k * 0.35, 0.9, M.z - 0.15 + (k % 2) * 0.28);
+      f.rotation.y = (k % 3) * 0.4;
+      scene.add(f);
+      fish.push(f);
+    }
+    const seller = makeFigure(i ? '#2a1a12' : '#3a2418', 1.6);
+    seller.position.set(x, 0, M.z + 0.9);
+    seller.rotation.y = Math.PI;
+    scene.add(seller);
+    sellers.push(seller);
+  }
+  // Baskets of the morning's catch at the side.
+  for (const [dx, dz] of [[-1.4, 0.6], [4.1, -0.3], [4.3, 0.5]] as const) {
+    const b = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.26, 0.4, 8), lambert('#c99a5a'));
+    b.position.set(M.x + dx, 0.2, M.z + dz);
+    scene.add(b);
+  }
+  return {
+    update(minute) {
+      // The catch sells out by noon; after that the tables are bare.
+      const open = minute < at(12, 30);
+      for (const s of sellers) s.visible = open;
+      for (const f of fish) f.visible = open;
+    },
+  };
+}
+
+function buildShipyard(scene: THREE.Scene, boxes: Box[]): PlaceLife {
+  const S = SHIPYARD;
+  const wood = lambert('#3a2418');
+  const pale = lambert('#c9a57c');
+  // The keel on its stocks, the ribs standing bare, planks up one side only.
+  const keel = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.22, 0.26), wood);
+  keel.position.set(S.x, 0.62, S.z);
+  scene.add(keel);
+  for (const dx of [-2.4, 0, 2.4]) {
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.5, 1.2), pale);
+    stock.position.set(S.x + dx, 0.25, S.z);
+    scene.add(stock);
+  }
+  for (let i = 0; i < 9; i++) {
+    const x = S.x - 2.8 + i * 0.7;
+    const w = 1.2 - Math.abs(i - 4) * 0.12;
+    const rib = new THREE.Mesh(new THREE.TorusGeometry(w, 0.07, 4, 10, Math.PI), wood);
+    rib.rotation.set(0, Math.PI / 2, Math.PI);
+    rib.position.set(x, 1.7, S.z);
+    rib.castShadow = true;
+    scene.add(rib);
+  }
+  for (let k = 0; k < 3; k++) {
+    const plank = new THREE.Mesh(new THREE.BoxGeometry(5.6 - k * 0.6, 0.12, 0.2), pale);
+    const a = 0.5 + k * 0.35;
+    plank.position.set(S.x, 1.7 - Math.cos(a) * 1.1, S.z + Math.sin(a) * 1.1);
+    plank.rotation.x = a;
+    plank.castShadow = true;
+    scene.add(plank);
+  }
+  const stem = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 0.2), wood);
+  stem.position.set(S.x + 3.3, 1.5, S.z);
+  stem.rotation.z = -0.3;
+  scene.add(stem);
+  boxes.push({ minX: S.x - 3.4, maxX: S.x + 3.6, minZ: S.z - 1.3, maxZ: S.z + 1.3 });
+  // A sawhorse with a plank across it, and the shipwright with his adze.
+  const horse = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 0.3), pale);
+  horse.position.set(S.x - 1.5, 0.8, S.z - 2.6);
+  scene.add(horse);
+  for (const dx of [-0.55, 0.55]) {
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.8, 0.5), wood);
+    leg.position.set(S.x - 1.5 + dx, 0.4, S.z - 2.6);
+    scene.add(leg);
+  }
+  boxes.push({ minX: S.x - 2.3, maxX: S.x - 0.7, minZ: S.z - 2.85, maxZ: S.z - 2.35 });
+  const wright = makeFigure('#2a1a12', 1.66);
+  wright.position.set(S.x + 1.2, 0, S.z - 1.8);
+  wright.rotation.y = Math.PI;
+  const adze = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.08), wood);
+  adze.position.set(0.35, 1.1, 0.25);
+  wright.add(adze);
+  scene.add(wright);
+  return {
+    update(minute, time) {
+      const working = minute >= at(7) && minute < at(18);
+      wright.visible = working;
+      adze.rotation.x = working ? Math.abs(Math.sin(time * 2.4)) * 1.2 : 0;
+    },
+  };
+}
+
 /** Build every place; the returned lives are updated with the clock each frame. */
 export function buildPlaces(scene: THREE.Scene, boxes: Box[]): PlaceLife[] {
-  return [buildTheatre(scene, boxes), buildCape(scene, boxes), buildLookout(scene, boxes), buildNecropolis(scene, boxes), buildGymnasium(scene, boxes)];
+  return [
+    buildTheatre(scene, boxes), buildCape(scene, boxes), buildLookout(scene, boxes), buildNecropolis(scene, boxes),
+    buildGymnasium(scene, boxes), buildGrove(scene, boxes), buildMarket(scene, boxes), buildShipyard(scene, boxes),
+  ];
 }

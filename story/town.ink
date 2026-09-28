@@ -235,6 +235,65 @@ The road goes on past the last grave into the hills, and the hills go round, the
 }
 -> DONE
 
+=== olive_press ===
+{
+- last_hour():
+    The millstone has stopped halfway round. The oil in the settling jars is still going clear, and nobody will ever pour it off.
+- hour() >= 18:
+    The press is shut for the night. The stone smells of oil and dust, and the beam is lashed down as if someone meant to come back.
+- hour() >= 7:
+    The worker leans on the bar and the stone goes round, crushing the same olives it crushed yesterday. The oil runs green-gold into the jar.
+    The jar never fills past the same line. He empties it into the same amphora at the same moment, every day, and says the same thing: "Good year."
+- else:
+    Before seven the press is cold. A lizard sits on the millstone as if it had always been part of it.
+}
+-> DONE
+
+=== olive_grove ===
+{
+- last_hour():
+    The grove is empty. A sapling stands in fresh earth at the end of the row, watered, staked, and waiting for years.
+- hour() >= 18:
+    The old man has gone home. The sapling he planted today stands at the end of the row with a little ring of wet earth round it.
+- hour() >= 7:
+    An old man is planting an olive sapling at the end of the row. An olive takes twenty years to bear.
+    He knows he will not see it. He plants it anyway, tamps the earth down with his heel, and pours water on it from a jar.
+    {knows("past_attempts"):
+        Tomorrow the hole will be empty again and he will dig it again. He will not remember, and the tree will not grow, and he will be exactly as patient as today.
+    }
+- else:
+    The grey trees stand in their terraces. Every leaf turns silver on the same breath of wind.
+}
+-> DONE
+
+=== fish_market ===
+{
+- last_hour():
+    The fish stones are bare and washed. The gulls sit on the awnings and wait for a morning.
+- hour() >= 13:
+    The catch sold out before noon. Only the smell stays, and the gulls, and a boy sluicing the stones with sea water.
+- hour() >= 6:
+    Tunny, mullet, a basket of squid still changing colour. The sellers shout the prices at the same moment the cooks come down from the agora.
+    Every day one mullet slips off the slab and the same cat takes it. The seller swears at it with the same words.
+- else:
+    The stalls wait under their awnings for the boats.
+}
+-> DONE
+
+=== shipyard ===
+{
+- last_hour():
+    The shipwright has left his adze in the timber. The ribs of the boat stand against the dark sea like a ribcage.
+- hour() >= 18:
+    The yard is empty. The keel lies on its blocks, ribs up, half-planked. It will sail when it is finished.
+- hour() >= 7:
+    The shipwright is fitting a plank to the ribs, steaming it and bending it to the curve. He measures twice.
+    "By the festival of Poseidon she'll be in the water," he says. It is the same plank as yesterday. It is always the third plank from the keel.
+- else:
+    The keel lies on its blocks in the morning grey. Sawdust from yesterday, and yesterday, and yesterday.
+}
+-> DONE
+
 === mountain_path ===
 {hour() == 21 and not knows("shard_path") and knows("rain_at_midnight"):
     The path up the holy mountain. For one more hour only the early climbers are on it, the ones who want to be seen. Among the pale stones one is paler than the rest, and square-edged.
