@@ -46,6 +46,9 @@ const ENTRIES: Record<string, [number, number, number]> = {
   mountain: [9.5, -20.5, 0],
 };
 
+/** The singer's table stands on the tavern's spot, where he sleeps until two. */
+const TAVERN_TABLE: [number, number] = [PLACES.tavern.x, PLACES.tavern.z];
+
 /** How much nearer than a resident a place may be and still be the one E talks to. */
 const PLACE_BIAS = 0.4;
 
@@ -68,7 +71,7 @@ const PLACES_TO_TALK: Interactable[] = [
   { x: 10, z: -21, radius: 2, knot: 'mountain_path', label: 'The path up the mountain' },
   { x: 12.8, z: -1.7, radius: 1.5, knot: 'council_steps', label: 'Council steps' },
   { x: -5.5, z: 5.5, radius: 1.7, knot: 'well', label: 'The well' },
-  { x: -14.5, z: 14, radius: 1.4, knot: 'tavern_table', label: "Eion's table" },
+  { x: PLACES.tavern.x, z: PLACES.tavern.z, radius: 1.7, knot: 'tavern_table', label: "Eion's table" },
   { x: -19, z: -14.2, radius: 1.5, knot: 'villa_door', label: "Lysimachus' door" },
 ];
 
@@ -96,6 +99,9 @@ export class TownStage implements Stage {
   private facing = Math.PI;
   private boxes: Box[] = [];
   private socle = lambert('#b98a62');
+  private tavernLamps: THREE.Mesh[] = [];
+  private tavernDrinkers: THREE.Group[] = [];
+  private tavernLight = new THREE.PointLight('#ffb25a', 0, 9, 1.3);
   private terrace = lambert('#d8c49c');
   private sun = new THREE.DirectionalLight('#fff4dc', 2.2);
   private sky = new THREE.HemisphereLight('#f4ead0', '#5a3520', 0.9);
@@ -328,6 +334,133 @@ export class TownStage implements Stage {
     this.scene.add(crier);
   }
 
+  /**
+   * The port tavern, a kapeleion: a low tiled house with an open counter, a courtyard under a vine
+   * (south of the house, so the camera looks into it across the courtyard, not over the roof)
+   * pergola, and the singer's table right where he sleeps until two (the tavern's spot in the street
+   * graph). In the evening its lamps are lit and a few drinkers sit on the benches.
+   */
+  private buildTavern(): void {
+    const s = this.scene;
+    const [tx, tz] = TAVERN_TABLE;
+    const wood = lambert('#4a2c1a');
+    const top = lambert('#e9dcbc');
+    // The house: plastered, on a stone socle, under a low roof of tiles, ridge along the street.
+    this.addBox(-13.5, 9.7, 7, 3, 2.9, '#c9a57c');
+    const socle = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.5, 3.1), this.socle);
+    socle.position.set(-13.5, 0.25, 9.7);
+    s.add(socle);
+    const roof = gableRoof(3, 7, 0.7, '#9a5a3a', '#e4d8bc');
+    roof.position.set(-13.5, 2.9, 9.7);
+    roof.rotation.y = Math.PI / 2;
+    s.add(roof);
+    // The open front: a wide dark mouth that glows at night, and the counter in front of it.
+    const mouth = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 2.1), this.windowLit);
+    mouth.position.set(-13.9, 1.2, 11.21);
+    s.add(mouth);
+    const counter = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1, 0.5), lambert('#c9a57c'));
+    counter.position.set(-13.9, 0.5, 11.5);
+    counter.castShadow = counter.receiveShadow = true;
+    s.add(counter);
+    const counterTop = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.62), top);
+    counterTop.position.set(-13.9, 1.03, 11.5);
+    s.add(counterTop);
+    this.boxes.push({ minX: -15.7, maxX: -12.1, minZ: 11.2, maxZ: 11.8 });
+    // Amphorae stacked against the wall by the counter, one lying on its side.
+    for (const [x, z, lie] of [[-16.5, 11.6, 0], [-16, 11.65, 0], [-16.6, 12.2, 1]] as const) {
+      const a = amphora();
+      a.position.set(x, lie ? 0.25 : 0, z);
+      if (lie) a.rotation.z = Math.PI / 2;
+      s.add(a);
+    }
+    this.boxes.push({ minX: -17, maxX: -15.7, minZ: 11.2, maxZ: 12.5 });
+    // The sign: a board with a painted jug, hung from a bracket at the corner, over the street.
+    const bracket = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.1, 0.1), wood);
+    bracket.position.set(-9.55, 2.55, 11.0);
+    s.add(bracket);
+    const board = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.7, 0.8), top);
+    board.position.set(-9.2, 2.05, 11.0);
+    s.add(board);
+    const jug = amphora('#1a120c');
+    jug.scale.setScalar(0.42);
+    jug.position.set(-9.14, 1.8, 11.0);
+    s.add(jug);
+    // The pergola: posts, beams and slats over the courtyard, the vine in dark clumps along them.
+    const x0 = -16.9;
+    const x1 = -10.1;
+    const z0 = 11.3;
+    const z1 = 14.6;
+    for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [(x0 + x1) / 2, z1], [x1, z1]] as const) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.6, 0.22), wood);
+      post.position.set(x, 1.3, z);
+      post.castShadow = true;
+      s.add(post);
+      this.boxes.push({ minX: x - 0.15, maxX: x + 0.15, minZ: z - 0.15, maxZ: z + 0.15 });
+    }
+    for (const z of [z0, (z0 + z1) / 2, z1]) {
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0 + 0.4, 0.16, 0.2), wood);
+      beam.position.set((x0 + x1) / 2, 2.62, z);
+      beam.castShadow = true;
+      s.add(beam);
+    }
+    for (let x = x0 + 0.5; x < x1; x += 0.9) {
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.1, z1 - z0 + 0.3), wood);
+      slat.position.set(x, 2.74, (z0 + z1) / 2);
+      slat.castShadow = true;
+      s.add(slat);
+    }
+    const leaves = lambert('#4a3a22');
+    const rand = seededRng(daySeed('eferon/tavern/vine'));
+    for (let i = 0; i < 16; i++) {
+      // Thick over the drinkers' side, thin over the singer's table, so he can be seen from above.
+      const x = x0 + rand() * (x1 - x0) * (i < 12 ? 0.62 : 1);
+      const z = z0 + rand() * (z1 - z0);
+      if (Math.hypot(x - tx, z - tz) < 1.6) continue;
+      const clump = new THREE.Mesh(new THREE.IcosahedronGeometry(0.32 + rand() * 0.2, 0), leaves);
+      clump.position.set(x, 2.95 + rand() * 0.15, z);
+      clump.castShadow = true;
+      s.add(clump);
+    }
+    // Two tables with benches: the singer's, and the drinkers'.
+    const table = (x: number, z: number) => {
+      const t = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.1, 0.9), top);
+      t.position.set(x, 0.78, z);
+      t.castShadow = t.receiveShadow = true;
+      s.add(t);
+      for (const [dx, dz] of [[-0.7, -0.35], [0.7, -0.35], [-0.7, 0.35], [0.7, 0.35]] as const) {
+        const leg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.74, 0.1), wood);
+        leg.position.set(x + dx, 0.37, z + dz);
+        s.add(leg);
+      }
+      for (const side of [-1, 1]) {
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 0.3), wood);
+        bench.position.set(x, 0.44, z + side * 0.72);
+        bench.castShadow = true;
+        s.add(bench);
+      }
+      this.boxes.push({ minX: x - 0.8, maxX: x + 0.8, minZ: z - 0.45, maxZ: z + 0.45 });
+      // A lamp on the table, lit with the torches.
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 5), new THREE.MeshBasicMaterial({ color: '#ffd68c' }));
+      flame.position.set(x + 0.4, 0.97, z);
+      flame.visible = false;
+      s.add(flame);
+      this.tavernLamps.push(flame);
+    };
+    table(tx, tz);
+    table(-15, 13.3);
+    // The drinkers: they sit down at six and leave for the procession at nine.
+    for (const [x, z, facing] of [[-15.5, 12.58, 0], [-14.5, 12.58, 0], [-15.2, 14.02, Math.PI], [-14.3, 14.02, Math.PI]] as const) {
+      const f = makeFigure('#2a1a12', 1.55);
+      f.position.set(x, -0.42, z);
+      f.rotation.y = facing;
+      f.visible = false;
+      s.add(f);
+      this.tavernDrinkers.push(f);
+    }
+    this.tavernLight.position.set(-13.5, 2.2, 12.8);
+    s.add(this.tavernLight);
+  }
+
   private buildLandmarks(): void {
     // Aristion's house, door facing the lane.
     this.addBox(-16.8, -5.5, 5, 4.4, 3.2, '#e9dfc4');
@@ -338,12 +471,7 @@ export class TownStage implements Stage {
     shrineRoof.position.set(19.6, 4.5, -12.2);
     shrineRoof.castShadow = true;
     this.scene.add(shrineRoof);
-    // The port tavern, with an awning over the door.
-    this.addBox(-13.5, 16.8, 7, 4, 3, '#c9a57c');
-    const awning = new THREE.Mesh(new THREE.BoxGeometry(5, 0.15, 2), lambert('#6b3a22'));
-    awning.position.set(-12.5, 2.6, 14.2);
-    awning.castShadow = true;
-    this.scene.add(awning);
+    this.buildTavern();
     // Lysimachus' villa, bigger than it needs to be.
     this.addBox(-20.5, -17.5, 7, 5.5, 3.6, '#f0e8d2');
     const villaRoof = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.4, 6.1), lambert('#8f4a2a'));
@@ -383,7 +511,8 @@ export class TownStage implements Stage {
       distanceToStreets(x, z) < 2.8 ||
       Math.hypot(x - 9, z - 1.5) < 6 || // agora
       (z < -12.5 && Math.abs(x) < 9) || // temple
-      Math.hypot(x - 1, z - 21) < 5; // path to the sea
+      Math.hypot(x - 1, z - 21) < 5 || // path to the sea
+      (x > -18 && x < -8.5 && z > 7.5 && z < 15.5); // the tavern and its courtyard
     let placed = 0;
     for (let tries = 0; tries < 800 && placed < 42; tries++) {
       const x = -26 + rand() * 52;
@@ -432,7 +561,7 @@ export class TownStage implements Stage {
       this.scene.add(tree);
       i++;
     }
-    for (const [x, z] of [[4.2, 7.9], [5.8, 7.9], [-10.2, 15.2], [-9.6, 15.4], [-15.8, -12.9], [17.4, 4.2]] as const) {
+    for (const [x, z] of [[4.2, 7.9], [5.8, 7.9], [-15.8, -12.9], [17.4, 4.2]] as const) {
       const a = amphora();
       a.position.set(x, 0, z);
       this.scene.add(a);
@@ -616,10 +745,12 @@ export class TownStage implements Stage {
     const node = PLACES[this.nodeNear(x, z)];
     let a = Math.atan2(node.x - x, node.z - z);
     if (Math.hypot(node.x - x, node.z - z) < 0.3) a = 0;
-    for (let k = 0; k < 12; k++) {
-      const t = a + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.5;
-      const px = x + Math.sin(t) * gap;
-      const pz = z + Math.cos(t) * gap;
+    // Round the spot at the asked distance, then further out (a table may stand on it).
+    for (let k = 0; k < 36; k++) {
+      const t = a + (k % 2 ? 1 : -1) * Math.ceil((k % 12) / 2) * 0.5;
+      const d = gap + Math.floor(k / 12) * 0.6;
+      const px = x + Math.sin(t) * d;
+      const pz = z + Math.cos(t) * d;
       if (!this.blocked(px, pz) && !tooDeep(px, pz) && outsideRoad(px, pz)) {
         this.player.position.set(px, 0, pz);
         this.settleView();
@@ -778,8 +909,11 @@ export class TownStage implements Stage {
 
   private nearest(): Interactable | null {
     const p = this.player.position;
+    // While the singer is at his table, E is for him; the table itself is looked at once he has gone.
+    const eion = this.npcs.find((n) => n.resident.id === 'eion');
+    const eionAtTable = !!eion?.figure.visible && Math.hypot(eion.figure.position.x - TAVERN_TABLE[0], eion.figure.position.z - TAVERN_TABLE[1]) < 2.5;
     const candidates: Interactable[] = [
-      ...PLACES_TO_TALK,
+      ...PLACES_TO_TALK.filter((c) => !(eionAtTable && c.knot === 'tavern_table')),
       ...this.npcs
         .filter((n) => n.figure.visible)
         .map((n) => {
@@ -960,6 +1094,14 @@ export class TownStage implements Stage {
     const dusk = THREE.MathUtils.smoothstep(progress, 0.68, 0.8);
     this.dusk = dusk;
     this.windowLit.emissiveIntensity = dusk * 1.6;
+    const minute = this.host.clock.minute;
+    const drinking = minute >= at(18) && minute < Math.min(at(21), this.host.clock.endMinute - 60);
+    for (const d of this.tavernDrinkers) d.visible = drinking;
+    for (const [i, lamp] of this.tavernLamps.entries()) {
+      lamp.visible = dusk > 0.05;
+      lamp.scale.y = 0.85 + 0.3 * Math.abs(Math.sin(this.time * 8 + i * 2));
+    }
+    this.tavernLight.intensity = dusk * 10;
     dimPaint(night);
     // The last hours: gusts off the mountain (sooner if the player has raised the wind), and eyes up.
     const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);
