@@ -760,3 +760,11 @@ html.reduced-motion .hud-coach { animation: none; }
 }
 .cold-open-ask.on { opacity: 1; }
 .cold-open-skip { position: absolute; right: 1.5rem; bottom: 1.2rem; font-size: 0.8rem; padding: 0.4rem 1rem; }
+
+/* Lines said out loud in the street, over the speaker's head. */
+.barks { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.bark {
+  position: absolute; left: 0; top: 0; max-width: 16rem; padding: 0.25rem 0.6rem; background: var(--panel); border: 1px solid var(--rule);
+  color: var(--bone); font-style: italic; font-size: 0.9rem; white-space: nowrap; transition: opacity 0.15s;
+}
+#overlay.talking .barks { opacity: 0; }

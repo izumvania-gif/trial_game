@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import { seededRng } from '../../core/rng.ts';
 import { lambert } from '../figures.ts';
 
-export type CarryKind = 'amphora' | 'basket' | 'stone';
+export type CarryKind = 'amphora' | 'basket' | 'stone' | 'fish';
 
 export interface Carryable {
   obj: THREE.Object3D;
@@ -13,9 +13,11 @@ export interface Carryable {
   /** In the air after a throw. */
   vel: THREE.Vector3 | null;
   gone: boolean;
+  /** It has already hit someone on this throw. */
+  struck?: boolean;
 }
 
-const NAMES: Record<CarryKind, string> = { amphora: 'the amphora', basket: 'the basket', stone: 'a stone' };
+const NAMES: Record<CarryKind, string> = { amphora: 'the amphora', basket: 'the basket', stone: 'a stone', fish: 'a fish' };
 /** Where the sea closes over what falls in. */
 const SEA_LEVEL = -0.2;
 const GRAVITY = 20;
@@ -33,6 +35,8 @@ export interface CarryWorld {
   blocked(x: number, z: number, y: number): boolean;
   /** A thing hit the ground: 'shatter' (it broke), 'splash' (into the sea), 'thud'. */
   landed(item: Carryable, how: 'shatter' | 'splash' | 'thud', x: number, z: number): void;
+  /** In flight at (x, y, z): did it hit someone? */
+  strike(item: Carryable, x: number, y: number, z: number): boolean;
 }
 
 export class Carry {
@@ -60,7 +64,7 @@ export class Carry {
   nearest(x: number, y: number, z: number, reach = 1.1): { item: Carryable; d: number } | null {
     let best: { item: Carryable; d: number } | null = null;
     for (const item of this.items) {
-      if (item.gone || item.vel || item === this.held) continue;
+      if (item.gone || item.vel || item === this.held || !item.obj.visible) continue;
       const o = item.obj.position;
       if (Math.abs(o.y - y) > 1.2) continue;
       const d = Math.hypot(o.x - x, o.z - z);
@@ -71,6 +75,7 @@ export class Carry {
 
   pick(item: Carryable): void {
     this.held = item;
+    item.obj.userData.taken = true;
     item.obj.rotation.set(0, 0, 0);
   }
 
@@ -101,6 +106,7 @@ export class Carry {
     this.held = null;
     const v = running ? 9.5 : 7;
     item.vel = new THREE.Vector3(Math.sin(facing) * v, 4.2, Math.cos(facing) * v);
+    item.struck = false;
     item.obj.position.set(from.x + Math.sin(facing) * 0.4, from.y + 1.9, from.z + Math.cos(facing) * 0.4);
   }
 
@@ -129,6 +135,13 @@ export class Carry {
       }
       o.y += item.vel.y * dt;
       item.obj.rotation.x += dt * 6;
+      // Someone in the way: it hits them and drops.
+      if (!item.struck && o.y < 2.1 && this.world.strike(item, o.x, o.y, o.z)) {
+        item.struck = true;
+        item.vel.x *= -0.15;
+        item.vel.z *= -0.15;
+        item.vel.y = Math.min(item.vel.y, 0);
+      }
       const floor = this.world.floorAt(o.x, o.z, o.y + 0.5);
       if (floor < SEA_LEVEL && o.y < SEA_LEVEL) {
         // Into the sea: it goes under and is not seen again today.

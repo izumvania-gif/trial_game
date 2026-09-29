@@ -2,6 +2,7 @@
 // card made of you). Every reset leaves a record of what this Leont did before the day came back:
 // which subjects he looked into, the word he cut, and how the day ended. It is shown on the reset
 // screen as the relief sinks, and in the registry, after the thirty-six, as the player's own ring.
+import { mischiefWords } from './barks.ts';
 import { ENDINGS } from './endings.ts';
 import { SUBJECTS, subjectOfFact } from './subjects.ts';
 
@@ -23,6 +24,8 @@ export interface DayFacts {
   reason: 'midnight' | 'song' | 'ending';
   /** The ending that closed the day, when reason is 'ending'. */
   ending: string | null;
+  /** Mischief done in the street, by kind (content/barks.ts). */
+  mischief?: Record<string, number>;
 }
 
 function list(names: string[]): string {
@@ -66,8 +69,10 @@ export function daySummary(day: DayFacts): string {
     .map(([id]) => SUBJECTS.find((s) => s.id === id)!.name.replace(/^The /, 'the '));
   const parts: string[] = [];
   if (deeds.length) parts.push(`${capital(list(deeds))}.`);
+  const mischief = mischiefWords(day.mischief ?? {});
   if (subjects.length) parts.push(`Looked into ${list(subjects)}.`);
-  else if (!deeds.length) parts.push('Learned nothing new.');
+  else if (!deeds.length && !mischief.length) parts.push('Learned nothing new.');
+  if (mischief.length) parts.push(`${capital(list(mischief))}.`);
   if (day.carved) parts.push(`Cut ${day.carved} into the stele.`);
   if (day.reason === 'song') parts.push('Folded the day shut with the Song.');
   else if (day.reason === 'ending' && day.ending === 'wake_pressed') parts.push('Everything was done, and you pressed Wake.');

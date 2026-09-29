@@ -9,6 +9,9 @@ import { compileInkFile } from '../tools/ink.ts';
 
 const storyDir = resolve(import.meta.dirname, '../../../story');
 
+
+/** Knots that take parameters, and what to enter them with. */
+const KNOT_ARGS: Record<string, string[]> = { still: ['Kora'], caught_by_watch: ['2'] };
 test('story compiles', () => {
   const { json } = compileInkFile(resolve(storyDir, 'main.ink'));
   assert.ok(new Story(json));
@@ -108,7 +111,7 @@ test('no knot runs out of content, however often it is entered in one day', () =
       for (const knot of knots) {
         for (let visit = 0; visit < 5; visit++) {
           error = '';
-          story.ChoosePathString(knot, true, knot === 'still' ? ['Kora'] : []);
+          story.ChoosePathString(knot, true, KNOT_ARGS[knot] ?? []);
           for (let steps = 0; steps < 200 && !error; steps++) {
             while (story.canContinue && !error) story.Continue();
             const choices = story.currentChoices;

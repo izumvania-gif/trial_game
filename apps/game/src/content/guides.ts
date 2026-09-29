@@ -105,6 +105,15 @@ export const STAGE_GUIDES: Partial<Record<StageId, Guide>> = {
 
 /** Tips: shown once, beside whatever is happening, without stopping it. */
 export const TIPS: Record<string, Guide> = {
+  mischief: {
+    id: 'tip:mischief',
+    kicker: 'Nothing stays broken',
+    title: 'The city will remember until midnight',
+    steps: [
+      { keys: [], text: 'Whatever you break, the day mends at midnight. Until then people see it, say so, and tell the watch.' },
+      { keys: ['Shift'], text: 'The two Scythian archers of the watch outwalk you, not outrun you. They will not climb after you, nor swim.' },
+    ],
+  },
   dejavu: {
     id: 'tip:dejavu',
     kicker: 'Déjà vu',

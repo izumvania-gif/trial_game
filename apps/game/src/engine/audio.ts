@@ -48,6 +48,7 @@ const CAPTIONS: Record<string, string> = {
   ascend: '[steps, and the city again]',
   shatter: '[a pot breaks on the stones]',
   splash: '[a splash]',
+  whistle: '[the watch shouts after you]',
 };
 
 // The same lyre everywhere, a different piece for each place: see engine/music.ts.
@@ -555,6 +556,26 @@ export class AudioEngine {
           o.connect(k).connect(this.sfx);
           o.start(at);
           o.stop(at + 0.07);
+        }
+        break;
+      }
+      case 'whistle': {
+        // A shout through cupped hands, twice: two falling notes, hoarse.
+        for (const [at, f0] of [[0, 880], [0.32, 740]] as const) {
+          const o = ctx.createOscillator();
+          const g = ctx.createGain();
+          o.type = 'sawtooth';
+          o.frequency.setValueAtTime(f0, t + at);
+          o.frequency.exponentialRampToValueAtTime(f0 * 0.8, t + at + 0.25);
+          const f = ctx.createBiquadFilter();
+          f.type = 'bandpass';
+          f.frequency.value = 1100;
+          g.gain.setValueAtTime(0.0001, t + at);
+          g.gain.exponentialRampToValueAtTime(0.12, t + at + 0.03);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + at + 0.28);
+          o.connect(f).connect(g).connect(this.sfx);
+          o.start(t + at);
+          o.stop(t + at + 0.3);
         }
         break;
       }

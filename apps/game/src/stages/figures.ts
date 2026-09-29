@@ -57,7 +57,7 @@ export const RED = '#8a3322';
  * tone through the dither (the robes stay lit: they are the figure, the accents are paint). Shared
  * by every figure, and dimmed with the town's night so they do not glow in the dark.
  */
-const PAINT = {
+export const PAINT = {
   bone: new THREE.MeshBasicMaterial({ color: '#e8e2d0' }),
   red: new THREE.MeshBasicMaterial({ color: '#6e2a1c' }),
 };

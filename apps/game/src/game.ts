@@ -592,6 +592,7 @@ export class Game {
       [this.save.cycle.wind > 0 && !this.lost('clock'), 'wind'],
       [this.memory.masks.length > 0 && !this.lost('masks'), 'mask'],
       [this.knowledge.knows('song_of_return'), 'lyre'],
+      [Object.values(this.save.cycle.mischief ?? {}).some((n) => n > 0), 'mischief'],
     ];
     for (const [now, id] of due) if (now && this.guides.tip(TIPS[id]!)) return;
   }
@@ -970,6 +971,7 @@ export class Game {
       summary: daySummary({
         learned: Object.entries(this.memory.learnedOn).filter(([, c]) => c === day).map(([f]) => f),
         carved: this.save.cycle.carved,
+        mischief: this.save.cycle.mischief,
         reason,
         ending: reason === 'ending' && this.memory.lastEnding?.cycle === day ? this.memory.lastEnding.id : null,
       }),

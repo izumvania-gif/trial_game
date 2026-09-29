@@ -117,6 +117,8 @@ export function placeReserved(x: number, z: number): boolean {
 /** The places' small lives, moved by the clock. */
 export interface PlaceLife {
   update(minute: number, time: number, dusk: number): void;
+  /** Things lying there that the scribe can pick up (see carry.ts). */
+  loose?: [THREE.Object3D, 'fish'][];
 }
 
 const stone = () => lambert('#e6d9b8');
@@ -651,8 +653,10 @@ function buildMarket(scene: THREE.Scene, boxes: Box[]): PlaceLife {
       // The catch sells out by noon; after that the tables are bare.
       const open = minute < at(12, 30);
       for (const s of sellers) s.visible = open;
-      for (const f of fish) f.visible = open;
+      // A fish someone walked off with stays with them.
+      for (const f of fish) if (!f.userData.taken) f.visible = open;
     },
+    loose: fish.map((f) => [f, 'fish']),
   };
 }
 

@@ -235,6 +235,17 @@ The road goes on past the last grave into the hills, and the hills go round, the
 }
 -> DONE
 
+=== caught_by_watch(times) ===
+Two Scythian archers take you by the arms and walk you across the agora to the council house. An archon with ink on his fingers opens a wax register. #spend:30
+{times == "1":
+    "Leont the scribe. Disorder in the streets." He looks up. "You, of all people. You write things down for a living."
+- else:
+    "Leont the scribe. Disorder in the streets." He smooths the wax to make room. "Again. That is {times} times today."
+}
+He presses the stylus in hard, as if it could last. They let you go.
+By morning the wax will be smooth. Nothing anyone writes in this city lasts the night, except what you write.
+-> DONE
+
 === olive_press ===
 {
 - last_hour():

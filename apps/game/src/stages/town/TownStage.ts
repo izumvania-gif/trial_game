@@ -14,7 +14,10 @@ import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
 import { buildPlaces, PLACE_SPOTS, placeReserved, STEP, type PlaceLife } from './places.ts';
 import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep, topOf, Torches, type Box } from './city.ts';
-import { Carry, stone, type Carryable } from './carry.ts';
+import { Carry, stone, type Carryable, type CarryKind } from './carry.ts';
+import { Watch } from './watch.ts';
+import { Barks } from './barks.ts';
+import { BARKS, HEARD, HEAT, type Mischief } from '../../content/barks.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
 import { StreetLife } from './props.ts';
@@ -115,8 +118,21 @@ export class TownStage implements Stage {
   private socle = lambert('#b98a62');
   private tavernLamps: THREE.Mesh[] = [];
   private placeLives: PlaceLife[] = [];
-  private loose: [THREE.Object3D, 'amphora' | 'basket' | 'stone'][] = [];
+  private loose: [THREE.Object3D, CarryKind][] = [];
   private carry!: Carry;
+  private watch!: Watch;
+  private barks: Barks;
+  /** How much trouble the city thinks he is in: seen mischief heats it, time cools it; at 2 the watch comes. */
+  private heat = 0;
+  private lastMinute = -1;
+  private barkN = 0;
+  /** Up on a roof, on a tavern table: counted once each time he gets up there. */
+  private upOn: 'roof' | 'table' | null = null;
+  /** Named residents who have said their piece about today's mischief. */
+  private heard = new Set<string>();
+  private shoveWait = 0;
+  /** Residents knocked or hit: how long they stagger. */
+  private stumble = new Map<string, number>();
   private tavernDrinkers: THREE.Group[] = [];
   private tavernLight = new THREE.PointLight('#ffb25a', 0, 9, 1.3);
   private terrace = lambert('#d8c49c');
@@ -156,6 +172,7 @@ export class TownStage implements Stage {
 
   constructor(host: StageHost, start: { x: number; z: number; facing: number }) {
     this.host = host;
+    this.barks = new Barks(host.overlay);
     this.buildWorld();
     this.player.position.set(start.x, 0, start.z);
     this.facing = start.facing;
@@ -278,10 +295,13 @@ export class TownStage implements Stage {
       this.loose.push([st, 'stone']);
     }
     for (const b of this.street.baskets) this.loose.push([b, 'basket']);
+    for (const life of this.placeLives) for (const l of life.loose ?? []) this.loose.push(l);
+    this.watch = new Watch(s);
     this.carry = new Carry(s, {
       floorAt: (x, z, y) => this.floorAt(x, z, y),
       blocked: (x, z, y) => this.blocked(x, z, y, 0.15),
       landed: (item, how, x, z) => this.landed(item, how, x, z),
+      strike: (item, x, y, z) => this.strike(item, x, y, z),
     });
     for (const [obj, kind] of this.loose) this.carry.add(obj, kind);
   }
@@ -696,11 +716,13 @@ export class TownStage implements Stage {
 
   exit(): void {
     this.host.prompt(null);
+    this.barks.clear();
     if (this.sitting) this.stand();
     this.host.clock.speed = 1;
   }
 
   dispose(): void {
+    this.barks.dispose();
     disposeScene(this.scene);
   }
 
@@ -760,6 +782,9 @@ export class TownStage implements Stage {
     const near = this.nearest();
     if (near) out.push(`Right here: ${near.label}.`);
     if (this.host.clock.minute >= at(19)) out.push('Torches are lit. People are going up the mountain path.');
+    const said = this.barks.lines();
+    if (said.length) out.push(`Said out loud: ${said.map((l) => `"${l}"`).join(' ')}`);
+    if (this.watch.state === 'chase') out.push('The watch is after you.');
     return out;
   }
 
@@ -892,7 +917,9 @@ export class TownStage implements Stage {
     let near = this.nearest();
     // Things to pick up: the nearer of a thing and a person or place wins E.
     const thing = !this.carry.held && !this.sitting && !this.air && !this.climbing ? this.carry.nearest(p0.x, p0.y, p0.z) : null;
-    const pickUp = thing && (!near || thing.d < Math.hypot(near.x - p0.x, near.z - p0.z)) ? thing.item : null;
+    // A thing he is facing wins over a person or place beside it (the fish on the stall over the market itself).
+    const facingIt = thing && Math.sin(this.facing) * (thing.item.obj.position.x - p0.x) + Math.cos(this.facing) * (thing.item.obj.position.z - p0.z) > thing.d * 0.5;
+    const pickUp = thing && (!near || facingIt || thing.d < Math.hypot(near.x - p0.x, near.z - p0.z)) ? thing.item : null;
     if (pickUp) near = null;
     const held = this.carry.held;
     this.host.prompt(
@@ -900,6 +927,8 @@ export class TownStage implements Stage {
     );
     if (input.enabled && !this.sitting) {
       if (pickUp && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) {
+        // A fish off the stall while the sellers are there is theft.
+        if (pickUp.kind === 'fish' && this.host.clock.minute < at(12, 30)) this.misdeed('fish', pickUp.obj.position.x, pickUp.obj.position.z);
         this.carry.pick(pickUp);
         this.host.setControls('WASD — walk · E — put it down · F — throw');
       } else if (held && !near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) {
@@ -939,6 +968,8 @@ export class TownStage implements Stage {
     this.crowd.update(clock.minute, this.time, this.dusk, stutter, this.feet(), this.wall);
     this.people = this.npcs.filter((n) => n.figure.visible).map((n) => ({ x: n.figure.position.x, z: n.figure.position.z }));
     this.crowd.positions(this.people);
+    for (const w of this.watch.positions()) this.people.push({ x: w.x, z: w.z });
+    this.updateTrouble(dt);
     const p = this.player.position;
     const u = this.lookUp;
     // From nine the view begins to sway, a little more every hour: the ground is not quite steady.
@@ -1063,6 +1094,12 @@ export class TownStage implements Stage {
       const toMountain = Math.atan2(SUMMIT.x - state.x, SUMMIT.z - state.z);
       figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : npc.still && !lying ? toMountain : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
+      // Knocked or hit: they reel for a moment and turn to see who did it.
+      const reel = this.stumble.get(resident.id) ?? 0;
+      if (reel > 0 && !lying) {
+        figure.rotation.z = Math.sin(reel * 14) * 0.25 * reel;
+        figure.rotation.y = Math.atan2(p.x - state.x, p.z - state.z);
+      }
       // Someone walking steps round the scribe instead of through him.
       if (state.walking) giveWay(figure.position, feet, this.wall);
       bob(figure, this.time, state.walking ? 1 : 0);
@@ -1281,7 +1318,17 @@ export class TownStage implements Stage {
     if (y > groundAt(x, z) + 1.2 || this.swimming) return true;
     for (const o of this.people) {
       const d = Math.hypot(x - o.x, z - o.z);
-      if (d < PERSON_GAP && d < Math.hypot(x0 - o.x, z0 - o.z)) return false;
+      if (d < PERSON_GAP && d < Math.hypot(x0 - o.x, z0 - o.z)) {
+        // Running into someone knocks them.
+        if (this.running && this.shoveWait <= 0) {
+          this.shoveWait = 1.5;
+          const npc = this.npcs.find((n) => n.figure.visible && Math.hypot(n.figure.position.x - o.x, n.figure.position.z - o.z) < 0.05);
+          if (npc) this.stumble.set(npc.resident.id, 0.8);
+          this.host.sound('land');
+          this.misdeed('shove', o.x, o.z, npc?.figure.position ?? new THREE.Vector3(o.x, 0, o.z));
+        }
+        return false;
+      }
     }
     return true;
   }
@@ -1307,8 +1354,129 @@ export class TownStage implements Stage {
   private landed(item: Carryable, how: 'shatter' | 'splash' | 'thud', x: number, z: number): void {
     this.host.sound(how === 'shatter' ? 'shatter' : how === 'splash' ? 'splash' : 'land');
     void item;
-    void x;
-    void z;
+    if (how === 'shatter') this.misdeed('pot', x, z);
+  }
+
+  // ─── Mischief: the city sees, shouts, and sends the watch; midnight forgives it all ───
+
+  /** Someone saw (or not) what he did: count it for the day, let the nearest person say so, heat the city. */
+  private misdeed(kind: Mischief, x: number, z: number, speaker?: THREE.Vector3 | null): void {
+    const c = this.host.cycle;
+    c.mischief = { ...c.mischief, [kind]: (c.mischief?.[kind] ?? 0) + 1 };
+    const who = speaker ?? this.personNear(x, z, 14);
+    if (!who) return;
+    this.bark(BARKS[kind], who);
+    this.heat += HEAT[kind] ?? 0;
+  }
+
+  private bark(lines: string[], at: THREE.Vector3): void {
+    if (lines.length) this.barks.say(lines[this.barkN++ % lines.length]!, at);
+  }
+
+  /** The nearest person (resident, crowd, guard) within r of (x, z), if any. */
+  private personNear(x: number, z: number, r: number, except?: THREE.Vector3): THREE.Vector3 | null {
+    let best: THREE.Vector3 | null = null;
+    let bestD = r;
+    const consider = (v: THREE.Vector3) => {
+      const d = Math.hypot(v.x - x, v.z - z);
+      if (v !== except && d < bestD) {
+        best = v;
+        bestD = d;
+      }
+    };
+    for (const n of this.npcs) if (n.figure.visible) consider(n.figure.position);
+    for (const g of this.watch.positions()) consider(g);
+    const crowd: { x: number; z: number }[] = [];
+    this.crowd.positions(crowd);
+    for (const o of crowd) {
+      const d = Math.hypot(o.x - x, o.z - z);
+      if (d < bestD) {
+        best = new THREE.Vector3(o.x, 0, o.z);
+        bestD = d;
+      }
+    }
+    return best;
+  }
+
+  /** Each frame: the city cools down, notices him up on roofs and tables, sends the watch, and says so. */
+  private updateTrouble(dt: number): void {
+    const { clock } = this.host;
+    const p = this.player.position;
+    const minutes = this.lastMinute < 0 ? 0 : Math.max(0, clock.minute - this.lastMinute);
+    this.lastMinute = clock.minute;
+    if (this.watch.state !== 'chase') this.heat = Math.max(0, this.heat - minutes * 0.05);
+    this.shoveWait -= dt;
+    for (const [id, t] of this.stumble) {
+      if (t - dt <= 0) this.stumble.delete(id);
+      else this.stumble.set(id, t - dt);
+    }
+    // Up somewhere he should not be: a roof, or a tavern table while the drinkers are at it.
+    const ground = groundAt(p.x, p.z);
+    const onTable = !this.air && Math.abs(p.y - 0.82) < 0.06 && p.x > -17 && p.x < -8 && p.z > 11.8 && p.z < 17;
+    const where = onTable ? 'table' : !this.air && p.y > ground + 1.8 ? 'roof' : null;
+    if (where !== this.upOn && where) {
+      if (where === 'table' && this.tavernDrinkers.some((d) => d.visible)) this.misdeed('table', p.x, p.z, this.tavernDrinkers.find((d) => d.visible)!.position);
+      else if (where === 'roof') {
+        const who = this.personNear(p.x, p.z, 12);
+        if (who) this.misdeed('roof', p.x, p.z, who);
+      }
+    }
+    if (!this.air || where) this.upOn = where;
+    // The named residents have heard, and say so once a day, in passing.
+    const done = Object.entries(this.host.cycle.mischief ?? {}).some(([k, n]) => n > 0 && k !== 'roof' && k !== 'table');
+    if (done) {
+      for (const n of this.npcs) {
+        if (!n.figure.visible || n.still || this.heard.has(n.resident.id) || !HEARD[n.resident.id]) continue;
+        if (Math.hypot(n.figure.position.x - p.x, n.figure.position.z - p.z) < 3.2) {
+          this.heard.add(n.resident.id);
+          this.barks.say(HEARD[n.resident.id]!, n.figure.position);
+        }
+      }
+    }
+    // The watch.
+    const lastHour = clock.minute >= clock.endMinute - 60;
+    const on = clock.minute >= at(6, 30) && !clock.isOver;
+    const reachable = this.feet() === p && !this.climbing;
+    const event = this.watch.update(dt, this.time, on, lastHour, { x: p.x, z: p.z }, reachable, this.heat >= 2 && !lastHour, this.wall);
+    if (event === 'spotted') {
+      this.bark(BARKS.watch, this.watch.nearest(p.x, p.z));
+      this.host.sound('whistle');
+    } else if (event === 'waiting') this.bark(BARKS.watch_wait, this.watch.nearest(p.x, p.z));
+    else if (event === 'lost') {
+      this.heat = 0.6;
+      this.bark(BARKS.watch_lost, this.watch.nearest(p.x, p.z));
+      this.host.cycle.mischief = { ...this.host.cycle.mischief, escaped: (this.host.cycle.mischief?.escaped ?? 0) + 1 };
+    } else if (event === 'caught') this.caught();
+    this.barks.update(dt, this.camera);
+  }
+
+  /** Taken by the watch: walked to the council house, his name written in the archon's register. */
+  private caught(): void {
+    const c = this.host.cycle;
+    c.mischief = { ...c.mischief, caught: (c.mischief?.caught ?? 0) + 1 };
+    this.heat = 0;
+    if (this.carry.held) this.carry.drop(this.player.position, this.facing);
+    this.host.setControls(null);
+    this.player.position.set(12.8, 0, 3.1);
+    this.facing = Math.PI;
+    this.player.rotation.y = Math.PI;
+    this.settleView();
+    this.watch.escort(12.8, 3.1);
+    this.barks.clear();
+    this.host.interact('caught_by_watch', [String(c.mischief.caught)]);
+  }
+
+  /** A thrown thing in flight: does it hit someone? */
+  private strike(item: Carryable, x: number, y: number, z: number): boolean {
+    if (y > 2 || y < -0.3) return false;
+    const npc = this.npcs.find((n) => n.figure.visible && Math.hypot(n.figure.position.x - x, n.figure.position.z - z) < 0.55);
+    const who = npc?.figure.position ?? this.personNear(x, z, 0.55);
+    if (!who) return false;
+    if (npc) this.stumble.set(npc.resident.id, 0.8);
+    this.host.sound('land');
+    this.misdeed('hit', x, z, who);
+    void item;
+    return true;
   }
 
   private updateSky(progress: number): void {

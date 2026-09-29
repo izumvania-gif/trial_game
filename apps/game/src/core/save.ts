@@ -75,6 +75,8 @@ export interface CycleState {
   finale: string | null;
   /** The word cut into the stele today, for the day's record. */
   carved: string | null;
+  /** Today's mischief, by kind (content/barks.ts): forgiven at midnight, carved on the spiral. */
+  mischief: Record<string, number>;
 }
 
 export interface SaveFile {
@@ -102,7 +104,7 @@ export function freshMemory(): LoopMemory {
 export function freshCycle(): CycleState {
   return {
     minute: 0, stage: 'town', player: { x: 0, z: 6, facing: Math.PI }, storyState: null,
-    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null, carved: null,
+    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null, carved: null, mischief: {},
   };
 }
 
