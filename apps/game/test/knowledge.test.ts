@@ -33,10 +33,17 @@ test('dawn hints only mention real facts, and there is always one for a new play
   assert.ok(pickHint(() => false));
 });
 
-test('every mask comes from a Leont who carries it', async () => {
+test('every mask comes from a Leont who carries it, or is given in the story', async () => {
   const { MASKS } = await import('../src/content/masks.ts');
   const { PAST_LEONTS } = await import('../src/content/leonts.ts');
-  for (const [name, m] of Object.entries(MASKS)) assert.equal(PAST_LEONTS.find((l) => l.id === m.from)?.mask, name);
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const dir = new URL('../../../story/', import.meta.url);
+  const story = readdirSync(dir).filter((f) => f.endsWith('.ink')).map((f) => readFileSync(new URL(f, dir), 'utf8')).join('\n');
+  for (const [name, m] of Object.entries(MASKS)) {
+    const leont = PAST_LEONTS.find((l) => l.id === m.from);
+    if (leont) assert.equal(leont.mask, name);
+    else assert.ok(story.includes(`give_mask("${name}")`), `${name}: neither a Leont's nor given in the story`);
+  }
 });
 
 test('every ending in the graph has a card, except the true ending (the epilogue replaces it)', async () => {

@@ -3,6 +3,7 @@
 // which subjects he looked into, the word he cut, and how the day ended. It is shown on the reset
 // screen as the relief sinks, and in the registry, after the thirty-six, as the player's own ring.
 import { mischiefWords } from './barks.ts';
+import { trialById } from './trials.ts';
 import { ENDINGS } from './endings.ts';
 import { SUBJECTS, subjectOfFact } from './subjects.ts';
 
@@ -28,6 +29,8 @@ export interface DayFacts {
   mischief?: Record<string, number>;
   /** What the day noticed (CycleState.noticed): the levers pulled among them are carved too. */
   noticed?: string[];
+  /** The trainer's trials won that day. */
+  trials?: string[];
 }
 
 /** Levers: the fixed day changed by the scribe's hand (see stages/town/places.ts and TownStage.lever). */
@@ -78,7 +81,11 @@ export function daySummary(day: DayFacts): string {
     .map(([id]) => SUBJECTS.find((s) => s.id === id)!.name.replace(/^The /, 'the '));
   const parts: string[] = [];
   if (deeds.length) parts.push(`${capital(list(deeds))}.`);
-  const mischief = [...LEVERS.filter(([id]) => day.noticed?.includes(id)).map(([, t]) => t), ...mischiefWords(day.mischief ?? {})];
+  const mischief = [
+    ...(day.trials ?? []).map((id) => trialById(id)?.won).filter((t): t is string => !!t),
+    ...LEVERS.filter(([id]) => day.noticed?.includes(id)).map(([, t]) => t),
+    ...mischiefWords(day.mischief ?? {}),
+  ];
   if (subjects.length) parts.push(`Looked into ${list(subjects)}.`);
   else if (!deeds.length && !mischief.length) parts.push('Learned nothing new.');
   if (mischief.length) parts.push(`${capital(list(mischief))}.`);

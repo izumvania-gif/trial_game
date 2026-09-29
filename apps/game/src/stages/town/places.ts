@@ -108,6 +108,7 @@ export const PLACE_SPOTS: PlaceSpot[] = [
   { x: -39.5, z: 5.6, radius: 1.5, knot: 'phyllis_grave', label: 'A grave by the road' },
   { x: -43.6, z: WEST_GATE.z, radius: 1.8, knot: 'west_road', label: 'The road into the hills' },
   { x: -21, z: 11.2, radius: 2, knot: 'gymnasium', label: 'The gymnasium' },
+  { x: -23.7, z: 11.6, radius: 1.4, knot: 'trainer', label: 'The trainer' },
   { x: GROVE.press.x - 1.4, z: GROVE.press.z + 1.6, radius: 1.8, knot: 'olive_press', label: 'The olive press' },
   { x: GROVE.planter.x, z: GROVE.planter.z - 0.9, radius: 1.5, knot: 'olive_grove', label: 'The old man with the sapling' },
   { x: MARKET.x + 1.2, z: MARKET.z - 1.3, radius: 1.8, knot: 'fish_market', label: 'The fish market' },

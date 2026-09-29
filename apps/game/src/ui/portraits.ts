@@ -96,6 +96,7 @@ const SPECS: Record<string, Spec> = {
   xenos: { skin: 'fig', cover: 'hood', smooth: true },
   talia: { skin: 'white', hair: 'bun', crown: 'fillet', prop: 'net', garment: 'chiton', face: { nose: 0.1, chin: -0.2 } },
   guard: { skin: 'fig', cover: 'helmet', beard: 'short', garment: 'armour', prop: 'spear', face: { nose: 0.4 } },
+  trainer: { skin: 'fig', hair: 'crop', beard: 'short', crown: 'oak', garment: 'chiton', face: { nose: 0.5, jaw: 1, chin: 0.2 } },
   crier: { skin: 'fig', cover: 'petasos', beard: 'short', speaking: true, prop: 'kerykeion', garment: 'chiton', face: { nose: 0.4, chin: 0.2 } },
   woman: { skin: 'white', hair: 'long', crown: 'fillet', garment: 'chiton', face: { nose: 0.2 } },
   boy: { skin: 'fig', hair: 'short', garment: 'chiton', face: { nose: 0, chin: -0.3 } },
@@ -113,6 +114,7 @@ export interface PortraitInfo {
 const EXTRA: Record<string, [string, string]> = {
   leont: ['Leont', 'scribe of Eferon'],
   guard: ['Guard', 'at the bronze door'],
+  trainer: ['The trainer', 'of the gymnasium'],
   crier: ['Crier', 'herald of the agora'],
   crowd: ['Eferon', 'ten thousand voices'],
   woman: ['A woman in the crowd', 'carved in the stone'],

@@ -303,6 +303,39 @@ Somebody knocked the speech right out of me. The whole city was waiting. #speake
 Tomorrow. I will give it tomorrow. Word for word, the way I always do. #speaker:Cleon #mood:sorrow
 -> DONE
 
+=== trainer ===
+{ not ((hour() >= 7 and hour() < 12) or (hour() >= 15 and hour() < 18)):
+    The trainer's forked stick leans against the stoa. He will be back when the runners are.
+    -> DONE
+}
+The trainer taps his forked stick on the sand and looks you up and down, scribe's cloak and all.
+{trials_won() == 0:
+    A scribe who climbs the roofs. The whole city is talking about it. Let's see what those legs are for. #speaker:Trainer
+- else:
+    Back again. My water-clocks don't remember you, scribe. I have a feeling you remember them. #speaker:Trainer #mood:wonder
+}
+{trials_won() >= 4 and not has_mask("Hermes"):
+    ~ give_mask("Hermes")
+    All four. Nobody has ever beaten every one of my clocks. Here. It was carved for a messenger. #speaker:Trainer #mood:joy
+    He puts a mask in your hands: a young face with a winged cap, smiling as if he had already arrived.
+}
+~ temp best_dromos = trial_best("dromos")
+~ temp best_walls = trial_best("walls")
+~ temp best_swim = trial_best("swim")
+~ temp best_roof = trial_best("roof")
+Four trials. The water-clock starts when you pass the first post, and stops at the last. #speaker:Trainer
++ [The streets: round by the agora and the temple steps and back here{best_dromos}]
+    Past my post, round the fountain in the agora, touch the temple steps, back to my post. Run. #speaker:Trainer #action:trial:dromos
++ [The walls: the whole wall walk, and never the street{best_walls}]
+    Up on the west wall by the gate, north over the towers, east along the top to the mountain gate. Put one foot on the street and you've lost. #speaker:Trainer #action:trial:walls
++ [The sea: from the end of the mole to Poseidon's cape{best_swim}]
+    From the end of the mole to the rock of the cape. The sea is not like the streets, scribe. It does not do the same thing twice. #speaker:Trainer #action:trial:swim
++ [Apollo's roof: up to the ridge of the temple, then down to the star stele{best_roof}]
+    From the bronze door, up the columns to the ridge of the roof, and down to the star stele. Don't tell the priests I sent you. #speaker:Trainer #action:trial:roof
++ [Not now]
+    Suit yourself. The runners will be here. They always are. #speaker:Trainer
+- -> DONE
+
 === caught_by_watch(times) ===
 Two Scythian archers take you by the arms and walk you across the agora to the council house. An archon with ink on his fingers opens a wax register. #spend:30
 {times == "1":

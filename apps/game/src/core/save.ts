@@ -40,6 +40,8 @@ export interface LoopMemory {
   prologueDone: boolean;
   /** The stray dog of the road of the dead: on how many days he was fed, and the last. Fed on three, he remembers. */
   dog: { days: number; last: number };
+  /** The trainer's trials won, with the best time for each (seconds). */
+  trials: Record<string, number>;
   /** A backup was restored in the middle of the Night of Anamnesis: the world runs damaged. */
   damaged: boolean;
   /** How-to cards and tips already shown (content/guides.ts). */
@@ -79,6 +81,8 @@ export interface CycleState {
   carved: string | null;
   /** Today's mischief, by kind (content/barks.ts): forgiven at midnight, carved on the spiral. */
   mischief: Record<string, number>;
+  /** Trials won today, for the day's carving. */
+  trials: string[];
 }
 
 export interface SaveFile {
@@ -99,14 +103,14 @@ export interface KeyValueStorage {
 export function freshMemory(): LoopMemory {
   return {
     cycle: 1, facts: [], steleWords: [], endingsSeen: [], lastCycleRun: null,
-    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [], days: [], mapLayout: {}, prologueDone: false, dog: { days: 0, last: 0 },
+    heard: [], lexicon: [], masks: [], registry: {}, anomalies: [], tickets: {}, sprint: 0, seen: [], lastEnding: null, curatorNote: null, epilogue: null, damaged: false, guides: [], learnedOn: {}, hintsShown: [], mapSeen: [], deductions: [], days: [], mapLayout: {}, prologueDone: false, dog: { days: 0, last: 0 }, trials: {},
   };
 }
 
 export function freshCycle(): CycleState {
   return {
     minute: 0, stage: 'town', player: { x: 0, z: 6, facing: Math.PI }, storyState: null,
-    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null, carved: null, mischief: {},
+    wind: 0, wornMask: null, lost: [], night: null, noticed: [], finale: null, carved: null, mischief: {}, trials: [],
   };
 }
 

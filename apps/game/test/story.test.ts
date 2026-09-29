@@ -5,6 +5,7 @@ import { test } from 'node:test';
 import { Story } from 'inkjs';
 import { ENDINGS } from '../src/content/endings.ts';
 import { KNOWLEDGE } from '../src/content/knowledge.ts';
+import { TRIALS } from '../src/content/trials.ts';
 import { compileInkFile } from '../tools/ink.ts';
 
 const storyDir = resolve(import.meta.dirname, '../../../story');
@@ -80,7 +81,7 @@ test('déjà vu lines: cue marker is parsed and removed; host functions drive br
 });
 
 test('every action tag in the story is one the game handles', () => {
-  const known = new RegExp(`^(carve|carve_now|stele_lines|board|epilogue|wake_test:(true|prophet)|ending:(${Object.keys(ENDINGS).join("|")}))$`);
+  const known = new RegExp(`^(carve|carve_now|stele_lines|board|epilogue|wake_test:(true|prophet)|ending:(${Object.keys(ENDINGS).join("|")})|trial:(${TRIALS.map((t) => t.id).join('|')}))$`);
   for (const file of readdirSync(storyDir).filter((f) => f.endsWith('.ink'))) {
     const src = readFileSync(resolve(storyDir, file), 'utf8');
     for (const m of src.matchAll(/#action:(\S+)/g)) assert.match(m[1]!, known, `${file}: #action:${m[1]}`);

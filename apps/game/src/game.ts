@@ -364,6 +364,9 @@ export class Game {
       last_hour: () => this.clock.minute >= this.clock.endMinute - 60,
       // Something the scribe changed in the day, today (a runner tripped, Cleon kept from his speech).
       today: (id: string) => this.save.cycle.noticed.includes(id),
+      // The trainer's trials: the best time, for the choice ("" if never won), and how many are won.
+      trial_best: (id: string) => (this.memory.trials[id] ? ` (your best: ${this.memory.trials[id]!.toFixed(1)} s)` : ''),
+      trials_won: () => Object.keys(this.memory.trials).length,
       wind: () => Math.round(this.save.cycle.wind * 100),
       sprint: () => this.memory.sprint,
       registry_locked: () => Object.values(this.memory.registry).filter((e) => e.locked).length,
@@ -524,6 +527,7 @@ export class Game {
     else if (action === 'board') this.switchStage('board');
     else if (action === 'epilogue') this.beginEpilogue('true');
     else if (action.startsWith('ending:')) this.ending(action.slice('ending:'.length));
+    else this.current.action?.(action);
   }
 
   /** One frame. Whatever goes wrong inside it, the next frame still comes: the game never freezes. */
@@ -976,6 +980,7 @@ export class Game {
         carved: this.save.cycle.carved,
         mischief: this.save.cycle.mischief,
         noticed: this.save.cycle.noticed,
+        trials: this.save.cycle.trials,
         reason,
         ending: reason === 'ending' && this.memory.lastEnding?.cycle === day ? this.memory.lastEnding.id : null,
       }),

@@ -96,4 +96,6 @@ export interface Stage {
   snapshot?(): { x: number; z: number; facing: number };
   /** Agent mode: this stage in words, and its actions beyond buttons on screen. */
   agent?(): StageAgent;
+  /** An ink `#action:` the game does not handle itself (the trainer's `trial:<id>`). */
+  action?(id: string): void;
 }

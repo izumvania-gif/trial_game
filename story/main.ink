@@ -30,6 +30,8 @@ EXTERNAL ended_last_cycle(id)
 EXTERNAL learned_today(id)
 EXTERNAL last_hour()
 EXTERNAL today(id)
+EXTERNAL trial_best(id)
+EXTERNAL trials_won()
 EXTERNAL shard_count()
 EXTERNAL curator_note()
 EXTERNAL true_night()
@@ -95,6 +97,10 @@ INCLUDE curator.ink
 ~ return false
 === function today(id)
 ~ return false
+=== function trial_best(id)
+~ return ""
+=== function trials_won()
+~ return 0
 === function shard_count()
 ~ return 0
 === function curator_note()

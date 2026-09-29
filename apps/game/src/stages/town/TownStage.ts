@@ -17,6 +17,8 @@ import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep,
 import { Carry, stone, type Carryable, type CarryKind } from './carry.ts';
 import { Watch } from './watch.ts';
 import { Dog } from './animals.ts';
+import { TrialRun } from './trials.ts';
+import { trialById } from '../../content/trials.ts';
 import { Puffs, ScribeBody, type Pose } from './body.ts';
 import { Barks, StaminaRing } from './barks.ts';
 import { BARKS, HEARD, HEAT, type Mischief } from '../../content/barks.ts';
@@ -145,6 +147,8 @@ export class TownStage implements Stage {
   /** Residents knocked or hit: how long they stagger. */
   private stumble = new Map<string, number>();
   private dog!: Dog;
+  /** The trainer's trial being run, if any. */
+  private trial: TrialRun | null = null;
   private openSea = false;
   /** What the places see of the scribe's doings (levers: see places.ts). */
   private world: PlaceWorld = {
@@ -412,7 +416,8 @@ export class TownStage implements Stage {
     roof.position.set(0, 7.92, -19);
     this.scene.add(roof);
     this.addBox(0, -19, 9, 7, 6.5, '#e6dcc2'); // cella
-    this.lastBox().top = undefined; // under the roof beams
+    // Its top is under the roof beams: not to be climbed to, but not a wall through the roof either.
+    Object.assign(this.lastBox(), { top: 6.5, noClimb: true });
     const door = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.2, 0.2), lambert('#3a2414'));
     door.position.set(0, 2.6, -15.45);
     this.scene.add(door);
@@ -749,6 +754,8 @@ export class TownStage implements Stage {
 
   exit(): void {
     this.host.prompt(null);
+    this.trial?.dispose();
+    this.trial = null;
     this.barks.clear();
     this.stamRing.update(1, false, this.player.position, this.camera);
     if (this.sitting) this.stand();
@@ -820,6 +827,8 @@ export class TownStage implements Stage {
     const said = this.barks.lines();
     if (said.length) out.push(`Said out loud: ${said.map((l) => `"${l}"`).join(' ')}`);
     if (this.watch.state === 'chase') out.push('The watch is after you.');
+    const gate = this.trial?.nextGate();
+    if (gate) out.push(`A trial is on (${this.trial!.trial.name}): the next post stands at ${gate.x.toFixed(1)}, ${gate.z.toFixed(1)}, ${gate.y.toFixed(1)} m up.`);
     return out;
   }
 
@@ -945,6 +954,7 @@ export class TownStage implements Stage {
     if (this.glitch?.g.kind !== 'freeze') this.streetTime += dt;
     this.movePlayer(dt);
     this.animate(dt);
+    this.updateTrial(dt);
     this.updateSky(clock.progress);
     this.updateResidents();
     this.mask.visible = this.host.cycle.wornMask !== null;
@@ -1300,6 +1310,7 @@ export class TownStage implements Stage {
   private mantle(to: { x: number; y: number; z: number }, dur = 0.45): void {
     const p = this.player.position;
     this.move = { kind: 'mantle', t: 0, dur, x0: p.x, y0: p.y, z0: p.z, x1: to.x, y1: to.y, z1: to.z };
+    if (this.wallHold) this.host.setControls(null);
     this.wallHold = null;
     this.air = false;
     this.vy = 0;
@@ -1762,6 +1773,36 @@ export class TownStage implements Stage {
     this.watch.escort(12.8, 3.1);
     this.barks.clear();
     this.host.interact('caught_by_watch', [String(c.mischief.caught)]);
+  }
+
+  /** The trainer sets a trial going: the posts go up along the course. */
+  action(id: string): void {
+    const trial = id.startsWith('trial:') ? trialById(id.slice('trial:'.length)) : undefined;
+    if (!trial) return;
+    this.trial?.dispose();
+    this.trial = new TrialRun(this.scene, this.host.overlay, trial);
+  }
+
+  private updateTrial(dt: number): void {
+    const run = this.trial;
+    if (!run) return;
+    const p = this.player.position;
+    // Feet on the street: standing, not on anything built, not in the water.
+    const onStreet = !this.air && !this.wallHold && !this.move && !this.swimming && Math.abs(p.y - groundAt(p.x, p.z)) < 0.05 && p.y < 0.5;
+    const end = run.update(dt, this.time, p, onStreet);
+    if (end) {
+      const id = run.trial.id;
+      if (end.won) {
+        const m = this.host.memory;
+        m.trials = { ...m.trials, [id]: Math.min(m.trials?.[id] ?? Infinity, end.time) };
+        if (!this.host.cycle.trials.includes(id)) this.host.cycle.trials = [...this.host.cycle.trials, id];
+        this.host.sound('shard');
+      } else this.host.sound('crack');
+    }
+    if (run.finished) {
+      run.dispose();
+      this.trial = null;
+    }
   }
 
   /** Cleon, kept from his speech today (hit or knocked over before it), until he goes up the mountain. */
