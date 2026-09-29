@@ -768,3 +768,6 @@ html.reduced-motion .hud-coach { animation: none; }
   color: var(--bone); font-style: italic; font-size: 0.9rem; white-space: nowrap; transition: opacity 0.15s;
 }
 #overlay.talking .barks { opacity: 0; }
+
+/* Pilgrim: nothing points the way. */
+.pilgrim .hud-goal, .pilgrim .cmap-next, .pilgrim .cmap-next-note, .pilgrim .hint-button, .pilgrim .thread-next { display: none !important; }

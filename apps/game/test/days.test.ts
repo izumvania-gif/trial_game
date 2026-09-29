@@ -20,4 +20,9 @@ test("a day's carving says what it did, what it looked into, what it cut, and ho
     daySummary({ learned: [], carved: null, reason: 'midnight', ending: null, mischief: { pot: 2, fish: 1, escaped: 1 } }),
     'Broke two amphorae, stole a fish and ran from the watch. At midnight the city said Yes.',
   );
+  // A lever pulled is carved first.
+  assert.equal(
+    daySummary({ learned: [], carved: null, reason: 'midnight', ending: null, mischief: { roof: 1 }, noticed: ['mask_worn', 'runner_fell'] }),
+    'Tripped the third runner and walked the roofs. At midnight the city said Yes.',
+  );
 });

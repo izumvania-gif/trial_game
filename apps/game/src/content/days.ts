@@ -26,7 +26,16 @@ export interface DayFacts {
   ending: string | null;
   /** Mischief done in the street, by kind (content/barks.ts). */
   mischief?: Record<string, number>;
+  /** What the day noticed (CycleState.noticed): the levers pulled among them are carved too. */
+  noticed?: string[];
 }
+
+/** Levers: the fixed day changed by the scribe's hand (see stages/town/places.ts and TownStage.lever). */
+const LEVERS: [string, string][] = [
+  ['cleon_silent', 'kept Cleon from his speech'],
+  ['runner_fell', 'tripped the third runner'],
+  ['press_stopped', 'stopped the olive press'],
+];
 
 function list(names: string[]): string {
   if (names.length <= 1) return names[0] ?? '';
@@ -69,7 +78,7 @@ export function daySummary(day: DayFacts): string {
     .map(([id]) => SUBJECTS.find((s) => s.id === id)!.name.replace(/^The /, 'the '));
   const parts: string[] = [];
   if (deeds.length) parts.push(`${capital(list(deeds))}.`);
-  const mischief = mischiefWords(day.mischief ?? {});
+  const mischief = [...LEVERS.filter(([id]) => day.noticed?.includes(id)).map(([, t]) => t), ...mischiefWords(day.mischief ?? {})];
   if (subjects.length) parts.push(`Looked into ${list(subjects)}.`);
   else if (!deeds.length && !mischief.length) parts.push('Learned nothing new.');
   if (mischief.length) parts.push(`${capital(list(mischief))}.`);

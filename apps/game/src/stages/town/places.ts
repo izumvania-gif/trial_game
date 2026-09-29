@@ -7,6 +7,7 @@ import { daySeed, seededRng } from '../../core/rng.ts';
 import { at } from '../../core/clock.ts';
 import { lambert, makeFigure, pavingTexture, textured } from '../figures.ts';
 import type { Box } from './city.ts';
+import { buildCountry, COUNTRY_SPOTS, countryHeight, inCountry } from './country.ts';
 
 /** The highest step the scribe takes without a stair. */
 export const STEP = 0.7;
@@ -17,6 +18,12 @@ export interface PlaceSpot {
   radius: number;
   knot: string;
   label: string;
+  /** Up off the ground (the wall walk): the height he must be at. */
+  y?: number;
+  /** Reached swimming. */
+  water?: boolean;
+  /** Found, not shown: no mark over it, and agents are not told of it. */
+  secret?: boolean;
 }
 
 // ─── The theatre, in the north-east corner: a cavea of stone rows open to the south, the sea beyond ───
@@ -39,6 +46,8 @@ function theatreHeight(x: number, z: number): number | null {
 // ─── The cape of Poseidon, east of the beach: a rock ridge into the sea, a shrine and a light ───
 
 export const CAPE = { x: 22, from: 22.4, to: 35.2, half: 1.5, top: 0.6, end: { x: 22, z: 38.6, r: 3.8, top: 0.9 } };
+/** The hollow in the east face of the cape, reached only by swimming round. */
+export const SEA_CAVE = { x: 25, z: 30.5 };
 
 function capeHeight(x: number, z: number): number | null {
   const { end } = CAPE;
@@ -66,9 +75,9 @@ function lookoutHeight(x: number, z: number): number | null {
 export const WEST_GATE = { z: 4.2, half: 1.9 };
 export const NECROPOLIS = { from: -30.1, to: -45.5, half: 4.2 };
 
-/** Outside the walls, on the road to the necropolis. */
+/** Outside the west wall: the road of the dead, and the country beyond it (country.ts). */
 export function placeOutside(x: number, z: number): boolean {
-  return x < NECROPOLIS.from && x > NECROPOLIS.to && Math.abs(z - WEST_GATE.z) < NECROPOLIS.half;
+  return inCountry(x, z);
 }
 
 // ─── The gymnasium, inside the west wall south of the gate ───
@@ -88,7 +97,7 @@ export function onPlaceOverWater(x: number, z: number): boolean {
 
 /** The ground of these places at (x, z), or null where they do not reach. */
 export function placeGround(x: number, z: number): number | null {
-  return theatreHeight(x, z) ?? capeHeight(x, z) ?? lookoutHeight(x, z);
+  return theatreHeight(x, z) ?? capeHeight(x, z) ?? lookoutHeight(x, z) ?? countryHeight(x, z);
 }
 
 /** Where the player can talk or look. */
@@ -103,6 +112,11 @@ export const PLACE_SPOTS: PlaceSpot[] = [
   { x: GROVE.planter.x, z: GROVE.planter.z - 0.9, radius: 1.5, knot: 'olive_grove', label: 'The old man with the sapling' },
   { x: MARKET.x + 1.2, z: MARKET.z - 1.3, radius: 1.8, knot: 'fish_market', label: 'The fish market' },
   { x: SHIPYARD.x + 0.4, z: SHIPYARD.z - 1.9, radius: 1.8, knot: 'shipyard', label: 'The boat on the stocks' },
+  ...COUNTRY_SPOTS,
+  // Up on the north wall walk, between two towers, where nobody goes.
+  { x: -10.75, z: -27, y: 3.64, radius: 1.6, knot: 'wall_scratch', label: 'Scratches in the coping', secret: true },
+  // In the water on the far side of the cape, where the rock is hollow.
+  { x: SEA_CAVE.x + 1.3, z: SEA_CAVE.z, radius: 2.2, knot: 'sea_cave', label: 'A hollow in the rock', water: true, secret: true },
 ];
 
 /** Keep houses out of these places. */
@@ -115,8 +129,18 @@ export function placeReserved(x: number, z: number): boolean {
 }
 
 /** The places' small lives, moved by the clock. */
+/** What a place can see of the scribe's doings: things he left lying about, and what has changed today. */
+export interface PlaceWorld {
+  /** Where carried things lie on the ground (put down, dropped, thrown). */
+  things: { x: number; z: number }[];
+  /** Did this already happen today? */
+  happened(id: string): boolean;
+  /** The fixed day has been changed here: the observers notice. */
+  event(id: string, x: number, z: number): void;
+}
+
 export interface PlaceLife {
-  update(minute: number, time: number, dusk: number): void;
+  update(minute: number, time: number, dusk: number, world: PlaceWorld): void;
   /** Things lying there that the scribe can pick up (see carry.ts). */
   loose?: [THREE.Object3D, 'fish'][];
 }
@@ -236,6 +260,17 @@ function buildCape(scene: THREE.Scene, boxes: Box[]): PlaceLife {
       scene.add(m);
     }
   }
+  // The hollow on the far side: a hump of rock over the water with a black mouth in it, facing the open sea.
+  const hump = new THREE.Mesh(new THREE.DodecahedronGeometry(2.2, 0), rock);
+  hump.position.set(SEA_CAVE.x - 0.6, 0.2, SEA_CAVE.z);
+  hump.scale.set(0.8, 0.9, 1.4);
+  hump.castShadow = true;
+  scene.add(hump);
+  const mouth = new THREE.Mesh(new THREE.CircleGeometry(0.9, 10, 0, Math.PI), new THREE.MeshBasicMaterial({ color: '#0d0b09' }));
+  mouth.position.set(SEA_CAVE.x + 1.02, -0.45, SEA_CAVE.z);
+  mouth.rotation.y = Math.PI / 2;
+  scene.add(mouth);
+  boxes.push({ minX: SEA_CAVE.x - 1.9, maxX: SEA_CAVE.x + 0.9, minZ: SEA_CAVE.z - 2.4, maxZ: SEA_CAVE.z + 2.4 });
   // The headland: a round platform of rock with boulders at its edge.
   const { end } = CAPE;
   const plat = new THREE.Mesh(new THREE.CylinderGeometry(end.r, end.r + 0.8, 2.2, 12), rock);
@@ -411,7 +446,7 @@ function buildNecropolis(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   const sprig = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.08, 0.12), lambert('#4a3a22'));
   sprig.position.set(-39.5, 0.06, z0 + 3.1);
   scene.add(sprig);
-  // Cypresses behind the graves, and the hills where the road runs out.
+  // Cypresses behind the graves.
   for (let x = N.from - 3; x > N.to; x -= 4.3) {
     for (const side of [-1, 1]) {
       const c = new THREE.Mesh(new THREE.ConeGeometry(0.55, 4 + rand() * 2, 6), lambert('#241a12'));
@@ -420,14 +455,8 @@ function buildNecropolis(scene: THREE.Scene, boxes: Box[]): PlaceLife {
       scene.add(c);
     }
   }
-  for (let i = 0; i < 6; i++) {
-    const m = new THREE.Mesh(new THREE.SphereGeometry(4 + i, 7, 5, 0, Math.PI * 2, 0, Math.PI / 2), lambert('#9a6446'));
-    m.position.set(N.to - 6 - i * 2, 0, z0 + (i - 2.5) * 5);
-    m.scale.y = 0.45;
-    m.receiveShadow = true;
-    scene.add(m);
-  }
-  for (const dz of [-3.4, -1.8, 2.1, 3.6]) {
+  // Rocks where the graves end; the road goes on between them into the country (country.ts).
+  for (const dz of [-3.4, 3.6]) {
     const r = 0.8 + rand() * 0.5;
     const m = new THREE.Mesh(new THREE.DodecahedronGeometry(r, 0), lambert('#7a4a30'));
     put(m, N.to + 0.6, r * 0.6, z0 + dz, [r * 0.7, r * 0.7]);
@@ -483,17 +512,38 @@ function buildGymnasium(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   trainer.position.set(-24.6, 0, 11.6);
   trainer.rotation.y = Math.PI / 2;
   const length = G.x1 - G.x0 - 2.4;
+  let fell: { x: number } | null = null;
+  let lastX = 0;
   return {
-    update(minute, time) {
+    update(minute, time, _dusk, world) {
       const open = (minute >= at(7) && minute < at(12)) || (minute >= at(15) && minute < at(18, 30));
       for (const f of [...runners, ...wrestlers, trainer]) f.visible = open;
       if (!open) return;
+      if (world.happened('runner_fell') && !fell) fell = { x: (G.x0 + G.x1) / 2 };
       runners.forEach((f, i) => {
+        const lane = G.track + (i - 1) * 0.45;
+        // The third one down, since something was left on his lane: sitting in the sand, holding his ankle.
+        if (i === 2 && fell) {
+          f.position.set(fell.x, 0.25, lane);
+          f.rotation.set(-Math.PI / 2 + 0.5, Math.PI / 2, 0);
+          return;
+        }
         // Down and back, the pace fixed by the clock; the third is always one stride behind the second.
         const phase = (minute * 0.9 + (i === 2 ? 0.36 : i * 0.4)) % 2;
         const t = phase < 1 ? phase : 2 - phase;
-        f.position.set(G.x0 + 1.2 + t * length, Math.abs(Math.sin(time * 11 + i)) * 0.08, G.track + (i - 1) * 0.45);
-        f.rotation.y = phase < 1 ? Math.PI / 2 : -Math.PI / 2;
+        f.position.set(G.x0 + 1.2 + t * length, Math.abs(Math.sin(time * 11 + i)) * 0.08, lane);
+        f.rotation.set(0, phase < 1 ? Math.PI / 2 : -Math.PI / 2, 0);
+        // Whatever lies on his lane between where he was and where he is now, he trips over.
+        if (i === 2) {
+          const x0 = Math.min(lastX, f.position.x) - 0.3;
+          const x1 = Math.max(lastX, f.position.x) + 0.3;
+          const hit = Math.abs(lastX - f.position.x) < 3 && world.things.find((th) => Math.abs(th.z - lane) < 0.4 && th.x > x0 && th.x < x1);
+          lastX = f.position.x;
+          if (hit) {
+            fell = { x: hit.x };
+            world.event('runner_fell', hit.x, lane);
+          }
+        }
       });
       wrestlers.forEach((f, i) => { f.rotation.z = (i ? -1 : 1) * (0.3 + Math.sin(time * 1.3) * 0.08); });
     },
@@ -579,12 +629,26 @@ function buildGrove(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   hole.rotation.x = -Math.PI / 2;
   hole.position.set(G.planter.x, 0.02, G.planter.z - 0.7);
   scene.add(hole);
+  let stoppedAt = -1;
   return {
-    update(minute) {
+    update(minute, _time, _dusk, world) {
       const working = minute >= at(7) && minute < at(18);
       worker.visible = working;
       old.visible = working;
       if (!working) return;
+      // A stone in the basin jams the millstone: the one thing in the day that has never happened.
+      if (!world.happened('press_stopped') && world.things.some((t) => Math.hypot(t.x - p.x, t.z - p.z) < 1.1)) {
+        world.event('press_stopped', p.x, p.z);
+      }
+      if (world.happened('press_stopped')) {
+        // The stone stands where it stuck; the worker stands and stares at it.
+        if (stoppedAt < 0) stoppedAt = minute;
+        const a = (stoppedAt / 8) * Math.PI * 2;
+        turn.rotation.y = -a;
+        worker.position.set(p.x + Math.cos(a) * 2.2, 0, p.z + Math.sin(a) * 2.2);
+        worker.rotation.y = Math.atan2(p.x - worker.position.x, p.z - worker.position.z);
+        return;
+      }
       // One slow round every eight minutes of the day.
       const a = (minute / 8) * Math.PI * 2;
       turn.rotation.y = -a;
@@ -726,5 +790,6 @@ export function buildPlaces(scene: THREE.Scene, boxes: Box[]): PlaceLife[] {
   return [
     buildTheatre(scene, boxes), buildCape(scene, boxes), buildLookout(scene, boxes), buildNecropolis(scene, boxes),
     buildGymnasium(scene, boxes), buildGrove(scene, boxes), buildMarket(scene, boxes), buildShipyard(scene, boxes),
+    buildCountry(scene, boxes),
   ];
 }

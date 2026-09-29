@@ -11,7 +11,7 @@ const storyDir = resolve(import.meta.dirname, '../../../story');
 
 
 /** Knots that take parameters, and what to enter them with. */
-const KNOT_ARGS: Record<string, string[]> = { still: ['Kora'], caught_by_watch: ['2'] };
+const KNOT_ARGS: Record<string, string[]> = { still: ['Kora'], caught_by_watch: ['2'], dog: ['hungry'] };
 test('story compiles', () => {
   const { json } = compileInkFile(resolve(storyDir, 'main.ink'));
   assert.ok(new Story(json));

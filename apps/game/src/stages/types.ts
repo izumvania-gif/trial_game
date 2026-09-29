@@ -49,6 +49,8 @@ export interface StageHost {
   breakShard(): BreakShard | null;
   /** Accessibility: no camera shake or other violent motion. */
   reducedMotion(): boolean;
+  /** The Pilgrim setting: nothing in the world points the way. */
+  pilgrim(): boolean;
   /** Sound effects and their captions (the audio engine). */
   sound(id: string): void;
   persist(): void;

@@ -245,6 +245,7 @@ export class Game {
       forget: () => this.forget(),
       breakShard: () => this.breakShard,
       reducedMotion: () => this.settings.value.reducedMotion,
+      pilgrim: () => this.settings.value.pilgrim,
       sound: (id) => this.audio.play(id),
       persist: () => this.persist(),
     };
@@ -361,6 +362,8 @@ export class Game {
       learned_today: (id: string) => this.knowledge.knows(id) && this.memory.learnedOn[id] === this.memory.cycle,
       // The last hour of the day, whenever the wind has made it: midnight may come at 21:00.
       last_hour: () => this.clock.minute >= this.clock.endMinute - 60,
+      // Something the scribe changed in the day, today (a runner tripped, Cleon kept from his speech).
+      today: (id: string) => this.save.cycle.noticed.includes(id),
       wind: () => Math.round(this.save.cycle.wind * 100),
       sprint: () => this.memory.sprint,
       registry_locked: () => Object.values(this.memory.registry).filter((e) => e.locked).length,
@@ -972,6 +975,7 @@ export class Game {
         learned: Object.entries(this.memory.learnedOn).filter(([, c]) => c === day).map(([f]) => f),
         carved: this.save.cycle.carved,
         mischief: this.save.cycle.mischief,
+        noticed: this.save.cycle.noticed,
         reason,
         ending: reason === 'ending' && this.memory.lastEnding?.cycle === day ? this.memory.lastEnding.id : null,
       }),

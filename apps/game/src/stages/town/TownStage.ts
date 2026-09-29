@@ -12,10 +12,11 @@ import { disposeScene } from '../dispose.ts';
 import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, giveWay, lambert, makeFigure, olive, pavingTexture, textured, worldUV } from '../figures.ts';
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
-import { buildPlaces, PLACE_SPOTS, placeReserved, STEP, type PlaceLife } from './places.ts';
+import { buildPlaces, PLACE_SPOTS, placeReserved, STEP, type PlaceLife, type PlaceWorld } from './places.ts';
 import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep, topOf, Torches, type Box } from './city.ts';
 import { Carry, stone, type Carryable, type CarryKind } from './carry.ts';
 import { Watch } from './watch.ts';
+import { Dog } from './animals.ts';
 import { Barks } from './barks.ts';
 import { BARKS, HEARD, HEAT, type Mischief } from '../../content/barks.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
@@ -33,6 +34,12 @@ interface Interactable {
   /** Arguments for a knot that takes them (the last hour's 'still'). */
   args?: string[];
   label: string;
+  /** Up off the ground (the wall walk). */
+  y?: number;
+  /** Reached swimming. */
+  water?: boolean;
+  /** Found, not shown: no mark, not listed for agents. */
+  secret?: boolean;
 }
 
 
@@ -42,7 +49,9 @@ const SNAP_UP = new THREE.Vector3();
 const PLAYER_RADIUS = 0.4;
 /** How far the player can see a resident well enough for the Book of Strangers. */
 const SEEN_DISTANCE = 11;
-const BOUNDS = { minX: -46, maxX: 28, minZ: -40, maxZ: 48 };
+const BOUNDS = { minX: -71, maxX: 28, minZ: -40, maxZ: 48 };
+/** Out here the open sea begins: nothing repeats. */
+const OPEN_SEA_Z = 44;
 /** Up-speed of a jump (about a metre high) and the pull back down. */
 const JUMP = 6.3;
 const GRAVITY = 20;
@@ -133,6 +142,14 @@ export class TownStage implements Stage {
   private shoveWait = 0;
   /** Residents knocked or hit: how long they stagger. */
   private stumble = new Map<string, number>();
+  private dog!: Dog;
+  private openSea = false;
+  /** What the places see of the scribe's doings (levers: see places.ts). */
+  private world: PlaceWorld = {
+    things: [],
+    happened: (id) => this.host.cycle.noticed.includes(id),
+    event: (id, x, z) => this.lever(id, x, z),
+  };
   private tavernDrinkers: THREE.Group[] = [];
   private tavernLight = new THREE.PointLight('#ffb25a', 0, 9, 1.3);
   private terrace = lambert('#d8c49c');
@@ -297,6 +314,9 @@ export class TownStage implements Stage {
     for (const b of this.street.baskets) this.loose.push([b, 'basket']);
     for (const life of this.placeLives) for (const l of life.loose ?? []) this.loose.push(l);
     this.watch = new Watch(s);
+    // The stray dog lies by Phyllis's stone; fed on three days, he waits inside the west gate.
+    const remembers = this.host.memory.dog.days >= 3;
+    this.dog = new Dog(s, remembers ? { x: -27.4, z: 5.6 } : { x: -41.6, z: 7.6 }, remembers);
     this.carry = new Carry(s, {
       floorAt: (x, z, y) => this.floorAt(x, z, y),
       blocked: (x, z, y) => this.blocked(x, z, y, 0.15),
@@ -795,6 +815,7 @@ export class TownStage implements Stage {
       out.push({ id: `talk:${x.npc.resident.id}`, label: `${x.npc.still ? 'Look at' : 'Talk to'} ${who(x.npc.resident.name)} (${Math.round(x.d)} m)` });
     }
     for (const spot of PLACES_TO_TALK) {
+      if (spot.secret) continue;
       const d = Math.hypot(spot.x - p.x, spot.z - p.z);
       if (d <= 14) out.push({ id: `talk:${spot.knot}`, label: `${spot.label} (${Math.round(d)} m)` });
     }
@@ -922,7 +943,11 @@ export class TownStage implements Stage {
     const pickUp = thing && (!near || facingIt || thing.d < Math.hypot(near.x - p0.x, near.z - p0.z)) ? thing.item : null;
     if (pickUp) near = null;
     const held = this.carry.held;
+    // With a fish in hand, the dog is not someone to talk to: the fish is for him.
+    const forDog = held?.kind === 'fish' && near?.knot === 'dog' && !this.dog.fed;
+    if (forDog) near = null;
     this.host.prompt(
+      forDog ? 'E — give the dog the fish' :
       near ? `E — ${near.label}` : pickUp ? `E — pick up ${this.carry.name(pickUp)}` : held ? `E — put down ${this.carry.name(held)} · F — throw it` : null,
     );
     if (input.enabled && !this.sitting) {
@@ -933,6 +958,7 @@ export class TownStage implements Stage {
         this.host.setControls('WASD — walk · E — put it down · F — throw');
       } else if (held && !near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) {
         this.carry.drop(p0, this.facing);
+        this.feed(held);
         this.host.setControls(null);
       } else if (held && input.wasPressed('KeyF') && !this.climbing) {
         this.carry.throw(p0, this.facing, this.running);
@@ -949,11 +975,11 @@ export class TownStage implements Stage {
     PLACES_TO_TALK.forEach((place, i) => {
       const m = this.placeMarks[i]!;
       const d = Math.hypot(place.x - this.player.position.x, place.z - this.player.position.z);
-      m.visible = d < 18 && near !== place && this.host.input.enabled;
-      m.position.set(place.x, groundAt(place.x, place.z) + 2.6 + Math.sin(this.time * 2 + i) * 0.08, place.z);
+      m.visible = d < 18 && near !== place && this.host.input.enabled && !this.host.pilgrim() && !place.secret;
+      m.position.set(place.x, (place.y ?? groundAt(place.x, place.z)) + 2.6 + Math.sin(this.time * 2 + i) * 0.08, place.z);
     });
     // The first morning's goal, marked where it is: the stele, until the name under the moss is found.
-    const goal = !this.host.knowledge.knows('name_in_stone') && this.host.memory.cycle <= 2 ? PLACES_TO_TALK.find((x) => x.knot === 'stele')! : null;
+    const goal = !this.host.knowledge.knows('name_in_stone') && this.host.memory.cycle <= 2 && !this.host.pilgrim() ? PLACES_TO_TALK.find((x) => x.knot === 'stele')! : null;
     this.goalMarker.visible = !!goal && near?.knot !== 'stele' && this.host.input.enabled;
     if (goal) {
       this.goalMarker.position.set(goal.x, 3.2 + Math.sin(this.time * 2.2) * 0.25, goal.z);
@@ -970,6 +996,7 @@ export class TownStage implements Stage {
     this.crowd.positions(this.people);
     for (const w of this.watch.positions()) this.people.push({ x: w.x, z: w.z });
     this.updateTrouble(dt);
+    this.updateDog(dt);
     const p = this.player.position;
     const u = this.lookUp;
     // From nine the view begins to sway, a little more every hour: the ground is not quite steady.
@@ -1026,14 +1053,17 @@ export class TownStage implements Stage {
           // In the last hour they do not answer: a line about the stillness instead of their day.
           return n.still
             ? { x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: 'still', args: [n.resident.name], label: `Look at ${name}` }
-            : { x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: n.resident.knot, label: `Talk to ${name}` };
+            : { x: n.figure.position.x, z: n.figure.position.z, radius: 1.9, knot: n.resident.id === 'cleon' && this.cleonSore() ? 'cleon_sore' : n.resident.knot, label: `Talk to ${name}` };
         }),
     ];
+    // The dog, when he is near: what he makes of the scribe today.
+    const dp = this.dog.fig.position;
+    candidates.push({ x: dp.x, z: dp.z, radius: 1.5, knot: 'dog', args: [this.dog.fed ? 'fed' : this.host.memory.dog.days >= 3 ? 'remembers' : 'hungry'], label: 'The dog' });
     let best: Interactable | null = null;
     let bestD = Infinity;
     for (const c of candidates) {
-      // Not from a roof to the street below, nor from the water.
-      if (Math.abs(groundAt(c.x, c.z) - p.y) > 1.6 || this.swimming) continue;
+      // Not from a roof to the street below; in the water, only what is reached swimming.
+      if (this.swimming !== !!c.water || (!c.water && Math.abs((c.y ?? groundAt(c.x, c.z)) - p.y) > 1.6)) continue;
       const d = Math.hypot(c.x - p.x, c.z - p.z);
       // A place wins a near tie with someone standing on it: people move, places don't.
       const rank = d - (PLACES_TO_TALK.includes(c) ? PLACE_BIAS : 0);
@@ -1066,6 +1096,12 @@ export class TownStage implements Stage {
       if (npc.resident.seaSpot) {
         state.x = this.glaucusX;
         state.z = 22.4;
+      }
+      // Knocked about before his speech, Cleon nurses his head on the council steps until evening: no speech today.
+      if (npc.resident.id === 'cleon' && this.cleonSore() && !npc.still) {
+        state.x = PLACES.council.x;
+        state.z = PLACES.council.z;
+        state.walking = false;
       }
       return { npc, state };
     });
@@ -1323,7 +1359,7 @@ export class TownStage implements Stage {
         if (this.running && this.shoveWait <= 0) {
           this.shoveWait = 1.5;
           const npc = this.npcs.find((n) => n.figure.visible && Math.hypot(n.figure.position.x - o.x, n.figure.position.z - o.z) < 0.05);
-          if (npc) this.stumble.set(npc.resident.id, 0.8);
+          if (npc) this.hurt(npc);
           this.host.sound('land');
           this.misdeed('shove', o.x, o.z, npc?.figure.position ?? new THREE.Vector3(o.x, 0, o.z));
         }
@@ -1355,6 +1391,7 @@ export class TownStage implements Stage {
     this.host.sound(how === 'shatter' ? 'shatter' : how === 'splash' ? 'splash' : 'land');
     void item;
     if (how === 'shatter') this.misdeed('pot', x, z);
+    if (how === 'thud') this.feed(item);
   }
 
   // ─── Mischief: the city sees, shouts, and sends the watch; midnight forgives it all ───
@@ -1466,13 +1503,62 @@ export class TownStage implements Stage {
     this.host.interact('caught_by_watch', [String(c.mischief.caught)]);
   }
 
+  /** Cleon, kept from his speech today (hit or knocked over before it), until he goes up the mountain. */
+  private cleonSore(): boolean {
+    return this.host.cycle.noticed.includes('cleon_silent') && this.host.clock.minute < at(20);
+  }
+
+  /** Someone knocked or hit: if it is Cleon before his speech, there will be no speech today. */
+  private hurt(npc: Npc): void {
+    this.stumble.set(npc.resident.id, 0.8);
+    const speech = this.host.patches().includes('cleon_early') ? at(11) : at(12);
+    if (npc.resident.id === 'cleon' && this.host.clock.minute < speech) this.lever('cleon_silent', npc.figure.position.x, npc.figure.position.z);
+  }
+
+  /**
+   * A lever: something the scribe did has changed the fixed day (a runner down, the press stopped,
+   * Cleon with no speech). The observers notice, the wind rises, and whoever is there says so.
+   */
+  private lever(id: string, x: number, z: number): void {
+    if (this.host.cycle.noticed.includes(id)) return;
+    this.host.notice(id, 0.12);
+    const LINES: Record<string, string> = {
+      runner_fell: 'My ankle! Who left that there?',
+      press_stopped: "Something's in the stone!",
+      cleon_silent: 'My head. There will be no speech today.',
+    };
+    const who = id === 'cleon_silent' ? this.npcs.find((n) => n.resident.id === 'cleon')?.figure.position : null;
+    const at = who ?? this.personNear(x, z, 6) ?? new THREE.Vector3(x, 0, z);
+    if (LINES[id]) this.barks.say(LINES[id]!, at);
+  }
+
+  /** Food for the dog: put down or thrown near him, he goes to it. */
+  private feed(item: Carryable): void {
+    if (item.kind === 'fish' && this.dog.offer(item.obj)) item.gone = true;
+  }
+
+  private updateDog(dt: number): void {
+    const p = this.player.position;
+    const event = this.dog.update(dt, this.time, p, (x, z) => groundAt(x, z), (x, z) => this.blocked(x, z, groundAt(x, z), 0.2));
+    if (event) this.host.sound('dog');
+    if (event === 'ate') {
+      const m = this.host.memory;
+      if (m.dog.last !== m.cycle) m.dog = { days: m.dog.days + 1, last: m.cycle };
+    }
+    // Out where the water does not repeat: once a day, a moment of it.
+    if (this.swimming && p.z > OPEN_SEA_Z && !this.openSea) {
+      this.openSea = true;
+      this.host.interact('open_sea');
+    }
+  }
+
   /** A thrown thing in flight: does it hit someone? */
   private strike(item: Carryable, x: number, y: number, z: number): boolean {
-    if (y > 2 || y < -0.3) return false;
+    if (y > 2.3 || y < -0.3) return false;
     const npc = this.npcs.find((n) => n.figure.visible && Math.hypot(n.figure.position.x - x, n.figure.position.z - z) < 0.55);
     const who = npc?.figure.position ?? this.personNear(x, z, 0.55);
     if (!who) return false;
-    if (npc) this.stumble.set(npc.resident.id, 0.8);
+    if (npc) this.hurt(npc);
     this.host.sound('land');
     this.misdeed('hit', x, z, who);
     void item;
@@ -1504,7 +1590,8 @@ export class TownStage implements Stage {
       lamp.scale.y = 0.85 + 0.3 * Math.abs(Math.sin(this.time * 8 + i * 2));
     }
     this.tavernLight.intensity = dusk * 10;
-    for (const life of this.placeLives) life.update(minute, this.time, dusk);
+    this.world.things = this.carry.items.filter((i) => !i.gone && !i.vel && i !== this.carry.held && i.obj.visible).map((i) => i.obj.position);
+    for (const life of this.placeLives) life.update(minute, this.time, dusk, this.world);
     dimPaint(night);
     // The last hours: gusts off the mountain (sooner if the player has raised the wind), and eyes up.
     const gust = Math.max(THREE.MathUtils.smoothstep(progress, 0.86, 0.99), this.host.cycle.wind * 0.6);

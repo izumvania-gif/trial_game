@@ -105,7 +105,7 @@ export class Carry {
     if (!item) return;
     this.held = null;
     const v = running ? 9.5 : 7;
-    item.vel = new THREE.Vector3(Math.sin(facing) * v, 4.2, Math.cos(facing) * v);
+    item.vel = new THREE.Vector3(Math.sin(facing) * v, 3.2, Math.cos(facing) * v);
     item.struck = false;
     item.obj.position.set(from.x + Math.sin(facing) * 0.4, from.y + 1.9, from.z + Math.cos(facing) * 0.4);
   }
@@ -136,7 +136,7 @@ export class Carry {
       o.y += item.vel.y * dt;
       item.obj.rotation.x += dt * 6;
       // Someone in the way: it hits them and drops.
-      if (!item.struck && o.y < 2.1 && this.world.strike(item, o.x, o.y, o.z)) {
+      if (!item.struck && o.y < 2.3 && this.world.strike(item, o.x, o.y, o.z)) {
         item.struck = true;
         item.vel.x *= -0.15;
         item.vel.z *= -0.15;

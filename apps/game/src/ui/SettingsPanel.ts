@@ -43,7 +43,7 @@ export class SettingsPanel {
       input.addEventListener('input', () => this.store.update({ [key]: Number(input.value) } as Partial<Settings>));
       return h('label', { className: 'setting' }, h('span', {}, label), input);
     };
-    const toggle = (key: 'subtitles' | 'largeText' | 'noRhythm' | 'reducedMotion' | 'lessMeta' | 'tips', label: string, note: string) => {
+    const toggle = (key: 'subtitles' | 'largeText' | 'noRhythm' | 'reducedMotion' | 'lessMeta' | 'tips' | 'pilgrim', label: string, note: string) => {
       const input = h('input', { type: 'checkbox', checked: s[key] });
       input.addEventListener('change', () => this.store.update({ [key]: input.checked } as Partial<Settings>));
       return h('label', { className: 'setting' }, input, h('span', {}, label, h('small', {}, note)));
@@ -67,6 +67,7 @@ export class SettingsPanel {
       toggle('subtitles', 'Sound captions', ' — show what is heard, e.g. [the wind rises]'),
       h('h3', {}, 'Reading and playing'),
       toggle('tips', 'How-to cards and tips', ' — the first time in each place; H shows them again'),
+      toggle('pilgrim', 'Pilgrim', ' — nothing points the way: no goal, no marks over places, no "Where next?", no hints. Find it yourself'),
       toggle('largeText', 'Large text', ''),
       toggle('noRhythm', 'Déjà vu without timing', ' — F at any moment finishes a line you have heard before'),
       toggle('reducedMotion', 'Reduce motion', ' — no rain streaks, no shaking, lines appear at once'),

@@ -33,6 +33,7 @@ const settings = new SettingsStore(browserStorage());
 if (agentMode) settings.update({ master: 0, noRhythm: true, reducedMotion: true, tips: false, lessMeta: true, quality: 'low' });
 settings.subscribe((s) => {
   document.documentElement.classList.toggle('large-text', s.largeText);
+  document.documentElement.classList.toggle('pilgrim', s.pilgrim);
   document.documentElement.classList.toggle('reduced-motion', s.reducedMotion);
 });
 const game = new Game(view, overlay, storyJson, settings);

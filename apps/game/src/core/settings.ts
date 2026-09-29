@@ -21,6 +21,8 @@ export interface Settings {
   lessMeta: boolean;
   /** How-to cards the first time in each place, and tips for new mechanics. */
   tips: boolean;
+  /** Pilgrim: nothing points the way. No goal under the clock, no marks over places, no "Where next?", no hints. */
+  pilgrim: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -35,6 +37,7 @@ export const DEFAULT_SETTINGS: Settings = {
   quality: 'auto',
   lessMeta: false,
   tips: true,
+  pilgrim: false,
 };
 
 export function loadSettings(storage: KeyValueStorage | null): Settings {

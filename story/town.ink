@@ -221,6 +221,9 @@ The road goes on past the last grave into the hills, and the hills go round, the
 
 === gymnasium ===
 {
+- today("runner_fell") and not last_hour() and ((hour() >= 7 and hour() < 12) or (hour() >= 15 and hour() < 19)):
+    The third runner sits in the sand holding his ankle. The other two run on without him, down and back.
+    For the first time in all the days there have been, he is not a stride behind anyone. The trainer does not know what to shout.
 - last_hour():
     The gymnasium is empty. The rake lies in the sand where it was dropped. Every runner has gone up the mountain.
 - hour() >= 18:
@@ -233,6 +236,71 @@ The road goes on past the last grave into the hills, and the hills go round, the
 - else:
     Before seven the gymnasium is raked sand and nobody. The first footprints on it will be the same ones as yesterday's.
 }
+-> DONE
+
+=== farm ===
+{
+- last_hour():
+    The threshing floor is empty. The straw lies in a perfect ring where the mule trod it. Up on the hill the goats have lain down facing the mountain, like everyone.
+- hour() >= 19:
+    The mule stands in the yard with its head down. The farmer sits on the edge of the threshing floor and shakes the chaff out of his beard.
+- hour() >= 6:
+    The mule goes round the threshing floor, the farmer at the pole in the middle turning with it. Round and round, the same track in the straw.
+    "The grain doesn't know it's the last day," he says, without stopping. "Why tell it?"
+    {knows("past_attempts"):
+        He has trodden this ring every day there has ever been. The track in the straw is as deep as the day is long, and never deeper.
+    }
+- else:
+    The farm is still asleep. A goat looks at you over the pen wall.
+}
+-> DONE
+
+=== world_edge ===
+The road goes on west into the hills. You walk on. The last milestone stays beside you, and the hill ahead does not come any nearer. #spend:10
+You walk until your shadow has moved. The dust on the road beyond the milestone has no footprints in it, not even old ones.
+{knows("desk_agent_id"):
+    Somewhere a line of code says that Eferon ends here. It does not say what is past it. Nobody wrote that part.
+- else:
+    Eferon has an edge, then. Nobody told you, because nobody has ever come this far to find it.
+}
+-> DONE
+
+=== wall_scratch ===
+Up here, where nobody walks, someone has scratched into the coping with the point of a stylus.
+A row of tally marks, too many to count at a glance. The last one is fresh: the stone dust is still in it.
+Under them, in a hand you know because it is yours: "The view is better from here."
+-> DONE
+
+=== sea_cave ===
+Under the cape the rock is hollow. You pull yourself onto a ledge at the back, out of the swell.
+Someone has been here before you. On the dry wall, scratched with a knife, is a spiral: thirty-six marks round it, and a thirty-seventh begun and not finished.
+{knows("sea_absent"):
+    There is no sea on the spiral in the Hall. There is sea all round this one.
+}
+The water sucks at the ledge and lets go, and never the same way twice.
+-> DONE
+
+=== open_sea ===
+You swim until the city is a white line on the shore and the mountain a shadow over it.
+Out here the water moves the way it likes. You watch one wave and wait for it to come round again. It does not. Nothing out here repeats.
+For a while you just float, and nobody writes anything down.
+-> DONE
+
+=== dog(state) ===
+{
+- state == "hungry":
+    A thin yellow dog lies by the stones of the dead, chin on his paws. He watches you the way dogs watch people who might have food, and do not.
+- state == "fed":
+    The dog walks at your heel as if he had always belonged to you. When you stop, he sits and looks up.
+- else:
+    The dog was waiting for you at the gate. Nobody in Eferon remembers yesterday, but he does, a little: he smells your hand and his tail goes.
+}
+-> DONE
+
+=== cleon_sore ===
+Cleon sits on the council steps with a wet cloth on his head.
+Somebody knocked the speech right out of me. The whole city was waiting. #speaker:Cleon #mood:anger
+Tomorrow. I will give it tomorrow. Word for word, the way I always do. #speaker:Cleon #mood:sorrow
 -> DONE
 
 === caught_by_watch(times) ===
@@ -248,6 +316,9 @@ By morning the wax will be smooth. Nothing anyone writes in this city lasts the 
 
 === olive_press ===
 {
+- today("press_stopped") and hour() >= 7 and hour() < 18 and not last_hour():
+    The millstone has stopped against the stone you put in the basin. The worker stands and looks at it as if it had spoken.
+    "It has never done that," he says. "Not once." There is no oil in the jar today, and he does not say "Good year."
 - last_hour():
     The millstone has stopped halfway round. The oil in the settling jars is still going clear, and nobody will ever pour it off.
 - hour() >= 18:
