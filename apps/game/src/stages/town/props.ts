@@ -33,6 +33,8 @@ export class StreetLife {
   private scene: THREE.Scene;
   private boxes: Box[];
   private rand = seededRng(daySeed('eferon/props/v1'));
+  /** The market baskets: the scribe can carry them off (see carry.ts). */
+  baskets: THREE.Group[] = [];
 
   constructor(scene: THREE.Scene, boxes: Box[]) {
     this.scene = scene;
@@ -154,13 +156,18 @@ export class StreetLife {
       for (let i = 0; i < count; i++) {
         const spot = findSpot(this.rand, this.boxes, near, 2.4, 1.2, 3, 0.35);
         if (!spot) continue;
+        // One group, so the scribe can pick up the basket with what is in it.
+        const group = new THREE.Group();
         const basket = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.22, 0.34, 8), wicker);
-        basket.position.set(spot.x, 0.17, spot.z);
+        basket.position.y = 0.17;
         basket.castShadow = true;
         const fill = new THREE.Mesh(new THREE.IcosahedronGeometry(0.22, 0), lambert(goods[Math.floor(this.rand() * goods.length)]!));
-        fill.position.set(spot.x, 0.36, spot.z);
+        fill.position.y = 0.36;
         fill.scale.y = 0.5;
-        this.scene.add(basket, fill);
+        group.add(basket, fill);
+        group.position.set(spot.x, 0, spot.z);
+        this.scene.add(group);
+        this.baskets.push(group);
       }
     }
   }

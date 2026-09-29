@@ -46,6 +46,8 @@ const CAPTIONS: Record<string, string> = {
   ticket: '[a soft chime: a new ticket]',
   descend: '[steps going down into the cold]',
   ascend: '[steps, and the city again]',
+  shatter: '[a pot breaks on the stones]',
+  splash: '[a splash]',
 };
 
 // The same lyre everywhere, a different piece for each place: see engine/music.ts.
@@ -496,6 +498,64 @@ export class AudioEngine {
         src.connect(f).connect(g).connect(this.master);
         src.start(t, Math.random());
         src.stop(t + 0.8);
+        break;
+      }
+      case 'land': {
+        // Feet coming down hard on packed earth: a low thump.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'lowpass';
+        f.frequency.value = 220;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.7, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+        src.connect(f).connect(g).connect(this.sfx);
+        src.start(t, Math.random());
+        src.stop(t + 0.2);
+        break;
+      }
+      case 'splash': {
+        // Water thrown up and falling back: a bright hiss that darkens.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.setValueAtTime(2600, t);
+        f.frequency.exponentialRampToValueAtTime(500, t + 0.6);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(0.5, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+        src.connect(f).connect(g).connect(this.sfx);
+        src.start(t, Math.random());
+        src.stop(t + 0.75);
+        break;
+      }
+      case 'shatter': {
+        // Fired clay bursting: a crack, then sherds clinking as they scatter.
+        const src = ctx.createBufferSource();
+        src.buffer = this.noise;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = 1400;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0.8, t);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        src.connect(f).connect(g).connect(this.sfx);
+        src.start(t, Math.random());
+        src.stop(t + 0.15);
+        for (let i = 0; i < 6; i++) {
+          const o = ctx.createOscillator();
+          const k = ctx.createGain();
+          const at = t + 0.06 + i * 0.05 + Math.random() * 0.04;
+          o.frequency.value = 2200 + Math.random() * 2400;
+          k.gain.setValueAtTime(0.05, at);
+          k.gain.exponentialRampToValueAtTime(0.0001, at + 0.06);
+          o.connect(k).connect(this.sfx);
+          o.start(at);
+          o.stop(at + 0.07);
+        }
         break;
       }
       case 'descend':

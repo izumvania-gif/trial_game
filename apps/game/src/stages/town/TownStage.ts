@@ -13,7 +13,8 @@ import { amphora, bob, cypress, dimPaint, dressFigure, gableRoof, giveWay, lambe
 import { HEIGHTS, LOOKS } from '../../content/looks.ts';
 import type { AgentAction, Stage, StageAgent, StageHost } from '../types.ts';
 import { buildPlaces, PLACE_SPOTS, placeReserved, STEP, type PlaceLife } from './places.ts';
-import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep, Torches, type Box } from './city.ts';
+import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep, topOf, Torches, type Box } from './city.ts';
+import { Carry, stone, type Carryable } from './carry.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
 import { StreetLife } from './props.ts';
@@ -38,9 +39,20 @@ const SNAP_UP = new THREE.Vector3();
 const PLAYER_RADIUS = 0.4;
 /** How far the player can see a resident well enough for the Book of Strangers. */
 const SEEN_DISTANCE = 11;
-const BOUNDS = { minX: -46, maxX: 28, minZ: -40, maxZ: 40 };
+const BOUNDS = { minX: -46, maxX: 28, minZ: -40, maxZ: 48 };
+/** Up-speed of a jump (about a metre high) and the pull back down. */
+const JUMP = 6.3;
+const GRAVITY = 20;
+/** The highest ledge he can pull himself up onto: a house, the wall walk (not a tower, not the temple). */
+const CLIMB = 4.2;
+/** Where he floats, swimming: head and shoulders out of the water. */
+const SWIM_Y = -1.05;
+const RUN = 1.75;
+/** How fast the day goes by while he sits and waits. */
+const SIT_SPEED = 24;
 /** How close the scribe comes to anyone: he walks around people, not through them. */
 const PERSON_GAP = 0.75;
+const FAR = new THREE.Vector3(1e4, 0, 1e4);
 const ENTRIES: Record<string, [number, number, number]> = {
   temple: [0, -11.5, 0],
   shore: [0, 18.5, Math.PI],
@@ -103,6 +115,8 @@ export class TownStage implements Stage {
   private socle = lambert('#b98a62');
   private tavernLamps: THREE.Mesh[] = [];
   private placeLives: PlaceLife[] = [];
+  private loose: [THREE.Object3D, 'amphora' | 'basket' | 'stone'][] = [];
+  private carry!: Carry;
   private tavernDrinkers: THREE.Group[] = [];
   private tavernLight = new THREE.PointLight('#ffb25a', 0, 9, 1.3);
   private terrace = lambert('#d8c49c');
@@ -242,6 +256,7 @@ export class TownStage implements Stage {
 
     this.buildTemple();
     this.addBox(-4.5, -11, 1.2, 0.5, 3.2, '#f4eedd').rotation.y = 0.15; // the star stele
+    this.lastBox().top = undefined; // nobody stands on the stele
     this.buildAgora();
     this.buildLandmarks();
     this.placeLives = buildPlaces(s, this.boxes);
@@ -253,6 +268,22 @@ export class TownStage implements Stage {
     this.boats = buildHarbour(s, this.boxes);
     this.torches = new Torches(s, this.boxes);
     this.buildMountain();
+    // Stones on the beach, to pick up and throw into the sea.
+    const rand = seededRng(daySeed('eferon/stones/v1'));
+    for (let i = 0; i < 9; i++) {
+      const st = stone(0.13 + rand() * 0.08);
+      st.position.set(-24 + rand() * 46, 0.08, 20.2 + rand() * 4.4);
+      if (this.blocked(st.position.x, st.position.z)) continue;
+      s.add(st);
+      this.loose.push([st, 'stone']);
+    }
+    for (const b of this.street.baskets) this.loose.push([b, 'basket']);
+    this.carry = new Carry(s, {
+      floorAt: (x, z, y) => this.floorAt(x, z, y),
+      blocked: (x, z, y) => this.blocked(x, z, y, 0.15),
+      landed: (item, how, x, z) => this.landed(item, how, x, z),
+    });
+    for (const [obj, kind] of this.loose) this.carry.add(obj, kind);
   }
 
   /** Pale paving along the street graph, so the city reads as a map. */
@@ -279,8 +310,13 @@ export class TownStage implements Stage {
     mesh.position.set(x, h / 2, z);
     mesh.castShadow = mesh.receiveShadow = true;
     this.scene.add(mesh);
-    this.boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
+    // Its top can be stood on (a roof, a step, a stall) unless the builder says otherwise.
+    this.boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, top: h });
     return mesh;
+  }
+
+  private lastBox(): Box {
+    return this.boxes[this.boxes.length - 1]!;
   }
 
   /** Doric columns: a tapering shaft and a square capital. `base` is the height they stand on. */
@@ -305,8 +341,10 @@ export class TownStage implements Stage {
     this.addBox(0, -19, 15, 11, 0.34, '#efe6cf');
     const step2 = this.addBox(0, -19, 14.2, 10.2, 0.34, '#f2ead6');
     step2.position.y = 0.34 + 0.17;
+    this.lastBox().top = 0.68;
     const step3 = this.addBox(0, -19, 13.4, 9.4, 0.34, '#efe6cf');
     step3.position.y = 0.68 + 0.17;
+    this.lastBox().top = 1.02;
     this.addColumns(0, -19, [-5.8, -3.5, -1.2, 1.2, 3.5, 5.8], [4.1, -4.1], 6, 1.02);
     const beam = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.9, 9.2), lambert('#efe6cf'));
     beam.position.set(0, 7.47, -19);
@@ -324,6 +362,7 @@ export class TownStage implements Stage {
     roof.position.set(0, 7.92, -19);
     this.scene.add(roof);
     this.addBox(0, -19, 9, 7, 6.5, '#e6dcc2'); // cella
+    this.lastBox().top = undefined; // under the roof beams
     const door = new THREE.Mesh(new THREE.BoxGeometry(1.8, 3.2, 0.2), lambert('#3a2414'));
     door.position.set(0, 2.6, -15.45);
     this.scene.add(door);
@@ -351,6 +390,7 @@ export class TownStage implements Stage {
     const top = lambert('#e9dcbc');
     // The house: plastered, on a stone socle, under a low roof of tiles, ridge along the street.
     this.addBox(-13.5, 9.7, 7, 3, 2.9, '#c9a57c');
+    this.lastBox().gable = { alongX: true, rise: 0.7 };
     const socle = new THREE.Mesh(new THREE.BoxGeometry(7.1, 0.5, 3.1), this.socle);
     socle.position.set(-13.5, 0.25, 9.7);
     s.add(socle);
@@ -369,7 +409,7 @@ export class TownStage implements Stage {
     const counterTop = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.1, 0.62), top);
     counterTop.position.set(-13.9, 1.03, 11.5);
     s.add(counterTop);
-    this.boxes.push({ minX: -15.7, maxX: -12.1, minZ: 11.2, maxZ: 11.8 });
+    this.boxes.push({ minX: -15.7, maxX: -12.1, minZ: 11.2, maxZ: 11.8, top: 1.06 });
     // Amphorae stacked against the wall by the counter, one lying on its side.
     for (const [x, z, lie] of [[-16.5, 11.6, 0], [-16, 11.65, 0], [-16.6, 12.2, 1]] as const) {
       const a = amphora();
@@ -442,7 +482,7 @@ export class TownStage implements Stage {
         bench.castShadow = true;
         s.add(bench);
       }
-      this.boxes.push({ minX: x - 0.8, maxX: x + 0.8, minZ: z - 0.45, maxZ: z + 0.45 });
+      this.boxes.push({ minX: x - 0.8, maxX: x + 0.8, minZ: z - 0.45, maxZ: z + 0.45, top: 0.82 });
       // A lamp on the table, lit with the torches.
       const flame = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.22, 5), new THREE.MeshBasicMaterial({ color: '#ffd68c' }));
       flame.position.set(x + 0.4, 0.97, z);
@@ -478,6 +518,7 @@ export class TownStage implements Stage {
     this.buildTavern();
     // Lysimachus' villa, bigger than it needs to be.
     this.addBox(-20.5, -17.5, 7, 5.5, 3.6, '#f0e8d2');
+    this.lastBox().top = 4; // on the roof slab
     const villaRoof = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.4, 6.1), lambert('#8f4a2a'));
     villaRoof.position.set(-20.5, 3.8, -17.5);
     villaRoof.castShadow = true;
@@ -530,6 +571,7 @@ export class TownStage implements Stage {
       if (overlaps) continue;
       const hgt = 2 + rand() * 2.5;
       this.addBox(x, z, w, d, hgt, rand() > 0.3 ? '#ece2c8' : '#c9a57c');
+      const house = this.lastBox();
       // A stone socle under the mud brick, the way Greek houses stood.
       const socle = new THREE.Mesh(new THREE.BoxGeometry(w + 0.1, 0.5, d + 0.1), this.socle);
       socle.position.set(x, 0.25, z);
@@ -543,6 +585,7 @@ export class TownStage implements Stage {
         slab.position.set(x, hgt + 0.1, z);
         slab.castShadow = slab.receiveShadow = true;
         this.scene.add(slab);
+        house.top = hgt + 0.2;
       } else {
         // A low-pitched roof of terracotta tiles, ridge along the longer side.
         const span = alongX ? d : w;
@@ -550,6 +593,7 @@ export class TownStage implements Stage {
         roof.position.set(x, hgt, z);
         if (alongX) roof.rotation.y = Math.PI / 2;
         this.scene.add(roof);
+        house.gable = { alongX, rise: span * 0.17 + 0.1 };
       }
       // An oven chimney on some roofs; its smoke says someone is home.
       if (rand() < 0.35) this.street.chimney(x + (alongX ? w * 0.28 : w * 0.18), hgt + 0.35, z + (alongX ? d * 0.15 : d * 0.28));
@@ -570,6 +614,7 @@ export class TownStage implements Stage {
       const a = amphora();
       a.position.set(x, 0, z);
       this.scene.add(a);
+      this.loose.push([a, 'amphora']);
     }
   }
 
@@ -651,6 +696,8 @@ export class TownStage implements Stage {
 
   exit(): void {
     this.host.prompt(null);
+    if (this.sitting) this.stand();
+    this.host.clock.speed = 1;
   }
 
   dispose(): void {
@@ -840,8 +887,29 @@ export class TownStage implements Stage {
     this.updateResidents();
     this.mask.visible = this.host.cycle.wornMask !== null;
 
-    const near = this.nearest();
-    this.host.prompt(near ? `E — ${near.label}` : null);
+    const p0 = this.player.position;
+    this.carry.update(dt, this.player);
+    let near = this.nearest();
+    // Things to pick up: the nearer of a thing and a person or place wins E.
+    const thing = !this.carry.held && !this.sitting && !this.air && !this.climbing ? this.carry.nearest(p0.x, p0.y, p0.z) : null;
+    const pickUp = thing && (!near || thing.d < Math.hypot(near.x - p0.x, near.z - p0.z)) ? thing.item : null;
+    if (pickUp) near = null;
+    const held = this.carry.held;
+    this.host.prompt(
+      near ? `E — ${near.label}` : pickUp ? `E — pick up ${this.carry.name(pickUp)}` : held ? `E — put down ${this.carry.name(held)} · F — throw it` : null,
+    );
+    if (input.enabled && !this.sitting) {
+      if (pickUp && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) {
+        this.carry.pick(pickUp);
+        this.host.setControls('WASD — walk · E — put it down · F — throw');
+      } else if (held && !near && (input.wasPressed('KeyE') || input.wasPressed('Enter'))) {
+        this.carry.drop(p0, this.facing);
+        this.host.setControls(null);
+      } else if (held && input.wasPressed('KeyF') && !this.climbing) {
+        this.carry.throw(p0, this.facing, this.running);
+        this.host.setControls(null);
+      }
+    }
     this.marker.visible = near !== null;
     if (near) {
       const npc = this.npcs.find((n) => n.resident.knot === near.knot || (near.args?.[0] === n.resident.name));
@@ -868,7 +936,7 @@ export class TownStage implements Stage {
     const g = this.glitch;
     const replay = g ? g.g.minute + (((g.g.seconds - g.left) * 2.5) % 1) * 1.6 : 0;
     const stutter = g?.g.kind === 'stutter' ? { x: this.player.position.x, z: this.player.position.z, minute: replay } : undefined;
-    this.crowd.update(clock.minute, this.time, this.dusk, stutter, this.player.position, this.wall);
+    this.crowd.update(clock.minute, this.time, this.dusk, stutter, this.feet(), this.wall);
     this.people = this.npcs.filter((n) => n.figure.visible).map((n) => ({ x: n.figure.position.x, z: n.figure.position.z }));
     this.crowd.positions(this.people);
     const p = this.player.position;
@@ -891,8 +959,9 @@ export class TownStage implements Stage {
     const ahead = lerp(1, 18, u);
     const sy = Math.sin(yaw);
     const cy = Math.cos(yaw);
-    this.camera.position.set(p.x + sway * cy + back * sy, p.y + lerp(17, 5.2, u), p.z - sway * sy + back * cy);
-    this.camera.lookAt(p.x - ahead * sy, p.y + lerp(1, 1.7, u), p.z - ahead * cy);
+    const cy0 = this.camY;
+    this.camera.position.set(p.x + sway * cy + back * sy, cy0 + lerp(17, 5.2, u), p.z - sway * sy + back * cy);
+    this.camera.lookAt(p.x - ahead * sy, cy0 + lerp(1, 1.7, u), p.z - ahead * cy);
     this.snapCamera();
     this.camera.rotateZ((Math.sin(this.time * 0.51) * 0.03 + Math.sin(this.time * 1.3) * 0.008) * unease);
   }
@@ -932,6 +1001,8 @@ export class TownStage implements Stage {
     let best: Interactable | null = null;
     let bestD = Infinity;
     for (const c of candidates) {
+      // Not from a roof to the street below, nor from the water.
+      if (Math.abs(groundAt(c.x, c.z) - p.y) > 1.6 || this.swimming) continue;
       const d = Math.hypot(c.x - p.x, c.z - p.z);
       // A place wins a near tie with someone standing on it: people move, places don't.
       const rank = d - (PLACES_TO_TALK.includes(c) ? PLACE_BIAS : 0);
@@ -947,6 +1018,7 @@ export class TownStage implements Stage {
     const { clock, memory } = this.host;
     const patches = this.host.patches();
     const p = this.player.position;
+    const feet = this.feet();
     // The last hour (however early the wind made midnight): whoever did not go up the mountain
     // stops where they are and looks at it. Not the singer, who goes down to the water, and not
     // the priest of the sea.
@@ -992,7 +1064,7 @@ export class TownStage implements Stage {
       figure.rotation.set(lying ? -Math.PI / 2 : 0, state.walking ? state.heading : npc.still && !lying ? toMountain : figure.rotation.y, 0);
       if (lying) figure.position.y = 0.25;
       // Someone walking steps round the scribe instead of through him.
-      if (state.walking) giveWay(figure.position, p, this.wall);
+      if (state.walking) giveWay(figure.position, feet, this.wall);
       bob(figure, this.time, state.walking ? 1 : 0);
       if (!state.walking && !npc.still) figure.position.y += Math.sin(clock.minute * 0.8 + resident.id.length) * 0.02;
       // Once the player has watched a resident at a point of their day, the Book of Strangers records it.
@@ -1024,25 +1096,157 @@ export class TownStage implements Stage {
   /** After a jump (an entry, an agent's walk), the view starts where it belongs, not mid-swing. */
   private settleView(): void {
     const p = this.player.position;
-    p.y = groundAt(p.x, p.z);
+    // On whatever he stands on: the street, a roof he was on when the day was saved, the water.
+    p.y = Math.max(this.floorAt(p.x, p.z, 99), SWIM_Y);
+    this.camY = p.y;
+    this.vy = 0;
+    this.air = false;
+    this.climbing = null;
+    this.stagger = 0;
+    if (this.sitting) this.stand();
     this.seaward = this.seawardAt(p.z);
     this.controlYaw = this.viewYaw();
     this.heldDir = '';
   }
 
+  // ─── The body: walking, running, jumping, climbing, falling, swimming, sitting ───
+
+  private vy = 0;
+  /** In the air: jumping, or falling off a roof. */
+  private air = false;
+  private fallFrom = 0;
+  /** A hard landing: a moment on his knees. */
+  private stagger = 0;
+  private climbing: { x0: number; z0: number; y0: number; x1: number; z1: number; y1: number; t: number } | null = null;
+  private sitting = false;
+  private swimming = false;
+  private running = false;
+  /** The camera's height, following his a little behind so a jump does not jolt the view. */
+  private camY = 0;
+
+  /** The highest surface under (x, z) that is not above y (plus a step): the ground, a step, a roof, the wall walk. */
+  private floorAt(x: number, z: number, y: number): number {
+    let f = groundAt(x, z);
+    for (const b of this.boxes) {
+      if (b.top === undefined || x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
+      const t = topOf(b, x, z);
+      if (t > f && t <= y + STEP) f = t;
+    }
+    return f;
+  }
+
+  private sit(): void {
+    this.sitting = true;
+    this.player.scale.y = 0.72;
+    this.host.setControls('X — get up · the day goes by while he waits');
+  }
+
+  private stand(): void {
+    this.sitting = false;
+    this.player.scale.y = 1;
+    this.host.clock.speed = 1;
+    this.host.setControls(this.carry?.held ? 'WASD — walk · E — put it down · F — throw' : null);
+  }
+
+  /** A ledge in front of him he can pull himself up onto: where he would stand up there. */
+  private ledgeAhead(): { x: number; z: number; y: number } | null {
+    const p = this.player.position;
+    const fx = Math.sin(this.facing);
+    const fz = Math.cos(this.facing);
+    for (const reach of [0.5, 0.75, 1]) {
+      const x = p.x + fx * (PLAYER_RADIUS + reach);
+      const z = p.z + fz * (PLAYER_RADIUS + reach);
+      const top = this.floorAt(x, z, p.y + CLIMB);
+      if (top - p.y <= STEP || top - p.y > CLIMB) continue;
+      const lx = x + fx * 0.3;
+      const lz = z + fz * 0.3;
+      const y = this.floorAt(lx, lz, top);
+      if (Math.abs(y - top) > STEP || this.blocked(lx, lz, y) || !outsideRoad(lx, lz)) continue;
+      return { x: lx, z: lz, y };
+    }
+    return null;
+  }
+
   private movePlayer(dt: number): void {
-    const { input } = this.host;
+    const { input, clock } = this.host;
     this.time += dt;
     const p = this.player.position;
-    // The ground under him: the streets, the mole a step up, the wet sand sloping into the water.
-    p.y += (groundAt(p.x, p.z) - p.y) * Math.min(1, dt * 10);
+    this.camY += (p.y - this.camY) * Math.min(1, dt * 7);
+    // Pulling himself up: first up the face of the wall, then over the edge.
+    if (this.climbing) {
+      const c = this.climbing;
+      c.t = Math.min(1, c.t + dt / 0.55);
+      const up = Math.min(1, c.t / 0.65);
+      const over = Math.max(0, (c.t - 0.65) / 0.35);
+      p.set(c.x0 + (c.x1 - c.x0) * over, c.y0 + (c.y1 - c.y0) * up * up * (3 - 2 * up), c.z0 + (c.z1 - c.z0) * over);
+      if (c.t >= 1) this.climbing = null;
+      return;
+    }
     let dx = 0;
     let dz = 0;
     if (input.isDown('KeyW') || input.isDown('ArrowUp')) dz -= 1;
     if (input.isDown('KeyS') || input.isDown('ArrowDown')) dz += 1;
     if (input.isDown('KeyA') || input.isDown('ArrowLeft')) dx -= 1;
     if (input.isDown('KeyD') || input.isDown('ArrowRight')) dx += 1;
-    bob(this.player, this.time, dx || dz ? 1 : 0);
+    // Sitting, the day goes by fast; any step, or the last hour, gets him up.
+    const lastHour = clock.minute >= clock.endMinute - 60;
+    if (this.sitting) {
+      if (dx || dz || input.wasPressed('KeyX') || input.wasPressed('Space') || lastHour) this.stand();
+      else {
+        clock.speed = input.enabled ? SIT_SPEED : 1;
+        bob(this.player, this.time, 0);
+        return;
+      }
+    } else if (input.wasPressed('KeyX') && !this.air && !this.swimming && !dx && !dz && !lastHour) {
+      this.sit();
+      return;
+    }
+
+    const floor = this.floorAt(p.x, p.z, p.y);
+    const water = floor < SWIM_Y;
+    const surface = water ? SWIM_Y : floor;
+    if (this.air) {
+      this.vy -= GRAVITY * dt;
+      p.y += this.vy * dt;
+      if (p.y <= surface) {
+        const drop = this.fallFrom - surface;
+        p.y = surface;
+        this.vy = 0;
+        this.air = false;
+        if (water) this.host.sound('splash');
+        else if (drop > 2.4) {
+          this.stagger = 0.4;
+          this.host.sound('land');
+        } else if (drop > 0.6) this.host.sound('land');
+      }
+    } else if (surface < p.y - STEP) {
+      // Walked off a roof, a wall, the mole: he falls.
+      this.air = true;
+      this.vy = 0;
+      this.fallFrom = p.y;
+    } else {
+      // Up and down steps, the slope of the wet sand, the swell when swimming.
+      const target = water ? SWIM_Y + Math.sin(this.time * 2.2) * 0.05 : surface;
+      p.y += (target - p.y) * Math.min(1, dt * 10);
+      if (water && !this.swimming) this.host.sound('splash');
+    }
+    this.swimming = water && !this.air;
+    this.running = (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) && !this.swimming && p.y > -0.15;
+    if (!this.air && !this.swimming && this.stagger <= 0 && input.wasPressed('Space')) {
+      const ledge = this.carry.held ? null : this.ledgeAhead();
+      if (ledge) this.climbing = { x0: p.x, z0: p.z, y0: p.y, x1: ledge.x, z1: ledge.z, y1: ledge.y, t: 0 };
+      else {
+        this.vy = JUMP;
+        this.air = true;
+        this.fallFrom = p.y;
+      }
+      return;
+    }
+    if (this.stagger > 0) {
+      this.stagger -= dt;
+      dx = dz = 0;
+    }
+    bob(this.player, this.time * (this.running ? 1.4 : 1), (dx || dz) && !this.air ? (this.running ? 1.5 : 1) : 0);
     const dir = `${dx},${dz}`;
     if (dir !== this.heldDir) {
       this.heldDir = dir;
@@ -1055,8 +1259,9 @@ export class TownStage implements Stage {
     const wx = dx * c + dz * sn;
     const wz = -dx * sn + dz * c;
     const len = Math.hypot(wx, wz);
-    // Wading is slow.
-    const step = (SPEED * dt * (p.y < -0.15 ? 0.55 : 1)) / len;
+    // Wading and swimming are slow; running is quick.
+    const pace = this.swimming ? 0.5 : p.y < -0.15 ? 0.55 : this.running ? RUN : 1;
+    const step = (SPEED * dt * pace) / len;
     const nx = Math.min(BOUNDS.maxX, Math.max(BOUNDS.minX, p.x + wx * step));
     const nz = Math.min(BOUNDS.maxZ, Math.max(BOUNDS.minZ, p.z + wz * step));
     // Slide along walls and round people: try each axis separately.
@@ -1066,11 +1271,14 @@ export class TownStage implements Stage {
     this.player.rotation.y = this.facing;
   }
 
-  /** Can he step from (x0, z0) to (x, z)? Not into walls or deep water, and not into anyone (stepping away is always fine). */
+  /** Can he step from (x0, z0) to (x, z) at his height? Not into walls or a ledge higher than a step, and not into anyone (stepping away is always fine). */
   private free(x0: number, z0: number, x: number, z: number): boolean {
-    if (this.blocked(x, z) || tooDeep(x, z) || !outsideRoad(x, z)) return false;
-    // Up a stair or a slope, yes; up or down a ledge higher than a step, no.
-    if (Math.abs(groundAt(x, z) - groundAt(x0, z0)) > STEP) return false;
+    const y = this.player.position.y;
+    if (this.blocked(x, z, y) || !outsideRoad(x, z)) return false;
+    // Up a stair or a slope, yes; up a rock face higher than a step, no (Space climbs it). Down is a fall.
+    if (groundAt(x, z) > y + STEP) return false;
+    // Up on a roof or out in the water, the people in the street are not in his way.
+    if (y > groundAt(x, z) + 1.2 || this.swimming) return true;
     for (const o of this.people) {
       const d = Math.hypot(x - o.x, z - o.z);
       if (d < PERSON_GAP && d < Math.hypot(x0 - o.x, z0 - o.z)) return false;
@@ -1084,9 +1292,23 @@ export class TownStage implements Stage {
   /** For walkers stepping round the scribe: a wall they must not step into. */
   private wall = (x: number, z: number): boolean => this.boxes.some((b) => x > b.minX - 0.2 && x < b.maxX + 0.2 && z > b.minZ - 0.2 && z < b.maxZ + 0.2);
 
-  private blocked(x: number, z: number): boolean {
-    const r = PLAYER_RADIUS;
-    return this.boxes.some((b) => x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ);
+  /** A box in the way at (x, z) for someone whose feet are at y: one he cannot step up onto. Without y, any box. */
+  private blocked(x: number, z: number, y = -Infinity, r = PLAYER_RADIUS): boolean {
+    return this.boxes.some((b) => x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ && topOf(b, x, z) > y + STEP);
+  }
+
+  /** Where he is, for walkers to step round: nowhere, while he is up on a roof or out in the sea. */
+  private feet(): THREE.Vector3 {
+    const p = this.player.position;
+    return p.y > groundAt(p.x, p.z) + 1.2 || this.swimming ? FAR : p;
+  }
+
+  /** Something he threw came down. */
+  private landed(item: Carryable, how: 'shatter' | 'splash' | 'thud', x: number, z: number): void {
+    this.host.sound(how === 'shatter' ? 'shatter' : how === 'splash' ? 'splash' : 'land');
+    void item;
+    void x;
+    void z;
   }
 
   private updateSky(progress: number): void {

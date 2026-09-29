@@ -10,6 +10,21 @@ export interface Box {
   maxX: number;
   minZ: number;
   maxZ: number;
+  /** Where one can stand on it: a roof, a wall walk, a step. Without it the box only blocks (a tower, a column, a stele). */
+  top?: number;
+  /** A tiled roof over `top`, its ridge along x or along z, `rise` higher at the ridge than at the eaves. */
+  gable?: { alongX: boolean; rise: number };
+}
+
+/** The height of a box's upper surface at (x, z): the roof's slope, or Infinity if it cannot be stood on. */
+export function topOf(b: Box, x: number, z: number): number {
+  if (b.top === undefined) return Infinity;
+  if (!b.gable) return b.top;
+  const { alongX, rise } = b.gable;
+  const half = alongX ? (b.maxZ - b.minZ) / 2 : (b.maxX - b.minX) / 2;
+  const off = alongX ? Math.abs(z - (b.minZ + b.maxZ) / 2) : Math.abs(x - (b.minX + b.maxX) / 2);
+  // The tiles overhang the wall by 0.15, so the slope runs out a little past the box.
+  return b.top + rise * Math.max(0, 1 - off / (half + 0.15));
 }
 
 /** Inner lines of the wall; the shore line is where the wall runs into the sea. */
@@ -34,19 +49,20 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
   const coping = lambert('#e8dab8');
   const tile = lambert('#9a5a3a');
   const slit = lambert('#1a120c');
-  const add = (x: number, z: number, w: number, d: number, h: number, mat: THREE.Material) => {
+  const add = (x: number, z: number, w: number, d: number, h: number, mat: THREE.Material, top?: number) => {
     const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
     m.position.set(x, h / 2, z);
     m.castShadow = m.receiveShadow = true;
     scene.add(m);
-    boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2 });
+    boxes.push({ minX: x - w / 2, maxX: x + w / 2, minZ: z - d / 2, maxZ: z + d / 2, top });
     return m;
   };
   // A wall segment between two points on one axis, finished with a coping along the top.
   const wall = (x1: number, z1: number, x2: number, z2: number) => {
     const alongX = z1 === z2;
     const len = alongX ? Math.abs(x2 - x1) : Math.abs(z2 - z1);
-    add((x1 + x2) / 2, (z1 + z2) / 2, alongX ? len : THICK, alongX ? THICK : len, HEIGHT, ashlar(len, HEIGHT));
+    // The wall walk can be climbed to and walked along, from tower to tower.
+    add((x1 + x2) / 2, (z1 + z2) / 2, alongX ? len : THICK, alongX ? THICK : len, HEIGHT, ashlar(len, HEIGHT), HEIGHT + 0.24);
     const c = new THREE.Matrix4().compose(
       new THREE.Vector3((x1 + x2) / 2, HEIGHT + 0.12, (z1 + z2) / 2),
       new THREE.Quaternion(),

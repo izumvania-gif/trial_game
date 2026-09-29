@@ -24,6 +24,7 @@ export const STAGE_GUIDES: Partial<Record<StageId, Guide>> = {
     steps: [
       { keys: ['W', 'A', 'S', 'D'], text: 'Walk the city. The ring at the bottom is the day: at midnight it runs out.' },
       { keys: ['E'], text: 'Talk to people and look at things when a prompt appears.' },
+      { keys: ['Shift', 'Space', 'X'], text: 'Run, jump, climb onto roofs and the wall walk, swim out into the sea. Sit down to let the day go by. Pick things up with E, throw them with F: tomorrow everything is whole again.' },
       { keys: ['C'], text: 'At midnight everything resets. Only what you learn survives: it is written in your chronicle.' },
       { keys: ['B'], text: 'The Book of Strangers keeps who was where, and when. Watch people to fill it.' },
       { keys: ['H'], text: 'This card again, for wherever you are. O opens the settings.' },
@@ -154,7 +155,7 @@ export const TIPS: Record<string, Guide> = {
 /** Keys for the place you are in, shown along the bottom-left edge. */
 export const STAGE_CONTROLS: Partial<Record<StageId, string>> = {
   house: 'WASD — walk · E — use · C — chronicle · B — book · Esc — skip the prologue',
-  town: 'WASD — walk · E — talk · C — chronicle · B — strangers · H — help',
+  town: 'WASD — walk · Shift — run · Space — jump · X — sit · E — talk · C — chronicle · B — book · H — help',
   spiral: 'Drag — turn a ring · Tab — registry · Esc — back · H — help',
   relief: 'W S — walk · A D — turn · Esc — let go · H — help',
   strikes: 'Click — strike · H — help',
