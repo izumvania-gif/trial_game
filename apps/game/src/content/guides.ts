@@ -24,7 +24,7 @@ export const STAGE_GUIDES: Partial<Record<StageId, Guide>> = {
     steps: [
       { keys: ['W', 'A', 'S', 'D'], text: 'Walk the city. The ring at the bottom is the day: at midnight it runs out.' },
       { keys: ['E'], text: 'Talk to people and look at things when a prompt appears.' },
-      { keys: ['Shift', 'Space', 'X'], text: 'Run, jump, climb onto roofs and the wall walk, swim out into the sea. Sit down to let the day go by. Pick things up with E, throw them with F: tomorrow everything is whole again.' },
+      { keys: ['Shift', 'Space', 'X'], text: 'Run and jump. Space at a wall pulls you up onto it, or catches hold to climb (W up, A D along, Space to leap, S + Space to let go) while your strength lasts. Jump at a ledge and you grab it; run at something low and you are over it. Swim out into the sea. Sit down to let the day go by. Pick things up with E, throw them with F: tomorrow everything is whole again.' },
       { keys: ['C'], text: 'At midnight everything resets. Only what you learn survives: it is written in your chronicle.' },
       { keys: ['B'], text: 'The Book of Strangers keeps who was where, and when. Watch people to fill it.' },
       { keys: ['H'], text: 'This card again, for wherever you are. O opens the settings.' },

@@ -14,11 +14,23 @@ export interface Box {
   top?: number;
   /** A tiled roof over `top`, its ridge along x or along z, `rise` higher at the ridge than at the eaves. */
   gable?: { alongX: boolean; rise: number };
+  /** A low pyramid of tiles over `top` (a tower's roof), `rise` higher at the apex. */
+  pyramid?: number;
+  /** Where it starts above the ground (a roof on columns, a pergola): one can walk under it. */
+  bottom?: number;
+  /** Not to be climbed (the stele, a tree). */
+  noClimb?: boolean;
 }
 
 /** The height of a box's upper surface at (x, z): the roof's slope, or Infinity if it cannot be stood on. */
 export function topOf(b: Box, x: number, z: number): number {
   if (b.top === undefined) return Infinity;
+  if (b.pyramid) {
+    const hx = (b.maxX - b.minX) / 2;
+    const hz = (b.maxZ - b.minZ) / 2;
+    const off = Math.max(Math.abs(x - (b.minX + b.maxX) / 2) / hx, Math.abs(z - (b.minZ + b.maxZ) / 2) / hz);
+    return b.top + b.pyramid * Math.max(0, 1 - off);
+  }
   if (!b.gable) return b.top;
   const { alongX, rise } = b.gable;
   const half = alongX ? (b.maxZ - b.minZ) / 2 : (b.maxX - b.minX) / 2;
@@ -71,7 +83,9 @@ export function buildWalls(scene: THREE.Scene, boxes: Box[]): void {
     copings.push(c);
   };
   const tower = (x: number, z: number, h = HEIGHT + 1.4) => {
-    add(x, z, TOWER, TOWER, h, ashlar(TOWER, h));
+    // Climbable, and one can stand on its low tiled roof.
+    add(x, z, TOWER, TOWER, h, ashlar(TOWER, h), h + 0.22);
+    boxes[boxes.length - 1]!.pyramid = 0.9;
     const lip = new THREE.Mesh(new THREE.BoxGeometry(TOWER + 0.35, 0.22, TOWER + 0.35), coping);
     lip.position.set(x, h + 0.11, z);
     scene.add(lip);

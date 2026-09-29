@@ -198,7 +198,7 @@ function buildTheatre(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   skene.position.set(T.x, 1.7, T.z + 2.9);
   skene.castShadow = skene.receiveShadow = true;
   scene.add(skene);
-  boxes.push({ minX: T.x - 4.5, maxX: T.x + 4.5, minZ: T.z + 2.4, maxZ: T.z + 3.4 });
+  boxes.push({ minX: T.x - 4.5, maxX: T.x + 4.5, minZ: T.z + 2.4, maxZ: T.z + 3.4, top: 3.4 });
   for (const dx of [-2.6, 0, 2.6]) {
     const door = new THREE.Mesh(new THREE.PlaneGeometry(dx ? 1 : 1.3, dx ? 2 : 2.4), lambert('#1a120c'));
     door.position.set(T.x + dx, dx ? 1 : 1.2, T.z + 2.39);
@@ -311,7 +311,8 @@ function buildCape(scene: THREE.Scene, boxes: Box[]): PlaceLife {
   tower.position.set(lx, end.top + 2.7, lz);
   tower.castShadow = tower.receiveShadow = true;
   scene.add(tower);
-  boxes.push({ minX: lx - 0.7, maxX: lx + 0.7, minZ: lz - 0.7, maxZ: lz + 0.7 });
+  // It can be climbed: the fire bowl stands on top, and the whole sea round it.
+  boxes.push({ minX: lx - 0.7, maxX: lx + 0.7, minZ: lz - 0.7, maxZ: lz + 0.7, top: end.top + 5.4 });
   const bowl = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.45, 0.45, 8), lambert('#1e140e'));
   bowl.position.set(lx, end.top + 5.6, lz);
   scene.add(bowl);

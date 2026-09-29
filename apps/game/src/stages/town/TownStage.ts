@@ -17,7 +17,8 @@ import { BEACH, buildHarbour, buildWalls, groundAt, HOROS, outsideRoad, tooDeep,
 import { Carry, stone, type Carryable, type CarryKind } from './carry.ts';
 import { Watch } from './watch.ts';
 import { Dog } from './animals.ts';
-import { Barks } from './barks.ts';
+import { Puffs, ScribeBody, type Pose } from './body.ts';
+import { Barks, StaminaRing } from './barks.ts';
 import { BARKS, HEARD, HEAT, type Mischief } from '../../content/barks.ts';
 import { Crowd, Dust, MountainLights, StormFace } from './night.ts';
 import { SUMMIT } from '../../content/crowd.ts';
@@ -55,8 +56,6 @@ const OPEN_SEA_Z = 44;
 /** Up-speed of a jump (about a metre high) and the pull back down. */
 const JUMP = 6.3;
 const GRAVITY = 20;
-/** The highest ledge he can pull himself up onto: a house, the wall walk (not a tower, not the temple). */
-const CLIMB = 4.2;
 /** Where he floats, swimming: head and shoulders out of the water. */
 const SWIM_Y = -1.05;
 const RUN = 1.75;
@@ -121,7 +120,10 @@ export class TownStage implements Stage {
   camera = new THREE.PerspectiveCamera(40, 1, 0.5, 400);
 
   private host: StageHost;
-  private player = makeFigure('#120e0b');
+  private body = new ScribeBody('#120e0b');
+  private player = this.body.root;
+  private puffs!: Puffs;
+  private stamRing: StaminaRing;
   private facing = Math.PI;
   private boxes: Box[] = [];
   private socle = lambert('#b98a62');
@@ -190,13 +192,16 @@ export class TownStage implements Stage {
   constructor(host: StageHost, start: { x: number; z: number; facing: number }) {
     this.host = host;
     this.barks = new Barks(host.overlay);
+    this.stamRing = new StaminaRing(host.overlay);
     this.buildWorld();
     this.player.position.set(start.x, 0, start.z);
     this.facing = start.facing;
     // A worn mask shows on the figure: a pale face on a black silhouette.
-    this.mask.position.set(0, 1.47, 0.2);
-    this.player.add(this.mask);
-    dressFigure(this.player, LOOKS.leont!);
+    // The mask is worn on the face, and turns with the head.
+    this.mask.position.set(0, 0, 0.17);
+    this.mask.userData.worn = true;
+    this.body.head.add(this.mask);
+    this.puffs = new Puffs(this.scene);
     this.addXray();
     this.scene.add(this.player);
     this.marker.scale.set(1, 1.6, 1);
@@ -386,6 +391,11 @@ export class TownStage implements Stage {
     step3.position.y = 0.68 + 0.17;
     this.lastBox().top = 1.02;
     this.addColumns(0, -19, [-5.8, -3.5, -1.2, 1.2, 3.5, 5.8], [4.1, -4.1], 6, 1.02);
+    // The columns can be climbed, up to the eaves; over them the roof, walked under, stood on to the ridge.
+    for (const x of [-5.8, -3.5, -1.2, 1.2, 3.5, 5.8]) {
+      for (const z of [-19 + 4.1, -19 - 4.1]) this.boxes.push({ minX: x - 0.42, maxX: x + 0.42, minZ: z - 0.42, maxZ: z + 0.42, top: 7.92 });
+    }
+    this.boxes.push({ minX: -6.75, maxX: 6.75, minZ: -23.75, maxZ: -14.25, bottom: 7.02, top: 7.92, gable: { alongX: false, rise: 2.2 } });
     const beam = new THREE.Mesh(new THREE.BoxGeometry(13.2, 0.9, 9.2), lambert('#efe6cf'));
     beam.position.set(0, 7.47, -19);
     beam.castShadow = true;
@@ -474,6 +484,8 @@ export class TownStage implements Stage {
     const x1 = -10.1;
     const z0 = 11.3;
     const z1 = 14.6;
+    // One can climb up onto it and walk the slats among the vine.
+    this.boxes.push({ minX: x0, maxX: x1, minZ: z0, maxZ: z1, bottom: 2.5, top: 2.8 });
     for (const [x, z] of [[x0, z0], [x1, z0], [x0, z1], [(x0 + x1) / 2, z1], [x1, z1]] as const) {
       const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.6, 0.22), wood);
       post.position.set(x, 1.3, z);
@@ -671,15 +683,16 @@ export class TownStage implements Stage {
       depthFunc: THREE.GreaterDepth,
       depthWrite: false,
     });
-    for (const part of [...this.player.children]) {
-      if (!(part instanceof THREE.Mesh) || part === this.mask) continue;
+    // Each copy sits beside its part, under the same joint, so it moves as he moves.
+    for (const part of this.body.meshes()) {
       const copy = new THREE.Mesh(part.geometry, ghost);
       copy.position.copy(part.position);
       copy.rotation.copy(part.rotation);
       copy.scale.copy(part.scale);
+      copy.userData.ghost = true;
       // After everything else, so the depth it compares against is the finished city.
       copy.renderOrder = 10;
-      this.player.add(copy);
+      part.parent!.add(copy);
     }
   }
 
@@ -737,12 +750,14 @@ export class TownStage implements Stage {
   exit(): void {
     this.host.prompt(null);
     this.barks.clear();
+    this.stamRing.update(1, false, this.player.position, this.camera);
     if (this.sitting) this.stand();
     this.host.clock.speed = 1;
   }
 
   dispose(): void {
     this.barks.dispose();
+    this.stamRing.dispose();
     disposeScene(this.scene);
   }
 
@@ -929,6 +944,7 @@ export class TownStage implements Stage {
     if (this.glitch?.g.kind === 'hitch') return;
     if (this.glitch?.g.kind !== 'freeze') this.streetTime += dt;
     this.movePlayer(dt);
+    this.animate(dt);
     this.updateSky(clock.progress);
     this.updateResidents();
     this.mask.visible = this.host.cycle.wornMask !== null;
@@ -937,7 +953,7 @@ export class TownStage implements Stage {
     this.carry.update(dt, this.player);
     let near = this.nearest();
     // Things to pick up: the nearer of a thing and a person or place wins E.
-    const thing = !this.carry.held && !this.sitting && !this.air && !this.climbing ? this.carry.nearest(p0.x, p0.y, p0.z) : null;
+    const thing = !this.carry.held && !this.sitting && !this.air && !this.move && !this.wallHold ? this.carry.nearest(p0.x, p0.y, p0.z) : null;
     // A thing he is facing wins over a person or place beside it (the fish on the stall over the market itself).
     const facingIt = thing && Math.sin(this.facing) * (thing.item.obj.position.x - p0.x) + Math.cos(this.facing) * (thing.item.obj.position.z - p0.z) > thing.d * 0.5;
     const pickUp = thing && (!near || facingIt || thing.d < Math.hypot(near.x - p0.x, near.z - p0.z)) ? thing.item : null;
@@ -960,8 +976,9 @@ export class TownStage implements Stage {
         this.carry.drop(p0, this.facing);
         this.feed(held);
         this.host.setControls(null);
-      } else if (held && input.wasPressed('KeyF') && !this.climbing) {
+      } else if (held && input.wasPressed('KeyF') && !this.move) {
         this.carry.throw(p0, this.facing, this.running);
+        this.throwT = 0;
         this.host.setControls(null);
       }
     }
@@ -1169,13 +1186,17 @@ export class TownStage implements Stage {
   /** After a jump (an entry, an agent's walk), the view starts where it belongs, not mid-swing. */
   private settleView(): void {
     const p = this.player.position;
-    // On whatever he stands on: the street, a roof he was on when the day was saved, the water.
-    p.y = Math.max(this.floorAt(p.x, p.z, 99), SWIM_Y);
+    // On whatever he stands on: the street (under a roof on columns, too), or a roof he was on when
+    // the day was saved, if the street there is inside a house; or the water.
+    const low = this.floorAt(p.x, p.z, groundAt(p.x, p.z));
+    p.y = Math.max(this.blocked(p.x, p.z, low, 0) ? this.floorAt(p.x, p.z, 99) : low, SWIM_Y);
     this.camY = p.y;
     this.vy = 0;
+    this.vel.set(0, 0, 0);
     this.air = false;
-    this.climbing = null;
-    this.stagger = 0;
+    this.wallHold = null;
+    this.move = null;
+    this.landT = 0;
     if (this.sitting) this.stand();
     this.seaward = this.seawardAt(p.z);
     this.controlYaw = this.viewYaw();
@@ -1184,16 +1205,31 @@ export class TownStage implements Stage {
 
   // ─── The body: walking, running, jumping, climbing, falling, swimming, sitting ───
 
+  /** Horizontal velocity: kept through a jump, so a running leap carries across a lane. */
+  private vel = new THREE.Vector3();
   private vy = 0;
   /** In the air: jumping, or falling off a roof. */
   private air = false;
   private fallFrom = 0;
-  /** A hard landing: a moment on his knees. */
-  private stagger = 0;
-  private climbing: { x0: number; z0: number; y0: number; x1: number; z1: number; y1: number; t: number } | null = null;
+  /** Seconds since his feet left the ground (a jump still counts just after running off an edge). */
+  private sinceGround = 0;
+  /** Seconds since Space was pressed (a press just before landing still jumps). */
+  private sinceJump = 9;
+  /** A crouch after a long drop. */
+  private landT = 0;
+  /** A scripted movement: pulling up over an edge, or a roll. */
+  private move: { kind: 'mantle' | 'roll'; t: number; dur: number; x0: number; y0: number; z0: number; x1: number; y1: number; z1: number } | null = null;
+  /** Clinging to a face: which box (or the rock), the way out from it, and the way along it. */
+  private wallHold: { box: Box | null; nx: number; nz: number; top: number } | null = null;
+  /** How long he can still hang on a wall, 0..1 (seven seconds of climbing). */
+  private stamina = 1;
+  /** A moment after letting go of a wall before he can catch it again. */
+  private regrab = 0;
   private sitting = false;
   private swimming = false;
   private running = false;
+  private throwT = Infinity;
+  private climbedNow = 0;
   /** The camera's height, following his a little behind so a jump does not jolt the view. */
   private camY = 0;
 
@@ -1210,75 +1246,216 @@ export class TownStage implements Stage {
 
   private sit(): void {
     this.sitting = true;
-    this.player.scale.y = 0.72;
     this.host.setControls('X — get up · the day goes by while he waits');
   }
 
   private stand(): void {
     this.sitting = false;
-    this.player.scale.y = 1;
     this.host.clock.speed = 1;
     this.host.setControls(this.carry?.held ? 'WASD — walk · E — put it down · F — throw' : null);
   }
 
-  /** A ledge in front of him he can pull himself up onto: where he would stand up there. */
-  private ledgeAhead(): { x: number; z: number; y: number } | null {
+  /**
+   * What is in front of him within reach, at his height: a box face (or a rock face of the ground)
+   * rising above a step, with how high it goes and the way out from it.
+   */
+  private faceAhead(dirX: number, dirZ: number, reach = 0.55): { box: Box | null; top: number; nx: number; nz: number } | null {
     const p = this.player.position;
-    const fx = Math.sin(this.facing);
-    const fz = Math.cos(this.facing);
-    for (const reach of [0.5, 0.75, 1]) {
-      const x = p.x + fx * (PLAYER_RADIUS + reach);
-      const z = p.z + fz * (PLAYER_RADIUS + reach);
-      const top = this.floorAt(x, z, p.y + CLIMB);
-      if (top - p.y <= STEP || top - p.y > CLIMB) continue;
-      const lx = x + fx * 0.3;
-      const lz = z + fz * 0.3;
-      const y = this.floorAt(lx, lz, top);
-      if (Math.abs(y - top) > STEP || this.blocked(lx, lz, y) || !outsideRoad(lx, lz)) continue;
-      return { x: lx, z: lz, y };
+    const x = p.x + dirX * (PLAYER_RADIUS + reach);
+    const z = p.z + dirZ * (PLAYER_RADIUS + reach);
+    let best: { box: Box | null; top: number; nx: number; nz: number } | null = null;
+    for (const b of this.boxes) {
+      if (x < b.minX || x > b.maxX || z < b.minZ || z > b.maxZ) continue;
+      if (b.bottom !== undefined && p.y + 1.9 < b.bottom) continue;
+      const top = topOf(b, x, z);
+      if (top <= p.y + STEP) continue;
+      // The side of the box he is on: the way out from its face.
+      const out = [
+        { nx: -1, nz: 0, d: b.minX - p.x },
+        { nx: 1, nz: 0, d: p.x - b.maxX },
+        { nx: 0, nz: -1, d: b.minZ - p.z },
+        { nx: 0, nz: 1, d: p.z - b.maxZ },
+      ].sort((a, c) => c.d - a.d)[0]!;
+      if (!best || top < best.top) best = { box: b, top, nx: out.nx, nz: out.nz };
+    }
+    if (best) return best;
+    const g = groundAt(x, z);
+    if (g > p.y + STEP) return { box: null, top: g, nx: -dirX, nz: -dirZ };
+    return null;
+  }
+
+  /** Where he would stand after pulling himself up over the edge in front (null: no room up there). */
+  private overEdge(nx: number, nz: number, top: number, inward = 0.55): { x: number; y: number; z: number } | null {
+    const p = this.player.position;
+    for (const d of [inward, inward + 0.4, inward + 0.9]) {
+      const x = p.x - nx * (PLAYER_RADIUS + d);
+      const z = p.z - nz * (PLAYER_RADIUS + d);
+      const y = this.floorAt(x, z, top + 0.9);
+      if (y < top - STEP || this.blocked(x, z, y) || !outsideRoad(x, z)) continue;
+      return { x, y, z };
     }
     return null;
+  }
+
+  private mantle(to: { x: number; y: number; z: number }, dur = 0.45): void {
+    const p = this.player.position;
+    this.move = { kind: 'mantle', t: 0, dur, x0: p.x, y0: p.y, z0: p.z, x1: to.x, y1: to.y, z1: to.z };
+    this.wallHold = null;
+    this.air = false;
+    this.vy = 0;
+    this.vel.set(0, 0, 0);
+  }
+
+  /** Catch hold of a wall face and start climbing. */
+  private grab(f: { box: Box | null; top: number; nx: number; nz: number }): void {
+    if (f.box?.noClimb || this.stamina <= 0.05) return;
+    this.wallHold = { box: f.box, nx: f.nx, nz: f.nz, top: f.top };
+    this.air = false;
+    this.vy = 0;
+    this.vel.set(0, 0, 0);
+    this.facing = Math.atan2(-f.nx, -f.nz);
+    this.player.rotation.y = this.facing;
+    this.host.setControls('W S — up, down · A D — along · Space — leap up · S + Space — let go');
+  }
+
+  private letGo(kick: boolean): void {
+    const h = this.wallHold;
+    if (!h) return;
+    this.wallHold = null;
+    this.regrab = 0.35;
+    this.air = true;
+    this.fallFrom = this.player.position.y;
+    this.vy = kick ? 4.5 : 0;
+    if (kick) this.vel.set(h.nx * 4, 0, h.nz * 4);
+    this.host.setControls(this.carry?.held ? 'WASD — walk · E — put it down · F — throw' : null);
   }
 
   private movePlayer(dt: number): void {
     const { input, clock } = this.host;
     this.time += dt;
+    this.throwT += dt;
+    this.regrab -= dt;
     const p = this.player.position;
     this.camY += (p.y - this.camY) * Math.min(1, dt * 7);
-    // Pulling himself up: first up the face of the wall, then over the edge.
-    if (this.climbing) {
-      const c = this.climbing;
-      c.t = Math.min(1, c.t + dt / 0.55);
-      const up = Math.min(1, c.t / 0.65);
-      const over = Math.max(0, (c.t - 0.65) / 0.35);
-      p.set(c.x0 + (c.x1 - c.x0) * over, c.y0 + (c.y1 - c.y0) * up * up * (3 - 2 * up), c.z0 + (c.z1 - c.z0) * over);
-      if (c.t >= 1) this.climbing = null;
+    this.climbedNow = 0;
+    if (input.wasPressed('Space')) this.sinceJump = 0;
+    else this.sinceJump += dt;
+
+    // Pulling up over an edge, or rolling out of a fall: the body goes where the move takes it.
+    if (this.move) {
+      const m = this.move;
+      m.t = Math.min(1, m.t + dt / m.dur);
+      if (m.kind === 'mantle') {
+        const up = Math.min(1, m.t / 0.6);
+        const over = Math.max(0, (m.t - 0.6) / 0.4);
+        p.set(m.x0 + (m.x1 - m.x0) * over, m.y0 + (m.y1 - m.y0) * up * up * (3 - 2 * up), m.z0 + (m.z1 - m.z0) * over);
+      } else {
+        const nx = m.x0 + (m.x1 - m.x0) * m.t;
+        const nz = m.z0 + (m.z1 - m.z0) * m.t;
+        if (this.free(p.x, p.z, nx, p.z)) p.x = nx;
+        if (this.free(p.x, p.z, p.x, nz)) p.z = nz;
+        p.y = this.floorAt(p.x, p.z, p.y);
+      }
+      if (m.t >= 1) {
+        this.move = null;
+        this.sinceGround = 0;
+      }
       return;
     }
+
     let dx = 0;
     let dz = 0;
     if (input.isDown('KeyW') || input.isDown('ArrowUp')) dz -= 1;
     if (input.isDown('KeyS') || input.isDown('ArrowDown')) dz += 1;
     if (input.isDown('KeyA') || input.isDown('ArrowLeft')) dx -= 1;
     if (input.isDown('KeyD') || input.isDown('ArrowRight')) dx += 1;
-    // Sitting, the day goes by fast; any step, or the last hour, gets him up.
+    const dir = `${dx},${dz}`;
+    if (dir !== this.heldDir) {
+      this.heldDir = dir;
+      this.controlYaw = this.viewYaw();
+    }
+    // Keys move him as the view sees it: on the beach, with the view turned to the sea, W walks to the water.
+    const c = Math.cos(this.controlYaw);
+    const sn = Math.sin(this.controlYaw);
+    let wx = dx * c + dz * sn;
+    let wz = -dx * sn + dz * c;
+    const len = Math.hypot(wx, wz);
+    if (len) {
+      wx /= len;
+      wz /= len;
+    }
     const lastHour = clock.minute >= clock.endMinute - 60;
+
+    // Sitting, the day goes by fast; any step, or the last hour, gets him up.
     if (this.sitting) {
       if (dx || dz || input.wasPressed('KeyX') || input.wasPressed('Space') || lastHour) this.stand();
       else {
         clock.speed = input.enabled ? SIT_SPEED : 1;
-        bob(this.player, this.time, 0);
         return;
       }
-    } else if (input.wasPressed('KeyX') && !this.air && !this.swimming && !dx && !dz && !lastHour) {
+    } else if (input.wasPressed('KeyX') && !this.air && !this.swimming && !this.wallHold && !dx && !dz && !lastHour) {
       this.sit();
+      return;
+    }
+
+    // ─ On a wall: hand over hand, up, down and along, while the strength lasts.
+    if (this.wallHold) {
+      const h = this.wallHold;
+      const tx = -h.nz;
+      const tz = h.nx;
+      const along = wx * tx + wz * tz;
+      const upDown = dz < 0 ? 1 : dz > 0 ? -1 : 0;
+      const fast = input.isDown('ShiftLeft') || input.isDown('ShiftRight');
+      this.stamina -= dt * (upDown || along ? (fast ? 0.26 : 0.15) : 0.07);
+      if (this.sinceJump === 0) {
+        if (dz > 0 || this.stamina < 0.2) this.letGo(dz > 0);
+        else {
+          // A leap up the face.
+          this.stamina -= 0.2;
+          p.y += 1.3;
+          this.climbedNow = 1.3;
+          this.host.sound('land');
+        }
+      }
+      if (!this.wallHold) return;
+      const ny = p.y + upDown * (fast ? 3.2 : 2.2) * dt;
+      // Along the face, as long as there is still face there.
+      if (along) {
+        const ax = p.x + tx * Math.sign(along) * 1.6 * dt;
+        const az = p.z + tz * Math.sign(along) * 1.6 * dt;
+        const still = this.faceAt(ax, az, h);
+        if (still && !this.blocked(ax, az, p.y)) {
+          p.x = ax;
+          p.z = az;
+          h.top = still;
+        }
+      }
+      this.climbedNow = Math.abs(ny - p.y) + Math.abs(along) * 1.6 * dt;
+      p.y = ny;
+      const ground = this.floorAt(p.x, p.z, p.y);
+      if (p.y <= ground) {
+        p.y = ground;
+        // Climbed back down to his feet: he lets go.
+        if (upDown < 0) {
+          this.wallHold = null;
+          this.host.setControls(null);
+        }
+      } else if (p.y + 1.9 >= h.top) {
+        // Hands over the edge: up and over.
+        const to = this.overEdge(h.nx, h.nz, h.top);
+        if (to) this.mantle(to);
+        else p.y = Math.min(p.y, h.top - 1.9);
+      }
+      if (this.stamina <= 0 && this.wallHold) this.letGo(false);
       return;
     }
 
     const floor = this.floorAt(p.x, p.z, p.y);
     const water = floor < SWIM_Y;
     const surface = water ? SWIM_Y : floor;
+    if (!this.air && !water) this.stamina = Math.min(1, this.stamina + dt * 0.5);
     if (this.air) {
+      this.sinceGround += dt;
       this.vy -= GRAVITY * dt;
       p.y += this.vy * dt;
       if (p.y <= surface) {
@@ -1286,62 +1463,130 @@ export class TownStage implements Stage {
         p.y = surface;
         this.vy = 0;
         this.air = false;
+        this.sinceGround = 0;
         if (water) this.host.sound('splash');
-        else if (drop > 2.4) {
-          this.stagger = 0.4;
+        else if (drop > 2.2 && len) {
+          // Coming down from high while moving: a roll takes the fall.
+          this.move = { kind: 'roll', t: 0, dur: 0.5, x0: p.x, y0: p.y, z0: p.z, x1: p.x + wx * 2.4, y1: p.y, z1: p.z + wz * 2.4 };
           this.host.sound('land');
-        } else if (drop > 0.6) this.host.sound('land');
+          return;
+        } else if (drop > 2.2) {
+          this.landT = 0.35;
+          this.host.sound('land');
+        } else if (drop > 0.6) {
+          this.landT = 0.12;
+          this.host.sound('land');
+        }
+        if (drop > 0.6) this.puffs.burst(p.x, p.y, p.z, 7);
       }
     } else if (surface < p.y - STEP) {
       // Walked off a roof, a wall, the mole: he falls.
       this.air = true;
       this.vy = 0;
       this.fallFrom = p.y;
+      this.sinceGround = 0;
     } else {
       // Up and down steps, the slope of the wet sand, the swell when swimming.
       const target = water ? SWIM_Y + Math.sin(this.time * 2.2) * 0.05 : surface;
       p.y += (target - p.y) * Math.min(1, dt * 10);
       if (water && !this.swimming) this.host.sound('splash');
+      this.sinceGround = 0;
     }
     this.swimming = water && !this.air;
-    this.running = (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) && !this.swimming && p.y > -0.15;
-    if (!this.air && !this.swimming && this.stagger <= 0 && input.wasPressed('Space')) {
-      const ledge = this.carry.held ? null : this.ledgeAhead();
-      if (ledge) this.climbing = { x0: p.x, z0: p.z, y0: p.y, x1: ledge.x, z1: ledge.z, y1: ledge.y, t: 0 };
-      else {
-        this.vy = JUMP;
+    this.running = (input.isDown('ShiftLeft') || input.isDown('ShiftRight')) && !this.swimming && p.y > -0.15 && !this.carry.held;
+    const hermes = this.host.cycle.wornMask === 'Hermes' ? 1.2 : 1;
+    if (this.landT > 0) this.landT -= dt;
+
+    // Space: pull up onto a ledge within reach, catch a wall too high for that, or jump.
+    const canJump = !this.air || this.sinceGround < 0.12;
+    if (this.sinceJump < 0.12 && canJump && this.landT <= 0.2) {
+      const fx = len ? wx : Math.sin(this.facing);
+      const fz = len ? wz : Math.cos(this.facing);
+      const face = this.carry.held ? null : this.faceAhead(fx, fz);
+      if (face && face.top - p.y <= 2.1 && (!this.swimming || face.top - p.y <= 2.4)) {
+        const to = this.overEdge(face.nx, face.nz, face.top);
+        if (to) {
+          this.sinceJump = 9;
+          this.mantle(to);
+          return;
+        }
+      }
+      if (face && !this.swimming && face.box?.top !== undefined && !face.box.noClimb && face.top - p.y > 2.1) {
+        this.sinceJump = 9;
+        this.grab(face);
+        return;
+      }
+      if (!this.swimming) {
+        this.sinceJump = 9;
+        this.vy = this.running ? 7 : JUMP;
         this.air = true;
         this.fallFrom = p.y;
+        this.sinceGround = 1;
       }
-      return;
     }
-    if (this.stagger > 0) {
-      this.stagger -= dt;
-      dx = dz = 0;
+
+    // Speed: walking, running, wading, swimming; quick to change on the ground, little to steer in the air.
+    const pace = this.swimming ? 0.5 : p.y < -0.15 ? 0.55 : this.running ? RUN * hermes : 1;
+    const want = this.landT > 0.15 ? 0 : SPEED * pace;
+    const accel = this.air ? 7 : 45;
+    const tx = wx * want - this.vel.x;
+    const tz = wz * want - this.vel.z;
+    const tl = Math.hypot(tx, tz);
+    const stepV = Math.min(tl, accel * dt);
+    if (tl > 0) this.vel.set(this.vel.x + (tx / tl) * stepV, 0, this.vel.z + (tz / tl) * stepV);
+    const speed = Math.hypot(this.vel.x, this.vel.z);
+    if (speed > 0.05) {
+      const nx = Math.min(BOUNDS.maxX, Math.max(BOUNDS.minX, p.x + this.vel.x * dt));
+      const nz = Math.min(BOUNDS.maxZ, Math.max(BOUNDS.minZ, p.z + this.vel.z * dt));
+      const ox = p.x;
+      const oz = p.z;
+      // Slide along walls and round people: try each axis separately.
+      if (this.free(p.x, p.z, nx, p.z)) p.x = nx;
+      else this.vel.x = 0;
+      if (this.free(p.x, p.z, p.x, nz)) p.z = nz;
+      else this.vel.z = 0;
+      if (len) {
+        // Turn to face the way he goes, quickly but not in one frame.
+        const target = Math.atan2(wx, wz);
+        let d = target - this.facing;
+        d = Math.atan2(Math.sin(d), Math.cos(d));
+        this.facing += d * Math.min(1, dt * 16);
+        this.player.rotation.y = this.facing;
+      }
+      // Stopped by something in front of him while moving into it.
+      if (len && Math.hypot(p.x - ox, p.z - oz) < speed * dt * 0.5) {
+        const face = this.carry.held ? null : this.faceAhead(wx, wz, 0.35);
+        if (face) {
+          const rise = face.top - p.y;
+          // Running into something low: over it without breaking stride.
+          if (this.running && !this.air && rise <= 1.3) {
+            const to = this.overEdge(face.nx, face.nz, face.top, 0.45);
+            if (to) this.mantle(to, 0.28);
+          } else if (this.air && rise <= 2.1) {
+            // A ledge caught in the air.
+            const to = this.overEdge(face.nx, face.nz, face.top);
+            if (to) this.mantle(to);
+          } else if (this.air && this.regrab <= 0 && face.box?.top !== undefined && !face.box.noClimb) this.grab(face);
+        }
+      }
     }
-    bob(this.player, this.time * (this.running ? 1.4 : 1), (dx || dz) && !this.air ? (this.running ? 1.5 : 1) : 0);
-    const dir = `${dx},${dz}`;
-    if (dir !== this.heldDir) {
-      this.heldDir = dir;
-      this.controlYaw = this.viewYaw();
+  }
+
+  /** The top of the climbable face at (x, z) beside the one held, if the face goes on there. */
+  private faceAt(x: number, z: number, h: { box: Box | null; nx: number; nz: number }): number | null {
+    const bx = x - h.nx * (PLAYER_RADIUS + 0.3);
+    const bz = z - h.nz * (PLAYER_RADIUS + 0.3);
+    if (!h.box) {
+      const g = groundAt(bx, bz);
+      return g > this.player.position.y ? g : null;
     }
-    if (!dx && !dz) return;
-    // Keys move him as the view sees it: on the beach, with the view turned to the sea, W walks to the water.
-    const c = Math.cos(this.controlYaw);
-    const sn = Math.sin(this.controlYaw);
-    const wx = dx * c + dz * sn;
-    const wz = -dx * sn + dz * c;
-    const len = Math.hypot(wx, wz);
-    // Wading and swimming are slow; running is quick.
-    const pace = this.swimming ? 0.5 : p.y < -0.15 ? 0.55 : this.running ? RUN : 1;
-    const step = (SPEED * dt * pace) / len;
-    const nx = Math.min(BOUNDS.maxX, Math.max(BOUNDS.minX, p.x + wx * step));
-    const nz = Math.min(BOUNDS.maxZ, Math.max(BOUNDS.minZ, p.z + wz * step));
-    // Slide along walls and round people: try each axis separately.
-    if (this.free(p.x, p.z, nx, p.z)) p.x = nx;
-    if (this.free(p.x, p.z, p.x, nz)) p.z = nz;
-    this.facing = Math.atan2(wx, wz);
-    this.player.rotation.y = this.facing;
+    let top: number | null = null;
+    for (const b of this.boxes) {
+      if (b.top === undefined || b.noClimb || bx < b.minX || bx > b.maxX || bz < b.minZ || bz > b.maxZ) continue;
+      const t = topOf(b, bx, bz);
+      if (t > this.player.position.y && (top === null || t > top)) top = t;
+    }
+    return top;
   }
 
   /** Can he step from (x0, z0) to (x, z) at his height? Not into walls or a ledge higher than a step, and not into anyone (stepping away is always fine). */
@@ -1369,15 +1614,31 @@ export class TownStage implements Stage {
     return true;
   }
 
+  /** The body's pose for the frame, from what he is doing. */
+  private animate(dt: number): void {
+    const speed = Math.hypot(this.vel.x, this.vel.z);
+    const p = this.player.position;
+    const pose: Pose = this.move ? this.move.kind : this.wallHold ? 'climb' : this.sitting ? 'sit' : this.swimming ? 'swim' : this.air ? 'air'
+      : this.landT > 0 ? 'land' : speed > 6.2 ? 'run' : speed > 0.3 ? (p.y < -0.15 ? 'wade' : 'walk') : 'idle';
+    this.body.update({
+      pose, speed, vy: this.vy, climbed: this.climbedNow, progress: this.move?.t ?? 0,
+      carrying: !!this.carry.held, throwing: this.throwT, dt, time: this.time,
+    });
+    if (this.body.footfall && pose === 'run') this.puffs.burst(p.x - Math.sin(this.facing) * 0.3, p.y, p.z - Math.cos(this.facing) * 0.3, 2);
+    this.puffs.update(dt);
+    this.stamRing.update(this.stamina, !!this.wallHold || this.stamina < 0.99, p, this.camera);
+  }
+
   /** Where everyone stood last frame, residents and crowd, for the scribe to walk around. */
   private people: { x: number; z: number }[] = [];
 
   /** For walkers stepping round the scribe: a wall they must not step into. */
-  private wall = (x: number, z: number): boolean => this.boxes.some((b) => x > b.minX - 0.2 && x < b.maxX + 0.2 && z > b.minZ - 0.2 && z < b.maxZ + 0.2);
+  private wall = (x: number, z: number): boolean => this.boxes.some((b) => b.bottom === undefined && x > b.minX - 0.2 && x < b.maxX + 0.2 && z > b.minZ - 0.2 && z < b.maxZ + 0.2);
 
   /** A box in the way at (x, z) for someone whose feet are at y: one he cannot step up onto. Without y, any box. */
   private blocked(x: number, z: number, y = -Infinity, r = PLAYER_RADIUS): boolean {
-    return this.boxes.some((b) => x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ && topOf(b, x, z) > y + STEP);
+    // A roof on columns or a pergola overhead is walked under.
+    return this.boxes.some((b) => x + r > b.minX && x - r < b.maxX && z + r > b.minZ && z - r < b.maxZ && topOf(b, x, z) > y + STEP && !(b.bottom !== undefined && y + 1.9 < b.bottom));
   }
 
   /** Where he is, for walkers to step round: nowhere, while he is up on a roof or out in the sea. */
@@ -1473,7 +1734,7 @@ export class TownStage implements Stage {
     // The watch.
     const lastHour = clock.minute >= clock.endMinute - 60;
     const on = clock.minute >= at(6, 30) && !clock.isOver;
-    const reachable = this.feet() === p && !this.climbing;
+    const reachable = this.feet() === p && !this.move && !this.wallHold;
     const event = this.watch.update(dt, this.time, on, lastHour, { x: p.x, z: p.z }, reachable, this.heat >= 2 && !lastHour, this.wall);
     if (event === 'spotted') {
       this.bark(BARKS.watch, this.watch.nearest(p.x, p.z));

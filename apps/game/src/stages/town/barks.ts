@@ -65,3 +65,31 @@ export class Barks {
     this.root.remove();
   }
 }
+
+/**
+ * How long he can still hang on: a small ring beside him while he climbs, emptying, and filling
+ * again on the ground (a panel-coloured chip, so it reads on any part of the city).
+ */
+export class StaminaRing {
+  private el: HTMLElement;
+
+  constructor(overlay: HTMLElement) {
+    this.el = document.createElement('div');
+    this.el.className = 'stamina';
+    this.el.setAttribute('aria-hidden', 'true');
+    overlay.append(this.el);
+  }
+
+  update(amount: number, shown: boolean, at: THREE.Vector3, camera: THREE.Camera): void {
+    this.el.style.opacity = shown ? '1' : '0';
+    if (!shown) return;
+    V.set(at.x, at.y + 1.2, at.z).project(camera);
+    this.el.style.transform = `translate(${((V.x + 1) / 2) * window.innerWidth + 38}px, ${((1 - V.y) / 2) * window.innerHeight}px) translate(-50%, -50%)`;
+    this.el.style.setProperty('--left', `${Math.max(0, amount) * 360}deg`);
+    this.el.classList.toggle('low', amount < 0.25);
+  }
+
+  dispose(): void {
+    this.el.remove();
+  }
+}

@@ -771,3 +771,13 @@ html.reduced-motion .hud-coach { animation: none; }
 
 /* Pilgrim: nothing points the way. */
 .pilgrim .hud-goal, .pilgrim .cmap-next, .pilgrim .cmap-next-note, .pilgrim .hint-button, .pilgrim .thread-next { display: none !important; }
+
+/* The climbing strength: a ring that empties on a wall and fills again on the ground. */
+.stamina {
+  position: absolute; left: 0; top: 0; width: 26px; height: 26px; border-radius: 50%; pointer-events: none; transition: opacity 0.3s;
+  background: conic-gradient(var(--bone) var(--left, 360deg), transparent 0) border-box;
+  -webkit-mask: radial-gradient(circle, transparent 7px, #000 8px); mask: radial-gradient(circle, transparent 7px, #000 8px);
+  box-shadow: 0 0 0 3px var(--panel);
+}
+.stamina.low { background: conic-gradient(var(--ember) var(--left, 360deg), transparent 0) border-box; }
+#overlay.talking .stamina { opacity: 0 !important; }
